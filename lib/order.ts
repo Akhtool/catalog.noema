@@ -14,6 +14,7 @@ export function generateOrderMessage(order: Order): string {
 
   // Заголовок
   lines.push('🛒 *Новый заказ*');
+  lines.push(`*Номер заказа:* ${order.orderNumber}`);
   lines.push('');
 
   // Список товаров

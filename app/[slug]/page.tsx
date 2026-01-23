@@ -5,8 +5,9 @@ import Image from 'next/image'
 import { ContactButton } from '@/components/contact-button'
 import { Catalog } from '@/components/catalog/catalog'
 import { BusinessProvider } from '@/components/business-provider'
+import { CartBottomBar } from '@/components/cart/cart-bottom-bar'
 import { Business, Category, Product } from '@/types'
-import { Phone, Clock } from 'lucide-react'
+import { Clock } from 'lucide-react'
 
 interface PageProps {
   params: Promise<{
@@ -51,6 +52,8 @@ export default async function Page({ params }: PageProps) {
     whatsapp: business.whatsapp || null,
     telegram: business.telegram || null,
     workingHours: business.working_hours || null,
+    deliveryRegions: business.delivery_regions || null,
+    cityDelivery: business.city_delivery || null,
     createdAt: business.created_at,
     updatedAt: business.updated_at,
   }
@@ -98,10 +101,14 @@ export default async function Page({ params }: PageProps) {
 
   return (
     <BusinessProvider business={businessTyped}>
-      <div className="min-h-screen bg-background">
-        {/* Обложка */}
+      <div className="min-h-screen bg-background-light pb-24">
+        {/* Баннер с обложкой */}
         {businessTyped.coverUrl && (
-          <div className="relative w-full h-48 sm:h-64 md:h-80 overflow-hidden">
+          <div className="relative w-full h-[320px] rounded-b-[2.5rem] overflow-hidden shadow-xl z-10">
+            {/* Градиенты поверх изображения */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80 z-10"></div>
+            <div className="absolute inset-0 bg-brand-yellow/10 mix-blend-overlay z-10"></div>
+            
             <Image
               src={businessTyped.coverUrl}
               alt={`Обложка ${businessTyped.name}`}
@@ -109,60 +116,96 @@ export default async function Page({ params }: PageProps) {
               className="object-cover"
               priority
             />
+
+            {/* Информация о бизнесе внизу баннера */}
+            <div className="absolute bottom-0 left-0 right-0 p-8 z-20">
+              <div className="flex items-end gap-4">
+                {/* Логотип - круглый, перекрывающий баннер */}
+                {businessTyped.logoUrl && (
+                  <div className="flex-shrink-0">
+                    <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-brand-yellow bg-white shadow-lg">
+                      <Image
+                        src={businessTyped.logoUrl}
+                        alt={`Логотип ${businessTyped.name}`}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tighter leading-none mb-2 drop-shadow-lg">
+                    {businessTyped.name}
+                  </h1>
+                  {businessTyped.description && (
+                    <div className="relative">
+                      {/* Подложка для лучшей читабельности */}
+                      <div className="absolute inset-0 bg-black/40 rounded-lg blur-sm -z-10"></div>
+                      <p className="text-white text-sm mt-2 font-medium max-w-[280px] drop-shadow-md leading-relaxed">
+                        {businessTyped.description}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
-        <div className="container mx-auto px-4 py-6 sm:py-8">
-          {/* Логотип и основная информация */}
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-6">
-            {businessTyped.logoUrl && (
-              <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-lg overflow-hidden border border-border">
-                <Image
-                  src={businessTyped.logoUrl}
-                  alt={`Логотип ${businessTyped.name}`}
-                  fill
-                  className="object-cover"
-                />
+        {/* Информационная строка с иконками */}
+        <div className="px-5 -mt-6 relative z-20 mb-6">
+          <div className="bg-white rounded-2xl shadow-card p-4 space-y-3">
+            {/* Доставка по регионам */}
+            {businessTyped.deliveryRegions && (
+              <div className="flex items-center gap-3 text-sm">
+                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <span className="text-gray-700 font-medium">{businessTyped.deliveryRegions}</span>
               </div>
             )}
             
-            <div className="flex-1">
-              <h1 className="text-2xl sm:text-3xl font-bold mb-2">{businessTyped.name}</h1>
-              {businessTyped.description && (
-                <p className="text-muted-foreground text-sm sm:text-base mb-4">
-                  {businessTyped.description}
-                </p>
-              )}
-            </div>
-          </div>
+            {/* Доставка по городу */}
+            {businessTyped.cityDelivery && (
+              <div className="flex items-center gap-3 text-sm">
+                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                </div>
+                <span className="text-gray-700 font-medium">{businessTyped.cityDelivery}</span>
+              </div>
+            )}
 
-          {/* Контакты */}
-          <div className="space-y-3 mb-6">
-            {businessTyped.phone && (
-              <div className="flex items-center gap-2 text-sm">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                <a href={`tel:${businessTyped.phone}`} className="text-foreground hover:underline">
-                  {businessTyped.phone}
-                </a>
-              </div>
-            )}
-            
+            {/* Режим работы */}
             {businessTyped.workingHours && (
-              <div className="flex items-center gap-2 text-sm">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">{businessTyped.workingHours}</span>
+              <div className="flex items-center gap-3 text-sm">
+                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                  <Clock className="w-4 h-4 text-gray-600" />
+                </div>
+                <div className="flex-1">
+                  <span className="text-gray-700 font-medium">{businessTyped.workingHours}</span>
+                </div>
               </div>
             )}
-          </div>
-
-          {/* Кнопка "Связаться" */}
-          <ContactButton business={businessTyped} />
-
-          {/* Каталог */}
-          <div className="mt-12">
-            <Catalog categories={categoriesTyped} products={productsTyped} />
           </div>
         </div>
+
+        {/* Кнопка "Связаться с нами" */}
+        <div className="px-5 mb-6">
+          <ContactButton business={businessTyped} variant="wide" />
+        </div>
+
+        {/* Каталог */}
+        <div className="px-5">
+          <Catalog categories={categoriesTyped} products={productsTyped} />
+        </div>
+
+        {/* Фиксированная нижняя панель с корзиной */}
+        <CartBottomBar />
       </div>
     </BusinessProvider>
   )
