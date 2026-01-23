@@ -33,7 +33,7 @@ interface CatalogFiltersStore {
   hasActiveFilters: () => boolean
 }
 
-export const useCatalogFiltersStore = create<CatalogFiltersStore>((set) => ({
+export const useCatalogFiltersStore = create<CatalogFiltersStore>((set, get) => ({
   // Initial state
   searchQuery: '',
   selectedCategoryId: null,
@@ -74,7 +74,7 @@ export const useCatalogFiltersStore = create<CatalogFiltersStore>((set) => ({
       catalogMode: 'catalog',
     }),
   hasActiveFilters: () => {
-    const state = useCatalogFiltersStore.getState()
+    const state = get()
     return (
       state.searchQuery.trim() !== '' ||
       state.selectedCategoryId !== null ||

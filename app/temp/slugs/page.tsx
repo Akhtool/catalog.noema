@@ -161,8 +161,9 @@ export default function SlugsPage() {
         city_delivery: '',
       })
       loadAllData()
-    } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || 'Не удалось добавить бизнес' })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Не удалось добавить бизнес'
+      setMessage({ type: 'error', text: errorMessage })
     } finally {
       setSubmitting(false)
     }
@@ -186,8 +187,9 @@ export default function SlugsPage() {
       setMessage({ type: 'success', text: 'Категория успешно добавлена!' })
       setCategoryForm({ business_id: '', name: '', order: '0', is_active: true })
       loadAllData()
-    } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || 'Не удалось добавить категорию' })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Не удалось добавить категорию'
+      setMessage({ type: 'error', text: errorMessage })
     } finally {
       setSubmitting(false)
     }
@@ -231,8 +233,9 @@ export default function SlugsPage() {
         is_active: true,
       })
       loadAllData()
-    } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || 'Не удалось добавить продукт' })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Не удалось добавить продукт'
+      setMessage({ type: 'error', text: errorMessage })
     } finally {
       setSubmitting(false)
     }

@@ -41,7 +41,7 @@ export function ProductDetailCard({
   open,
   onOpenChange,
 }: ProductDetailCardProps) {
-  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [currentImageIndex] = useState(0)
   const addItem = useCartStore((state) => state.addItem)
   const increaseQuantity = useCartStore((state) => state.increaseQuantity)
   const decreaseQuantity = useCartStore((state) => state.decreaseQuantity)
@@ -80,7 +80,7 @@ export function ProductDetailCard({
           text: product.description || "",
           url: window.location.href,
         })
-      } catch (err) {
+      } catch {
         // Пользователь отменил или произошла ошибка
       }
     } else {

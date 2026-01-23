@@ -4,9 +4,7 @@ import { useState } from "react"
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet"
 import { X } from "lucide-react"
 import { useCatalogFiltersStore } from "@/store/catalog-filters"

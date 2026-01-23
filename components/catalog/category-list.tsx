@@ -56,14 +56,8 @@ export function CategoryList({ categories }: CategoryListProps) {
             if (el) categoryRefs.current.set(category.id, el)
           }}
           onClick={() => {
-            if (catalogMode === "categories") {
-              // В режиме категорий - переходим на страницу категории
-              window.location.href = `#category-${category.id}`
-              setSelectedCategoryId(category.id)
-            } else {
-              // В режиме каталога - скроллим к категории
-              setSelectedCategoryId(category.id)
-            }
+            // В режиме каталога - скроллим к категории
+            setSelectedCategoryId(category.id)
           }}
           className={`whitespace-nowrap px-6 py-3 text-sm font-semibold rounded-full transition-all ${
             selectedCategoryId === category.id
