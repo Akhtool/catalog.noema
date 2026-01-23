@@ -25,6 +25,9 @@ export interface Business {
 
   workingHours: string | null;
 
+  deliveryRegions: string | null; // регионы доставки (например, "Россия / СНГ / Европа")
+  cityDelivery: string | null; // информация о доставке по городу (например, "По городу бесплатно")
+
   createdAt: string; // timestamp (ISO string)
   updatedAt: string; // timestamp (ISO string)
 }
@@ -92,6 +95,7 @@ export interface Cart {
  */
 export interface Order {
   businessId: string; // UUID
+  orderNumber: string; // номер заказа
 
   items: CartItem[];
   totalPrice: number;

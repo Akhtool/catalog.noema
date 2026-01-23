@@ -2,16 +2,15 @@
 
 import { useState } from "react"
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  Sheet,
+  SheetContent,
+  SheetClose,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { Product } from "@/types"
 import { useCartStore } from "@/store/cart"
-import { ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react"
+import { X, Share2, ShoppingCart, Minus, Plus } from "lucide-react"
 
 interface ProductDetailCardProps {
   product: Product
@@ -19,162 +18,226 @@ interface ProductDetailCardProps {
   onOpenChange: (open: boolean) => void
 }
 
+// Извлекаем вес/объем и порции из description
+function extractWeightAndPortions(description: string | null): {
+  weight: string | null
+  portions: string | null
+} {
+  if (!description) return { weight: null, portions: null }
+
+  // Ищем паттерны типа "900g", "900 г", "1 кг" и т.д.
+  const weightMatch = description.match(/(\d+[\s]*(г|кг|g|kg|ml|л|мл))/i)
+  const weight = weightMatch ? weightMatch[1] : null
+
+  // Ищем паттерны типа "30 порций", "30 порций" и т.д.
+  const portionsMatch = description.match(/(\d+[\s]*порций?)/i)
+  const portions = portionsMatch ? portionsMatch[1] : null
+
+  return { weight, portions }
+}
+
 export function ProductDetailCard({
   product,
   open,
   onOpenChange,
 }: ProductDetailCardProps) {
-  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [currentImageIndex] = useState(0)
   const addItem = useCartStore((state) => state.addItem)
+  const increaseQuantity = useCartStore((state) => state.increaseQuantity)
+  const decreaseQuantity = useCartStore((state) => state.decreaseQuantity)
+  const cartItems = useCartStore((state) => state.items)
+
+  const cartItem = cartItems.find((item) => item.productId === product.id)
+  const quantity = cartItem?.quantity || 0
 
   const handleAddToCart = () => {
-    addItem(product)
+    if (quantity === 0) {
+      addItem(product)
+    } else {
+      increaseQuantity(product.id)
+    }
+  }
+
+  const handleIncrease = () => {
+    if (quantity === 0) {
+      addItem(product)
+    } else {
+      increaseQuantity(product.id)
+    }
+  }
+
+  const handleDecrease = () => {
+    if (quantity > 0) {
+      decreaseQuantity(product.id)
+    }
+  }
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: product.name,
+          text: product.description || "",
+          url: window.location.href,
+        })
+      } catch {
+        // Пользователь отменил или произошла ошибка
+      }
+    } else {
+      // Fallback: копируем в буфер обмена
+      await navigator.clipboard.writeText(window.location.href)
+    }
   }
 
   const images = product.images && product.images.length > 0 ? product.images : []
-  const hasMultipleImages = images.length > 1
-
-  const goToPreviousImage = () => {
-    setCurrentImageIndex((prev) =>
-      prev === 0 ? images.length - 1 : prev - 1
-    )
-  }
-
-  const goToNextImage = () => {
-    setCurrentImageIndex((prev) =>
-      prev === images.length - 1 ? 0 : prev + 1
-    )
-  }
+  const { weight, portions } = extractWeightAndPortions(product.description)
+  const weightAndPortions = weight && portions ? `${weight} / ${portions}` : weight || portions || null
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">{product.name}</DialogTitle>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        className="h-[90vh] max-h-[90vh] rounded-t-[2rem] p-0 flex flex-col overflow-hidden border-0"
+        showCloseButton={false}
+      >
+        {/* Скрытый заголовок для доступности */}
+        <SheetTitle className="sr-only">{product.name}</SheetTitle>
+        
+        {/* Кнопки управления */}
+        <div className="relative flex items-center justify-center px-5 pt-3 pb-2 z-20">
+          {/* Кнопки справа */}
+          <div className="absolute right-5 top-3 flex items-center gap-2 z-30">
+            <button
+              onClick={handleShare}
+              className="w-10 h-10 flex items-center justify-center bg-white rounded-full border border-gray-200 hover:bg-gray-50 transition-colors"
+              aria-label="Поделиться"
+            >
+              <Share2 className="h-5 w-5 text-gray-700" />
+            </button>
+            <SheetClose asChild>
+              <button
+                className="w-10 h-10 flex items-center justify-center bg-white rounded-full border border-gray-200 hover:bg-gray-50 transition-colors"
+                aria-label="Закрыть"
+              >
+                <X className="h-5 w-5 text-gray-700" />
+              </button>
+            </SheetClose>
+          </div>
+        </div>
 
-        <div className="space-y-6">
-          {/* Галерея изображений */}
+        {/* Контент с прокруткой */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Секция изображения продукта */}
           {images.length > 0 ? (
-            <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-muted">
+            <div className="relative w-full h-[500px] bg-orange-500 rounded-b-[2rem] overflow-hidden">
               <Image
                 src={images[currentImageIndex]}
                 alt={`${product.name} - изображение ${currentImageIndex + 1}`}
                 fill
                 className="object-cover"
                 priority
+                sizes="100vw"
               />
 
-              {/* Навигация по изображениям */}
-              {hasMultipleImages && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background"
-                    onClick={goToPreviousImage}
-                    aria-label="Предыдущее изображение"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background"
-                    onClick={goToNextImage}
-                    aria-label="Следующее изображение"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-
-                  {/* Индикатор текущего изображения */}
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                    {images.map((_, index) => (
-                      <button
-                        key={index}
-                        className={`h-2 rounded-full transition-all ${
-                          index === currentImageIndex
-                            ? "w-8 bg-primary"
-                            : "w-2 bg-background/60"
-                        }`}
-                        onClick={() => setCurrentImageIndex(index)}
-                        aria-label={`Перейти к изображению ${index + 1}`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* Миниатюры (если больше одного изображения) */}
-              {hasMultipleImages && images.length > 1 && (
-                <div className="absolute bottom-0 left-0 right-0 p-2 bg-background/80 backdrop-blur-sm">
-                  <div className="flex gap-2 overflow-x-auto">
-                    {images.map((image, index) => (
-                      <button
-                        key={index}
-                        className={`relative w-16 h-16 flex-shrink-0 rounded-md overflow-hidden border-2 transition-all ${
-                          index === currentImageIndex
-                            ? "border-primary"
-                            : "border-transparent opacity-60 hover:opacity-100"
-                        }`}
-                        onClick={() => setCurrentImageIndex(index)}
-                      >
-                        <Image
-                          src={image}
-                          alt={`Миниатюра ${index + 1}`}
-                          fill
-                          className="object-cover"
-                        />
-                      </button>
-                    ))}
-                  </div>
+              {/* Индикаторы карусели */}
+              {images.length > 1 && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                  {images.map((_, index) => (
+                    <div
+                      key={index}
+                      className={`h-2 rounded-full transition-all ${
+                        index === currentImageIndex
+                          ? "w-2 bg-brand-yellow"
+                          : "w-2 bg-white/40"
+                      }`}
+                    />
+                  ))}
                 </div>
               )}
             </div>
           ) : (
-            <div className="w-full aspect-square rounded-lg bg-muted flex items-center justify-center">
-              <span className="text-muted-foreground">Нет изображения</span>
+            <div className="relative w-full h-[500px] bg-orange-500 rounded-b-[2rem] flex items-center justify-center">
+              <span className="text-white/60">Нет изображения</span>
             </div>
           )}
 
-          {/* Описание */}
-          {product.description && (
-            <div>
-              <h3 className="font-semibold mb-2">Описание</h3>
-              <p className="text-muted-foreground whitespace-pre-line">
-                {product.description}
+          {/* Детали продукта */}
+          <div className="px-5 pt-4 pb-6 space-y-4">
+            {/* Метка BEST SELLER и рейтинг (пока скрыто, так как нет в модели) */}
+            {/* <div className="flex items-center gap-3">
+              <span className="bg-brand-yellow text-black text-xs font-bold px-2 py-1 rounded">
+                BEST SELLER
+              </span>
+              <div className="flex items-center gap-1">
+                <Star className="h-4 w-4 fill-brand-yellow text-brand-yellow" />
+                <span className="text-sm font-semibold text-gray-700">4.9</span>
+              </div>
+            </div> */}
+
+            {/* Название продукта */}
+            <h2 className="text-2xl font-black text-gray-900 leading-tight">
+              {product.name}
+            </h2>
+
+            {/* Объем/порции */}
+            {weightAndPortions && (
+              <p className="text-sm text-gray-500 font-medium">
+                {weightAndPortions}
               </p>
-            </div>
-          )}
+            )}
 
-          {/* Бренд */}
-          {product.brand && (
-            <div>
-              <h3 className="font-semibold mb-2">Бренд</h3>
-              <p className="text-muted-foreground">{product.brand}</p>
-            </div>
-          )}
-
-          {/* Цена и кнопка */}
-          <div className="flex items-center justify-between pt-4 border-t">
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Цена</p>
-              <p className="text-3xl font-bold">
-                {product.price.toLocaleString("ru-RU")} ₽
-              </p>
-            </div>
-            <Button
-              size="lg"
-              onClick={handleAddToCart}
-              disabled={!product.inStock}
-              className="flex-shrink-0"
-            >
-              <ShoppingCart className="h-5 w-5 mr-2" />
-              {product.inStock ? "Добавить в корзину" : "Нет в наличии"}
-            </Button>
+            {/* Секция ОПИСАНИЕ */}
+            {product.description && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                  ОПИСАНИЕ
+                </h3>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  {product.description}
+                </p>
+              </div>
+            )}
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+
+        {/* Панель действий (фиксированная внизу) */}
+        <div className="px-5 pb-5 pt-4 border-t bg-white">
+          <div className="flex items-center gap-3">
+            {/* Селектор количества */}
+            <div className="flex items-center gap-3 bg-white border-2 border-brand-yellow rounded-xl px-3 py-2">
+              <button
+                onClick={handleDecrease}
+                disabled={quantity === 0}
+                className="w-6 h-6 flex items-center justify-center text-gray-700 hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                aria-label="Уменьшить количество"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <span className="text-base font-semibold text-gray-900 min-w-[20px] text-center">
+                {quantity || 1}
+              </span>
+              <button
+                onClick={handleIncrease}
+                disabled={!product.inStock}
+                className="w-6 h-6 flex items-center justify-center text-gray-700 hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                aria-label="Увеличить количество"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Кнопка "В корзину" */}
+            <button
+              onClick={handleAddToCart}
+              disabled={!product.inStock}
+              className="flex-1 bg-brand-yellow text-black font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 hover:bg-yellow-400 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              <span>{quantity > 0 ? "В корзине" : "В корзину"}</span>
+            </button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
   )
 }

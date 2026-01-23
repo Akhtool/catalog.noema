@@ -52,11 +52,20 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        "brand-yellow": "#ffd600",
+        "background-light": "#F9FAFB",
+        "card-white": "#FFFFFF",
+        "dark-nav": "#1A1A1A",
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        'soft': '0 10px 40px -10px rgba(0,0,0,0.05)',
+        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
+        'yellow-glow': '0 4px 20px -2px rgba(255, 214, 0, 0.4)',
       },
       keyframes: {
         "accordion-down": {

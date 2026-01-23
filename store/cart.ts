@@ -8,6 +8,8 @@ import { create } from 'zustand';
 import type { CartItem, Cart, Order, Product } from '@/types';
 
 interface CartStore extends Cart {
+  orderNumber: string | null; // номер заказа
+
   // Actions
   addItem: (product: Product) => void;
   increaseQuantity: (productId: string) => void;
@@ -15,6 +17,7 @@ interface CartStore extends Cart {
   removeItem: (productId: string) => void;
   clearCart: () => void;
   setComment: (comment: string | null) => void;
+  generateOrderNumber: () => string;
 
   // Computed values (functions)
   getTotalPrice: () => number;
@@ -24,10 +27,40 @@ interface CartStore extends Cart {
   createOrder: (businessId: string) => Order;
 }
 
+/**
+ * Генерирует номер заказа - возрастающее число на основе счетчика в localStorage
+ */
+function generateOrderNumber(): string {
+  const STORAGE_KEY = 'catalog_order_counter';
+  
+  // Получаем текущий счетчик из localStorage
+  let counter = 1;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      counter = parseInt(stored, 10) || 1;
+    }
+  } catch (error) {
+    // Если localStorage недоступен, начинаем с 1
+    console.warn('localStorage недоступен, начинаем счетчик с 1');
+  }
+  
+  // Увеличиваем счетчик и сохраняем
+  const orderNumber = counter.toString();
+  try {
+    localStorage.setItem(STORAGE_KEY, (counter + 1).toString());
+  } catch (error) {
+    console.warn('Не удалось сохранить счетчик в localStorage');
+  }
+  
+  return orderNumber;
+}
+
 export const useCartStore = create<CartStore>((set, get) => ({
   // Initial state
   items: [],
   comment: null,
+  orderNumber: null,
 
   // Computed values
   getTotalPrice: () => {
@@ -134,7 +167,15 @@ export const useCartStore = create<CartStore>((set, get) => ({
     set({
       items: [],
       comment: null,
+      orderNumber: null,
     });
+  },
+
+  // Generate order number
+  generateOrderNumber: () => {
+    const orderNumber = generateOrderNumber();
+    set({ orderNumber });
+    return orderNumber;
   },
 
   // Set order comment
@@ -145,8 +186,14 @@ export const useCartStore = create<CartStore>((set, get) => ({
   // Create Order object for message generation
   createOrder: (businessId: string): Order => {
     const state = get();
+    // Генерируем номер заказа, если его еще нет
+    const orderNumber = state.orderNumber || generateOrderNumber();
+    if (!state.orderNumber) {
+      set({ orderNumber });
+    }
     return {
       businessId,
+      orderNumber,
       items: state.items,
       totalPrice: state.getTotalPrice(),
       totalQuantity: state.getTotalQuantity(),
