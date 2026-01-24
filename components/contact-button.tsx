@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Phone, MessageCircle } from "lucide-react"
 import { Business } from "@/types"
@@ -10,6 +11,8 @@ interface ContactButtonProps {
 }
 
 export function ContactButton({ business, variant = "default" }: ContactButtonProps) {
+  const [isExpanded, setIsExpanded] = useState(false)
+
   const handleContact = () => {
     // Приоритет: WhatsApp > Telegram > Phone
     if (business.whatsapp) {
@@ -22,7 +25,26 @@ export function ContactButton({ business, variant = "default" }: ContactButtonPr
     }
   }
 
+  const handleWrite = () => {
+    if (business.whatsapp) {
+      const phone = business.whatsapp.replace(/\D/g, "")
+      window.open(`https://wa.me/${phone}`, "_blank")
+    } else if (business.telegram) {
+      window.open(`https://t.me/${business.telegram.replace(/^@/, "")}`, "_blank")
+    }
+    setIsExpanded(false)
+  }
+
+  const handleCall = () => {
+    if (business.phone) {
+      window.open(`tel:${business.phone}`, "_self")
+    }
+    setIsExpanded(false)
+  }
+
   const hasContact = business.whatsapp || business.telegram || business.phone
+  const hasWrite = business.whatsapp || business.telegram
+  const hasCall = business.phone
 
   if (!hasContact) {
     return null
@@ -41,15 +63,40 @@ export function ContactButton({ business, variant = "default" }: ContactButtonPr
     )
   }
 
-  // Широкая кнопка
+  // Широкая кнопка с анимацией раскрытия
   if (variant === "wide") {
     return (
-      <button
-        onClick={handleContact}
-        className="w-full px-6 py-3 bg-gray-900 text-white rounded-xl font-semibold hover:bg-black transition-colors"
-      >
-        Связаться с нами
-      </button>
+      <div className="relative w-full min-h-[48px]">
+        {!isExpanded ? (
+          <button
+            onClick={() => setIsExpanded(true)}
+            className="w-full px-6 py-3 bg-gray-900 text-white rounded-xl font-semibold hover:bg-black transition-all duration-300"
+          >
+            Связаться с нами
+          </button>
+        ) : (
+          <div className={`flex ${hasWrite && hasCall ? 'gap-2' : ''}`}>
+            {hasWrite && (
+              <button
+                onClick={handleWrite}
+                className={`${hasWrite && hasCall ? 'flex-1' : 'w-full'} px-4 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-all duration-300 flex items-center justify-center gap-2 animate-in fade-in ${hasCall ? 'slide-in-from-left-4' : 'slide-in-from-top-2'}`}
+              >
+                <MessageCircle className="h-5 w-5" />
+                Написать
+              </button>
+            )}
+            {hasCall && (
+              <button
+                onClick={handleCall}
+                className={`${hasWrite && hasCall ? 'flex-1' : 'w-full'} px-4 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all duration-300 flex items-center justify-center gap-2 animate-in fade-in ${hasWrite ? 'slide-in-from-right-4' : 'slide-in-from-top-2'}`}
+              >
+                <Phone className="h-5 w-5" />
+                Позвонить
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     )
   }
 

@@ -1,13 +1,17 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import {
   Sheet,
   SheetContent,
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet"
-import { Business } from "@/types"
-import { Phone, ChevronRight, X } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Business, DeliveryType } from "@/types"
+import { Phone, ChevronRight, X, Truck, Store, UtensilsCrossed } from "lucide-react"
+import { useCartStore } from "@/store/cart"
 
 interface CheckoutDialogProps {
   open: boolean
@@ -22,6 +26,48 @@ export function CheckoutDialog({
   business,
   onSelectContact,
 }: CheckoutDialogProps) {
+  const [step, setStep] = useState<"delivery" | "contact">("delivery")
+  const [deliveryAddress, setDeliveryAddress] = useState("")
+  const deliveryType = useCartStore((state) => state.deliveryType)
+  const deliveryAddressStore = useCartStore((state) => state.deliveryAddress)
+  const setDeliveryType = useCartStore((state) => state.setDeliveryType)
+  const setDeliveryAddressStore = useCartStore((state) => state.setDeliveryAddress)
+
+  const deliveryOptionsAll: Array<{
+    type: DeliveryType
+    label: string
+    icon: React.ReactNode
+  }> = [
+    { type: "delivery", label: "Доставка", icon: <Truck className="h-6 w-6" /> },
+    { type: "pickup", label: "Самовывоз", icon: <Store className="h-6 w-6" /> },
+    { type: "dine-in", label: "В зале", icon: <UtensilsCrossed className="h-6 w-6" /> },
+  ]
+
+  const deliveryOptionsFiltered = deliveryOptionsAll.filter((o) =>
+    business.deliveryTypes.includes(o.type)
+  )
+
+  useEffect(() => {
+    if (!open) return
+    if (deliveryAddressStore) setDeliveryAddress(deliveryAddressStore)
+    const allowed = business.deliveryTypes
+    const currentInvalid = deliveryType && !allowed.includes(deliveryType)
+    if (currentInvalid) {
+      setDeliveryType(null)
+      setDeliveryAddressStore(null)
+      setDeliveryAddress("")
+      setStep("delivery")
+      return
+    }
+    if (deliveryType && deliveryType !== "delivery") {
+      setStep("contact")
+    } else if (deliveryType === "delivery" && deliveryAddressStore) {
+      setStep("contact")
+    } else {
+      setStep("delivery")
+    }
+  }, [open, deliveryType, deliveryAddressStore, business.deliveryTypes, setDeliveryType, setDeliveryAddressStore])
+
   const availableContacts: Array<{
     type: "whatsapp" | "phone" | "telegram"
     label: string
@@ -72,8 +118,51 @@ export function CheckoutDialog({
     return null
   }
 
+  const handleDeliveryTypeSelect = (type: DeliveryType) => {
+    setDeliveryType(type)
+    if (type === "delivery") {
+      // Остаемся на этом шаге для ввода адреса
+    } else {
+      // Переходим к выбору способа связи
+      setStep("contact")
+    }
+  }
+
+  const handleAddressContinue = () => {
+    if (deliveryAddress.trim()) {
+      setDeliveryAddressStore(deliveryAddress.trim())
+      setStep("contact")
+    }
+  }
+
+  const handleBack = () => {
+    if (step === "contact") {
+      setStep("delivery")
+    } else {
+      onOpenChange(false)
+    }
+  }
+
+  const handleContactSelect = (type: "whatsapp" | "phone" | "telegram") => {
+    // Сохраняем адрес, если выбран способ доставки
+    if (deliveryType === "delivery" && deliveryAddress.trim()) {
+      setDeliveryAddressStore(deliveryAddress.trim())
+    }
+    onSelectContact(type)
+    onOpenChange(false)
+  }
+
+  // Сбрасываем состояние при закрытии
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      setStep("delivery")
+      setDeliveryAddress("")
+    }
+    onOpenChange(open)
+  }
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent
         side="bottom"
         className="w-full rounded-t-3xl flex flex-col p-0 bg-white border-t-0 !bottom-0 data-[state=open]:duration-500 data-[state=closed]:duration-500"
@@ -82,40 +171,107 @@ export function CheckoutDialog({
         {/* Заголовок с кнопкой закрытия */}
         <div className="px-6 pt-6 pb-4">
           <div className="flex items-start justify-between mb-2">
-            <SheetTitle className="text-xl font-bold">Выберите способ связи</SheetTitle>
+            <SheetTitle className="text-xl font-bold">
+              {step === "delivery" ? "Способ получения заказа" : "Выберите способ связи"}
+            </SheetTitle>
             <button
-              onClick={() => onOpenChange(false)}
+              onClick={handleBack}
               className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors"
-              aria-label="Закрыть"
+              aria-label={step === "delivery" ? "Закрыть" : "Назад"}
             >
               <X className="h-5 w-5" />
             </button>
           </div>
           <SheetDescription className="text-sm text-gray-600 mt-2">
-            Выберите, как вы хотите связаться с продавцом для оформления заказа
+            {step === "delivery"
+              ? "Выберите, как вы хотите получить заказ"
+              : "Выберите, как вы хотите связаться с продавцом для оформления заказа"}
           </SheetDescription>
         </div>
 
-        {/* Список опций */}
-        <div className="px-6 pb-6 space-y-2">
-          {availableOptions.map((contact) => (
-            <button
-              key={contact.type}
-              onClick={() => {
-                onSelectContact(contact.type)
-                onOpenChange(false)
-              }}
-              className="w-full flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors text-left"
-            >
-              <div className="flex items-center gap-4">
-                <div className="flex-shrink-0">
-                  {contact.icon}
-                </div>
-                <span className="font-medium text-base">{contact.label}</span>
+        {/* Контент в зависимости от шага */}
+        <div className="px-6 pb-6 space-y-4">
+          {step === "delivery" ? (
+            <>
+              {/* Выбор способа получения */}
+              <div className="space-y-2">
+                {deliveryOptionsFiltered.map((option) => (
+                  <button
+                    key={option.type}
+                    onClick={() => handleDeliveryTypeSelect(option.type)}
+                    className={`w-full flex items-center justify-between p-4 bg-white border-2 rounded-xl transition-colors text-left ${
+                      deliveryType === option.type
+                        ? "border-brand-yellow bg-brand-yellow/5"
+                        : "border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex-shrink-0 text-gray-700">
+                        {option.icon}
+                      </div>
+                      <span className="font-medium text-base">{option.label}</span>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                  </button>
+                ))}
               </div>
-              <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0" />
-            </button>
-          ))}
+
+              {/* Поле для адреса доставки */}
+              {deliveryType === "delivery" && (
+                <div className="space-y-2">
+                  <label
+                    htmlFor="delivery-address"
+                    className="text-sm font-medium block"
+                  >
+                    Адрес доставки
+                  </label>
+                  <Input
+                    id="delivery-address"
+                    placeholder="Введите адрес доставки..."
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    className="bg-gray-50 border-gray-200 rounded-lg text-[16px]"
+                  />
+                  <Button
+                    onClick={handleAddressContinue}
+                    disabled={!deliveryAddress.trim()}
+                    className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-black font-bold"
+                  >
+                    Продолжить
+                  </Button>
+                </div>
+              )}
+
+              {/* Кнопка продолжения для самовывоза и в зале */}
+              {deliveryType && deliveryType !== "delivery" && (
+                <Button
+                  onClick={() => setStep("contact")}
+                  className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-black font-bold"
+                >
+                  Продолжить
+                </Button>
+              )}
+            </>
+          ) : (
+            /* Выбор способа связи */
+            <div className="space-y-2">
+              {availableOptions.map((contact) => (
+                <button
+                  key={contact.type}
+                  onClick={() => handleContactSelect(contact.type)}
+                  className="w-full flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0">
+                      {contact.icon}
+                    </div>
+                    <span className="font-medium text-base">{contact.label}</span>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </SheetContent>
     </Sheet>

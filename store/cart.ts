@@ -5,7 +5,9 @@
  */
 
 import { create } from 'zustand';
-import type { CartItem, Cart, Order, Product } from '@/types';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { useEffect, useState } from 'react';
+import type { CartItem, Cart, Order, Product, DeliveryType } from '@/types';
 
 interface CartStore extends Cart {
   orderNumber: string | null; // номер заказа
@@ -17,6 +19,8 @@ interface CartStore extends Cart {
   removeItem: (productId: string) => void;
   clearCart: () => void;
   setComment: (comment: string | null) => void;
+  setDeliveryType: (type: DeliveryType | null) => void;
+  setDeliveryAddress: (address: string | null) => void;
   generateOrderNumber: () => string;
 
   // Computed values (functions)
@@ -26,6 +30,130 @@ interface CartStore extends Cart {
   // Order generation
   createOrder: (businessId: string) => Order;
 }
+
+/**
+ * Время жизни корзины в миллисекундах (1 час)
+ */
+const CART_EXPIRY_TIME = 60 * 60 * 1000; // 1 час
+
+/**
+ * Интерфейс для данных, сохраняемых в localStorage
+ */
+interface StoredCartData {
+  items: CartItem[];
+  comment: string | null;
+  deliveryType: DeliveryType | null;
+  deliveryAddress: string | null;
+  timestamp: number; // время последнего обновления
+}
+
+/**
+ * Проверяет, истек ли срок хранения корзины
+ */
+function isCartExpired(timestamp: number): boolean {
+  const now = Date.now();
+  return now - timestamp > CART_EXPIRY_TIME;
+}
+
+/**
+ * Проверяет доступность localStorage
+ */
+function isLocalStorageAvailable(): boolean {
+  try {
+    if (typeof window === 'undefined') return false;
+    const test = '__localStorage_test__';
+    localStorage.setItem(test, test);
+    localStorage.removeItem(test);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Кастомный storage для проверки срока годности корзины
+ */
+const cartStorage = {
+  getItem: (name: string): string | null => {
+    if (!isLocalStorageAvailable()) {
+      return null;
+    }
+    
+    try {
+      const item = localStorage.getItem(name);
+      if (!item) return null;
+      
+      const parsed = JSON.parse(item);
+      const data = parsed.state as Partial<StoredCartData>;
+      
+      // Если timestamp есть и данные устарели, удаляем их и возвращаем null
+      if (data.timestamp && isCartExpired(data.timestamp)) {
+        localStorage.removeItem(name);
+        return null;
+      }
+      
+      // Удаляем timestamp из данных перед возвратом, так как его нет в интерфейсе CartStore
+      // Если timestamp отсутствует (старые данные), просто возвращаем данные как есть
+      if (data.timestamp !== undefined) {
+        const { timestamp, ...stateWithoutTimestamp } = data;
+        return JSON.stringify({
+          ...parsed,
+          state: stateWithoutTimestamp,
+        });
+      }
+      
+      // Если timestamp отсутствует, возвращаем данные как есть (обратная совместимость)
+      return item;
+    } catch (error) {
+      return null;
+    }
+  },
+  setItem: (name: string, value: string): void => {
+    if (!isLocalStorageAvailable()) {
+      return;
+    }
+    
+    try {
+      // С createJSONStorage value всегда будет строкой
+      const parsed = JSON.parse(value);
+      
+      // Проверяем структуру данных от persist middleware
+      // Zustand persist сохраняет данные в формате: { state: {...}, version: 0 }
+      if (parsed && typeof parsed === 'object' && parsed.state) {
+        const stateWithTimestamp = {
+          ...parsed,
+          state: {
+            ...parsed.state,
+            timestamp: Date.now(),
+          },
+        };
+        const serialized = JSON.stringify(stateWithTimestamp);
+        localStorage.setItem(name, serialized);
+      } else {
+        // Если формат неожиданный, сохраняем как есть (fallback)
+        localStorage.setItem(name, value);
+      }
+    } catch (error) {
+      // Fallback: сохраняем как есть, если парсинг не удался
+      try {
+        localStorage.setItem(name, value);
+      } catch (fallbackError) {
+        // Игнорируем ошибку сохранения
+      }
+    }
+  },
+  removeItem: (name: string): void => {
+    if (!isLocalStorageAvailable()) {
+      return;
+    }
+    
+    try {
+      localStorage.removeItem(name);
+    } catch (error) {
+      // Игнорируем ошибку удаления
+    }
+  },
+};
 
 /**
  * Генерирует номер заказа - возрастающее число на основе счетчика в localStorage
@@ -42,7 +170,6 @@ function generateOrderNumber(): string {
     }
   } catch (error) {
     // Если localStorage недоступен, начинаем с 1
-    console.warn('localStorage недоступен, начинаем счетчик с 1');
   }
   
   // Увеличиваем счетчик и сохраняем
@@ -50,17 +177,21 @@ function generateOrderNumber(): string {
   try {
     localStorage.setItem(STORAGE_KEY, (counter + 1).toString());
   } catch (error) {
-    console.warn('Не удалось сохранить счетчик в localStorage');
+    // Игнорируем ошибку сохранения счетчика
   }
   
   return orderNumber;
 }
 
-export const useCartStore = create<CartStore>((set, get) => ({
-  // Initial state
-  items: [],
-  comment: null,
-  orderNumber: null,
+export const useCartStore = create<CartStore>()(
+  persist(
+    (set, get) => ({
+      // Initial state
+      items: [],
+      comment: null,
+      deliveryType: null,
+      deliveryAddress: null,
+      orderNumber: null,
 
   // Computed values
   getTotalPrice: () => {
@@ -167,6 +298,8 @@ export const useCartStore = create<CartStore>((set, get) => ({
     set({
       items: [],
       comment: null,
+      deliveryType: null,
+      deliveryAddress: null,
       orderNumber: null,
     });
   },
@@ -181,6 +314,20 @@ export const useCartStore = create<CartStore>((set, get) => ({
   // Set order comment
   setComment: (comment: string | null) => {
     set({ comment });
+  },
+
+  // Set delivery type
+  setDeliveryType: (deliveryType: DeliveryType | null) => {
+    set({ deliveryType });
+    // Очищаем адрес, если способ получения не доставка
+    if (deliveryType !== "delivery") {
+      set({ deliveryAddress: null });
+    }
+  },
+
+  // Set delivery address
+  setDeliveryAddress: (deliveryAddress: string | null) => {
+    set({ deliveryAddress });
   },
 
   // Create Order object for message generation
@@ -198,10 +345,29 @@ export const useCartStore = create<CartStore>((set, get) => ({
       totalPrice: state.getTotalPrice(),
       totalQuantity: state.getTotalQuantity(),
       comment: state.comment,
+      deliveryType: state.deliveryType,
+      deliveryAddress: state.deliveryAddress,
       createdAt: new Date().toISOString(),
     };
   },
-}));
+    }),
+    {
+      name: 'catalog-cart-storage', // ключ в localStorage
+      storage: createJSONStorage(() => cartStorage), // используем кастомный storage с проверкой срока годности
+      // Сохраняем только данные корзины, не сохраняем номер заказа
+      partialize: (state) => ({
+        items: state.items,
+        comment: state.comment,
+        deliveryType: state.deliveryType,
+        deliveryAddress: state.deliveryAddress,
+        // timestamp добавляется в cartStorage.setItem, здесь не сохраняем
+        // orderNumber не сохраняем, он генерируется заново
+      }),
+      // В Zustand v5 persist автоматически сохраняет изменения
+      // Не используем skipHydration, чтобы данные восстанавливались автоматически
+    }
+  )
+);
 
 // Селекторы для удобного использования в компонентах
 export const useCartItems = () => useCartStore((state) => state.items);
@@ -214,3 +380,19 @@ export const useCartTotalQuantity = () =>
   useCartStore((state) =>
     state.items.reduce((sum, item) => sum + item.quantity, 0)
   );
+
+/**
+ * Хук для проверки гидратации корзины
+ * В Zustand v5 persist автоматически гидратирует состояние, но может потребоваться время
+ */
+export function useCartHydration() {
+  const [isHydrated, setIsHydrated] = useState(false);
+  
+  useEffect(() => {
+    // В Zustand v5 persist автоматически гидратирует состояние при монтировании
+    // Просто отмечаем, что компонент смонтирован
+    setIsHydrated(true);
+  }, []);
+  
+  return isHydrated;
+}

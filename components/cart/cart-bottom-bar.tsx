@@ -1,14 +1,44 @@
 "use client"
 
-import { useState } from "react"
-import { ShoppingBag } from "lucide-react"
-import { useCartStore } from "@/store/cart"
+import { useState, useEffect } from "react"
+import { ShoppingBag, Search } from "lucide-react"
+import { useCartStore, useCartHydration } from "@/store/cart"
 import { CartDrawer } from "./cart-drawer"
+
+/**
+ * Обработчик клика по кнопке поиска
+ * Прокручивает страницу вверх, если она прокручена вниз, и делает фокус на строку поиска
+ */
+const handleSearchClick = () => {
+  const searchInput = document.getElementById("search-input")
+
+  // Если страница прокручена вниз - прокручиваем вверх
+  if (window.scrollY > 0) {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    })
+    
+    // Ждем завершения прокрутки перед фокусом
+    setTimeout(() => {
+      searchInput?.focus()
+    }, 500)
+  } else {
+    // Если страница уже вверху - сразу делаем фокус
+    searchInput?.focus()
+  }
+}
 
 export function CartBottomBar() {
   const [isOpen, setIsOpen] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+  useCartHydration() // Восстанавливаем корзину из localStorage
   const totalQuantity = useCartStore((state) => state.getTotalQuantity())
-  const totalPrice = useCartStore((state) => state.getTotalPrice())
+
+  // Предотвращаем ошибку гидратации, показывая данные корзины только после монтирования на клиенте
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   return (
     <>
@@ -17,30 +47,34 @@ export function CartBottomBar() {
           isOpen ? "translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
         }`}
       >
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center gap-4">
+          {/* Кнопка поиска */}
+          <button
+            onClick={handleSearchClick}
+            className="flex flex-col items-center gap-1 text-brand-yellow flex-1"
+            aria-label="Поиск"
+          >
+            <Search className="h-6 w-6" />
+            <span className="text-xs font-medium">Поиск</span>
+          </button>
+
+          {/* Кнопка корзины */}
           <button
             onClick={() => setIsOpen(true)}
-            className="flex items-center gap-3 text-brand-yellow w-full"
+            className="flex flex-col items-center gap-1 text-brand-yellow flex-1 relative"
+            aria-label="Корзина"
           >
             <div className="relative">
               <ShoppingBag className="h-6 w-6" />
-              {totalQuantity > 0 && (
+              {isMounted && totalQuantity > 0 && (
                 <div className="absolute -top-1 -right-1 bg-brand-yellow text-black text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center border border-dark-nav">
                   {totalQuantity > 99 ? "99+" : totalQuantity}
                 </div>
               )}
             </div>
-            <div className="flex-1 text-left">
-              <div className="text-sm font-medium">Корзина</div>
-              <div className="text-xs text-gray-400">
-                {totalQuantity > 0
-                  ? `${totalPrice.toLocaleString("ru-RU")} ₽`
-                  : "0 ₽"}
-              </div>
-            </div>
+            <span className="text-xs font-medium">Корзина</span>
           </button>
         </div>
-        <div className="mx-auto w-16 h-1 bg-white/20 rounded-full mt-4"></div>
       </div>
       <CartDrawer open={isOpen} onOpenChange={setIsOpen} />
     </>

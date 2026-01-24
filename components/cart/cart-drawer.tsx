@@ -201,7 +201,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                 value={comment || ""}
                 onChange={(e) => setComment(e.target.value || null)}
                 rows={3}
-                className="resize-none bg-gray-50 border-gray-200 rounded-lg"
+                className="resize-none bg-gray-50 border-gray-200 rounded-lg text-[16px]"
               />
             </div>
 
