@@ -40,6 +40,8 @@ Business {
   deliveryRegions: string | null    // регионы доставки (например, "Россия / СНГ / Европа")
   cityDelivery: string | null       // информация о доставке по городу (например, "По городу бесплатно")
 
+  deliveryTypes: ("delivery" | "pickup" | "dine-in")[]   // доступные способы получения заказа (из Supabase delivery_types)
+
   createdAt: timestamp
   updatedAt: timestamp
 }

@@ -28,6 +28,9 @@ export interface Business {
   deliveryRegions: string | null; // регионы доставки (например, "Россия / СНГ / Европа")
   cityDelivery: string | null; // информация о доставке по городу (например, "По городу бесплатно")
 
+  /** Доступные способы получения заказа (из Supabase delivery_types). Если пусто — считаем все три. */
+  deliveryTypes: DeliveryType[];
+
   createdAt: string; // timestamp (ISO string)
   updatedAt: string; // timestamp (ISO string)
 }
@@ -83,11 +86,18 @@ export interface CartItem {
 }
 
 /**
+ * Способ получения заказа
+ */
+export type DeliveryType = "delivery" | "pickup" | "dine-in";
+
+/**
  * Корзина пользователя
  */
 export interface Cart {
   items: CartItem[];
   comment: string | null;
+  deliveryType: DeliveryType | null;
+  deliveryAddress: string | null;
 }
 
 /**
@@ -102,5 +112,7 @@ export interface Order {
   totalQuantity: number;
 
   comment: string | null;
+  deliveryType: DeliveryType | null;
+  deliveryAddress: string | null;
   createdAt: string; // timestamp (ISO string)
 }
