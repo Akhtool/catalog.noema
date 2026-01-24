@@ -32,9 +32,8 @@ const handleSearchClick = () => {
 export function CartBottomBar() {
   const [isOpen, setIsOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
-  const isHydrated = useCartHydration() // Восстанавливаем корзину из localStorage
+  useCartHydration() // Восстанавливаем корзину из localStorage
   const totalQuantity = useCartStore((state) => state.getTotalQuantity())
-  const totalPrice = useCartStore((state) => state.getTotalPrice())
 
   // Предотвращаем ошибку гидратации, показывая данные корзины только после монтирования на клиенте
   useEffect(() => {

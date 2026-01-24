@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 export function CartButton() {
   const [isOpen, setIsOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
-  const isHydrated = useCartHydration() // Восстанавливаем корзину из localStorage
+  useCartHydration() // Восстанавливаем корзину из localStorage
   const totalQuantity = useCartStore((state) => state.getTotalQuantity())
 
   // Предотвращаем ошибку гидратации, показывая Badge только после монтирования на клиенте
