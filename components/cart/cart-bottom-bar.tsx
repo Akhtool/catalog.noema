@@ -43,9 +43,12 @@ export function CartBottomBar() {
   return (
     <>
       <div
-        className={`fixed bottom-0 left-0 right-0 z-40 bg-dark-nav pb-6 pt-3 px-6 rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.1)] transition-all duration-500 ease-in-out ${
+        className={`fixed bottom-0 left-0 right-0 z-40 bg-dark-nav pb-safe-sm pt-3 px-6 rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.1)] transition-all duration-500 ease-in-out ${
           isOpen ? "translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
         }`}
+        style={{
+          paddingBottom: `max(0.5rem, env(safe-area-inset-bottom, 0.5rem))`,
+        }}
       >
         <div className="flex justify-between items-center gap-4">
           {/* Кнопка поиска */}
