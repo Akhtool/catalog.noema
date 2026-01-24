@@ -1,41 +1,42 @@
-"use client"
+"use client";
 
-import { Category } from "@/types"
-import { useCatalogFiltersStore } from "@/store/catalog-filters"
-import { useRef, useEffect } from "react"
+import { Category } from "@/types";
+import { useCatalogFiltersStore } from "@/store/catalog-filters";
+import { useRef, useEffect } from "react";
 
 interface CategoryListProps {
-  categories: Category[]
+  categories: Category[];
 }
 
 export function CategoryList({ categories }: CategoryListProps) {
-  const { selectedCategoryId, setSelectedCategoryId, catalogMode } = useCatalogFiltersStore()
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const categoryRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
+  const { selectedCategoryId, setSelectedCategoryId, catalogMode } =
+    useCatalogFiltersStore();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const categoryRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
   // Скролл к выбранной категории при изменении
   useEffect(() => {
     if (selectedCategoryId && catalogMode === "catalog") {
-      const button = categoryRefs.current.get(selectedCategoryId)
+      const button = categoryRefs.current.get(selectedCategoryId);
       if (button && scrollContainerRef.current) {
         button.scrollIntoView({
           behavior: "smooth",
           block: "nearest",
           inline: "center",
-        })
+        });
       }
     }
-  }, [selectedCategoryId, catalogMode])
+  }, [selectedCategoryId, catalogMode]);
 
   // Не показываем в режиме "Категории"
   if (catalogMode === "categories" || categories.length === 0) {
-    return null
+    return null;
   }
 
   return (
     <div
       ref={scrollContainerRef}
-      className="flex gap-3 overflow-x-auto hide-scrollbar pb-2 mb-6"
+      className="flex gap-3 overflow-x-auto hide-scrollbar pb-2 mt-2.5 mb-2.5"
     >
       {catalogMode === "catalog" && (
         <button
@@ -53,11 +54,11 @@ export function CategoryList({ categories }: CategoryListProps) {
         <button
           key={category.id}
           ref={(el) => {
-            if (el) categoryRefs.current.set(category.id, el)
+            if (el) categoryRefs.current.set(category.id, el);
           }}
           onClick={() => {
             // В режиме каталога - скроллим к категории
-            setSelectedCategoryId(category.id)
+            setSelectedCategoryId(category.id);
           }}
           className={`whitespace-nowrap px-6 py-3 text-sm font-semibold rounded-full transition-all ${
             selectedCategoryId === category.id
@@ -69,5 +70,5 @@ export function CategoryList({ categories }: CategoryListProps) {
         </button>
       ))}
     </div>
-  )
+  );
 }

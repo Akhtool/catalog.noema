@@ -4,7 +4,20 @@
  * Client-side only, без серверной логики
  */
 
-import type { Order, Business } from '@/types';
+import type { Order, Business, DeliveryType } from '@/types';
+
+/** Способы получения по умолчанию, если в БД не задано или пусто */
+export const DEFAULT_DELIVERY_TYPES: DeliveryType[] = ['delivery', 'pickup', 'dine-in'];
+
+/** Нормализует delivery_types из Supabase в DeliveryType[]. Невалидные значения отбрасываются. */
+export function parseDeliveryTypes(raw: unknown): DeliveryType[] {
+  const valid: DeliveryType[] = ['delivery', 'pickup', 'dine-in'];
+  if (!Array.isArray(raw)) return DEFAULT_DELIVERY_TYPES;
+  const filtered = (raw as string[]).filter((v): v is DeliveryType =>
+    typeof v === 'string' && valid.includes(v as DeliveryType)
+  );
+  return filtered.length > 0 ? filtered : DEFAULT_DELIVERY_TYPES;
+}
 
 /**
  * Генерирует текстовое сообщение заказа для отправки
@@ -36,6 +49,22 @@ export function generateOrderMessage(order: Order): string {
   if (order.comment) {
     lines.push('');
     lines.push(`*Комментарий:* ${order.comment}`);
+  }
+
+  // Способ получения заказа
+  if (order.deliveryType) {
+    lines.push('');
+    const deliveryLabels: Record<string, string> = {
+      delivery: "Доставка",
+      pickup: "Самовывоз",
+      "dine-in": "В зале",
+    };
+    lines.push(`*Способ получения:* ${deliveryLabels[order.deliveryType] || order.deliveryType}`);
+    
+    // Адрес доставки, если выбран способ доставки
+    if (order.deliveryType === "delivery" && order.deliveryAddress) {
+      lines.push(`*Адрес доставки:* ${order.deliveryAddress}`);
+    }
   }
 
   return lines.join('\n');

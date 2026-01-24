@@ -53,7 +53,7 @@ export const useCatalogFiltersStore = create<CatalogFiltersStore>((set, get) => 
     set((state) => ({
       selectedBrands: state.selectedBrands.includes(brand)
         ? state.selectedBrands.filter((b) => b !== brand)
-        : [...state.selectedBrands, brand],
+        : [brand], // Заменяем весь список на один выбранный бренд
     })),
   setPriceRange: (min: number | null, max: number | null) =>
     set({ minPrice: min, maxPrice: max }),
