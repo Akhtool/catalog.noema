@@ -19,6 +19,7 @@ interface CartStore extends Cart {
   removeItem: (productId: string) => void;
   clearCart: () => void;
   setComment: (comment: string | null) => void;
+  setPromoCode: (promoCode: string | null) => void;
   setDeliveryType: (type: DeliveryType | null) => void;
   setDeliveryAddress: (address: string | null) => void;
   generateOrderNumber: () => string;
@@ -42,6 +43,7 @@ const CART_EXPIRY_TIME = 60 * 60 * 1000; // 1 час
 interface StoredCartData {
   items: CartItem[];
   comment: string | null;
+  promoCode: string | null;
   deliveryType: DeliveryType | null;
   deliveryAddress: string | null;
   timestamp: number; // время последнего обновления
@@ -189,6 +191,7 @@ export const useCartStore = create<CartStore>()(
       // Initial state
       items: [],
       comment: null,
+      promoCode: null,
       deliveryType: null,
       deliveryAddress: null,
       orderNumber: null,
@@ -298,6 +301,7 @@ export const useCartStore = create<CartStore>()(
     set({
       items: [],
       comment: null,
+      promoCode: null,
       deliveryType: null,
       deliveryAddress: null,
       orderNumber: null,
@@ -314,6 +318,11 @@ export const useCartStore = create<CartStore>()(
   // Set order comment
   setComment: (comment: string | null) => {
     set({ comment });
+  },
+
+  // Set promo code
+  setPromoCode: (promoCode: string | null) => {
+    set({ promoCode });
   },
 
   // Set delivery type
@@ -345,6 +354,7 @@ export const useCartStore = create<CartStore>()(
       totalPrice: state.getTotalPrice(),
       totalQuantity: state.getTotalQuantity(),
       comment: state.comment,
+      promoCode: state.promoCode,
       deliveryType: state.deliveryType,
       deliveryAddress: state.deliveryAddress,
       createdAt: new Date().toISOString(),
@@ -358,6 +368,7 @@ export const useCartStore = create<CartStore>()(
       partialize: (state) => ({
         items: state.items,
         comment: state.comment,
+        promoCode: state.promoCode,
         deliveryType: state.deliveryType,
         deliveryAddress: state.deliveryAddress,
         // timestamp добавляется в cartStorage.setItem, здесь не сохраняем

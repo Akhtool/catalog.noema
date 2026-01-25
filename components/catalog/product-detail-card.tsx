@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/sheet"
 import { Product } from "@/types"
 import { useCartStore } from "@/store/cart"
-import { X, Share2, ShoppingCart, Minus, Plus } from "lucide-react"
+import { X, Share2, Minus, Plus } from "lucide-react"
+import { useSheetDrag } from "@/lib/useSheetDrag"
 
 interface ProductDetailCardProps {
   product: Product
@@ -93,18 +94,36 @@ export function ProductDetailCard({
   const { weight, portions } = extractWeightAndPortions(product.description)
   const weightAndPortions = weight && portions ? `${weight} / ${portions}` : weight || portions || null
 
+  // Используем хук для перетаскивания
+  const { dragHandlers, sheetStyle, scrollableStyle } = useSheetDrag({
+    open,
+    onOpenChange,
+  })
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
         className="h-[90vh] max-h-[90vh] rounded-t-[2rem] p-0 flex flex-col overflow-hidden border-0"
         showCloseButton={false}
+        style={sheetStyle}
       >
         {/* Скрытый заголовок для доступности */}
         <SheetTitle className="sr-only">{product.name}</SheetTitle>
         
+        {/* Индикатор свайпа */}
+        <div
+          {...dragHandlers}
+          className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none"
+        >
+          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+        </div>
+
         {/* Кнопки управления */}
-        <div className="relative flex items-center justify-center px-5 pt-3 pb-2 z-20">
+        <div
+          {...dragHandlers}
+          className="relative flex items-center justify-center px-5 pt-2 pb-2 z-20 select-none"
+        >
           {/* Кнопки справа */}
           <div className="absolute right-5 top-3 flex items-center gap-2 z-30">
             <button
@@ -126,7 +145,7 @@ export function ProductDetailCard({
         </div>
 
         {/* Контент с прокруткой */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" style={scrollableStyle}>
           {/* Секция изображения продукта */}
           {images.length > 0 ? (
             <div className="relative w-full h-[500px] bg-orange-500 rounded-b-[2rem] overflow-hidden">
@@ -202,39 +221,45 @@ export function ProductDetailCard({
 
         {/* Панель действий (фиксированная внизу) */}
         <div className="px-5 pb-5 pt-4 border-t bg-white">
-          <div className="flex items-center gap-3">
-            {/* Селектор количества */}
-            <div className="flex items-center gap-3 bg-white border-2 border-brand-yellow rounded-xl px-3 py-2">
-              <button
-                onClick={handleDecrease}
-                disabled={quantity === 0}
-                className="w-6 h-6 flex items-center justify-center text-gray-700 hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                aria-label="Уменьшить количество"
-              >
-                <Minus className="h-4 w-4" />
-              </button>
-              <span className="text-base font-semibold text-gray-900 min-w-[20px] text-center">
-                {quantity || 1}
-              </span>
-              <button
-                onClick={handleIncrease}
-                disabled={!product.inStock}
-                className="w-6 h-6 flex items-center justify-center text-gray-700 hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                aria-label="Увеличить количество"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
+          <div className="flex items-center justify-between gap-3">
+            {/* Цена слева */}
+            <div className="text-2xl font-black text-gray-900">
+              {product.price.toLocaleString("ru-RU")} ₽
             </div>
 
-            {/* Кнопка "В корзину" */}
-            <button
-              onClick={handleAddToCart}
-              disabled={!product.inStock}
-              className="flex-1 bg-brand-yellow text-black font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 hover:bg-yellow-400 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
-            >
-              <ShoppingCart className="h-5 w-5" />
-              <span>{quantity > 0 ? "В корзине" : "В корзину"}</span>
-            </button>
+            {/* Кнопка с плюсиком или селектор количества справа */}
+            {quantity > 0 ? (
+              <div className="flex items-center gap-3 bg-white border-2 border-brand-yellow rounded-xl px-3 h-12">
+                <button
+                  onClick={handleDecrease}
+                  disabled={quantity === 0}
+                  className="w-6 h-6 flex items-center justify-center text-gray-700 hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Уменьшить количество"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <span className="text-base font-semibold text-gray-900 min-w-[20px] text-center">
+                  {quantity}
+                </span>
+                <button
+                  onClick={handleIncrease}
+                  disabled={!product.inStock}
+                  className="w-6 h-6 flex items-center justify-center text-gray-700 hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Увеличить количество"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleAddToCart}
+                disabled={!product.inStock}
+                className="w-12 h-12 flex items-center justify-center bg-brand-yellow rounded-full text-black shadow-md hover:bg-yellow-400 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Добавить в корзину"
+              >
+                <Plus className="h-6 w-6" />
+              </button>
+            )}
           </div>
         </div>
       </SheetContent>

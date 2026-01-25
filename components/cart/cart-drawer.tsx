@@ -10,6 +10,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { useCartStore } from "@/store/cart"
 import { useCurrentBusinessStore } from "@/store/current-business"
 import { ShoppingCart, Plus, Minus, Trash2, X } from "lucide-react"
@@ -20,6 +21,7 @@ import {
   createTelegramLink,
   createPhoneLink,
 } from "@/lib/order"
+import { useSheetDrag } from "@/lib/useSheetDrag"
 
 interface CartDrawerProps {
   open: boolean
@@ -30,8 +32,10 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
   const items = useCartStore((state) => state.items)
   const comment = useCartStore((state) => state.comment)
+  const promoCode = useCartStore((state) => state.promoCode)
   const orderNumber = useCartStore((state) => state.orderNumber)
   const setComment = useCartStore((state) => state.setComment)
+  const setPromoCode = useCartStore((state) => state.setPromoCode)
   const generateOrderNumber = useCartStore((state) => state.generateOrderNumber)
   const increaseQuantity = useCartStore((state) => state.increaseQuantity)
   const decreaseQuantity = useCartStore((state) => state.decreaseQuantity)
@@ -40,6 +44,12 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   const createOrderFromCart = useCartStore((state) => state.createOrder)
   const clearCart = useCartStore((state) => state.clearCart)
   const business = useCurrentBusinessStore((state) => state.business)
+
+  // Используем хук для перетаскивания
+  const { dragHandlers, sheetStyle, scrollableStyle } = useSheetDrag({
+    open,
+    onOpenChange,
+  })
 
   // Генерируем номер заказа при открытии корзины, если его еще нет
   React.useEffect(() => {
@@ -85,15 +95,28 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
     }
   }
 
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="w-full max-h-[90vh] rounded-t-3xl flex flex-col p-0 bg-white border-t-0 !bottom-0 data-[state=open]:duration-500 data-[state=closed]:duration-500"
+        className="w-full max-h-[95vh] rounded-t-3xl flex flex-col p-0 bg-white border-t-0 !bottom-0 data-[state=open]:duration-500 data-[state=closed]:duration-500"
         showCloseButton={false}
+        style={sheetStyle}
       >
-        {/* Заголовок с кнопкой закрытия */}
-        <div className="px-6 pt-6 pb-3 border-b">
+        {/* Индикатор свайпа с обработчиком перетаскивания */}
+        <div
+          {...dragHandlers}
+          className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none"
+        >
+          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+        </div>
+
+        {/* Заголовок с кнопкой закрытия и обработчиком перетаскивания */}
+        <div
+          {...dragHandlers}
+          className="px-6 pt-3 pb-3 border-b select-none"
+        >
           <div className="flex items-center justify-between mb-2">
             <SheetTitle className="text-xl font-bold">Корзина</SheetTitle>
             <button
@@ -117,7 +140,10 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
         </div>
 
         {/* Список товаров */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div
+          className="flex-1 overflow-y-auto px-6 py-4"
+          style={scrollableStyle}
+        >
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-12">
               <ShoppingCart className="h-16 w-16 text-gray-300 mb-4" />
@@ -200,8 +226,26 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                 placeholder="Добавьте комментарий к заказу..."
                 value={comment || ""}
                 onChange={(e) => setComment(e.target.value || null)}
-                rows={3}
-                className="resize-none bg-gray-50 border-gray-200 rounded-lg text-[16px]"
+                rows={2}
+                className="resize-none bg-gray-50 border-gray-200 rounded-lg text-[16px] min-h-[60px]"
+              />
+            </div>
+
+            {/* Промокод */}
+            <div>
+              <label
+                htmlFor="promo-code"
+                className="text-sm font-medium mb-2 block"
+              >
+                Промокод
+              </label>
+              <Input
+                id="promo-code"
+                type="text"
+                placeholder="Введите промокод..."
+                value={promoCode || ""}
+                onChange={(e) => setPromoCode(e.target.value || null)}
+                className="bg-gray-50 border-gray-200 rounded-lg text-[16px]"
               />
             </div>
 
