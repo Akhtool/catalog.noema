@@ -167,7 +167,7 @@ export function ProductCard({ product, viewMode }: ProductCardProps) {
               src={product.images[0]}
               alt={product.name}
               fill
-              className="object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-300"
+              className="object-contain group-hover:scale-105 transition-transform duration-300"
               sizes="50vw"
             />
           )}

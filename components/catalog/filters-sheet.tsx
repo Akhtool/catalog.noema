@@ -11,6 +11,7 @@ import { useCatalogFiltersStore } from "@/store/catalog-filters"
 import { Category, Product } from "@/types"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { useSheetDrag } from "@/lib/useSheetDrag"
 
 interface FiltersSheetProps {
   open: boolean
@@ -69,15 +70,33 @@ export function FiltersSheet({
     setLocalMaxPrice("")
   }
 
+  // Используем хук для перетаскивания
+  const { dragHandlers, sheetStyle, scrollableStyle } = useSheetDrag({
+    open,
+    onOpenChange,
+  })
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
         className="w-full max-h-[90vh] rounded-t-3xl flex flex-col p-0 bg-white border-t-0 !bottom-0 data-[state=open]:duration-500 data-[state=closed]:duration-500"
         showCloseButton={false}
+        style={sheetStyle}
       >
+        {/* Индикатор свайпа */}
+        <div
+          {...dragHandlers}
+          className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none"
+        >
+          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+        </div>
+
         {/* Заголовок с кнопкой закрытия */}
-        <div className="px-6 pt-6 pb-4 border-b">
+        <div
+          {...dragHandlers}
+          className="px-6 pt-3 pb-4 border-b select-none"
+        >
           <div className="flex items-center justify-between mb-2">
             <SheetTitle className="text-xl font-bold">Фильтры</SheetTitle>
             <button
@@ -91,7 +110,10 @@ export function FiltersSheet({
         </div>
 
         {/* Содержимое фильтров */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+        <div
+          className="flex-1 overflow-y-auto px-6 py-4 space-y-6"
+          style={scrollableStyle}
+        >
           {/* Категории */}
           <div>
             <h3 className="text-base font-semibold mb-3">Категории</h3>
