@@ -112,11 +112,8 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
           <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
         </div>
 
-        {/* Заголовок с кнопкой закрытия и обработчиком перетаскивания */}
-        <div
-          {...dragHandlers}
-          className="px-6 pt-3 pb-3 border-b select-none"
-        >
+        {/* Заголовок с кнопкой закрытия */}
+        <div className="px-6 pt-3 pb-3 border-b">
           <div className="flex items-center justify-between mb-2">
             <SheetTitle className="text-xl font-bold">Корзина</SheetTitle>
             <button

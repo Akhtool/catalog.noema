@@ -185,10 +185,7 @@ export function CheckoutDialog({
         </div>
 
         {/* Заголовок с кнопкой закрытия */}
-        <div
-          {...dragHandlers}
-          className="px-6 pt-3 pb-4 select-none"
-        >
+        <div className="px-6 pt-3 pb-4">
           <div className="flex items-start justify-between mb-2">
             <SheetTitle className="text-xl font-bold">
               {step === "delivery" ? "Способ получения заказа" : "Выберите способ связи"}

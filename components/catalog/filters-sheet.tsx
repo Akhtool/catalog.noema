@@ -93,10 +93,7 @@ export function FiltersSheet({
         </div>
 
         {/* Заголовок с кнопкой закрытия */}
-        <div
-          {...dragHandlers}
-          className="px-6 pt-3 pb-4 border-b select-none"
-        >
+        <div className="px-6 pt-3 pb-4 border-b">
           <div className="flex items-center justify-between mb-2">
             <SheetTitle className="text-xl font-bold">Фильтры</SheetTitle>
             <button

@@ -120,10 +120,7 @@ export function ProductDetailCard({
         </div>
 
         {/* Кнопки управления */}
-        <div
-          {...dragHandlers}
-          className="relative flex items-center justify-center px-5 pt-2 pb-2 z-20 select-none"
-        >
+        <div className="relative flex items-center justify-center px-5 pt-2 pb-2 z-20">
           {/* Кнопки справа */}
           <div className="absolute right-5 top-3 flex items-center gap-2 z-30">
             <button
