@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Phone, MessageCircle } from "lucide-react"
 import { Business } from "@/types"
@@ -10,8 +10,12 @@ interface ContactButtonProps {
   variant?: "default" | "icon" | "wide"
 }
 
+const AUTO_COLLAPSE_TIMEOUT = 5000 // 5 секунд
+
 export function ContactButton({ business, variant = "default" }: ContactButtonProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [isCollapsing, setIsCollapsing] = useState(false)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const handleContact = () => {
     // Приоритет: WhatsApp > Telegram > Phone
@@ -25,21 +29,62 @@ export function ContactButton({ business, variant = "default" }: ContactButtonPr
     }
   }
 
+  // Очистка таймера
+  const clearAutoCollapseTimer = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
+    }
+  }, [])
+
+  // Обработка сворачивания с анимацией
+  const handleCollapse = useCallback(() => {
+    setIsCollapsing(true)
+    setTimeout(() => {
+      setIsExpanded(false)
+      setIsCollapsing(false)
+    }, 300) // Длительность анимации
+  }, [])
+
+  // Установка таймера автоматического сворачивания
+  const setAutoCollapseTimer = useCallback(() => {
+    clearAutoCollapseTimer()
+    timeoutRef.current = setTimeout(() => {
+      handleCollapse()
+      timeoutRef.current = null
+    }, AUTO_COLLAPSE_TIMEOUT)
+  }, [clearAutoCollapseTimer, handleCollapse])
+
+  // Эффект для управления таймером
+  useEffect(() => {
+    if (isExpanded) {
+      setAutoCollapseTimer()
+    } else {
+      clearAutoCollapseTimer()
+    }
+
+    return () => {
+      clearAutoCollapseTimer()
+    }
+  }, [isExpanded, setAutoCollapseTimer, clearAutoCollapseTimer])
+
   const handleWrite = () => {
+    clearAutoCollapseTimer()
     if (business.whatsapp) {
       const phone = business.whatsapp.replace(/\D/g, "")
       window.open(`https://wa.me/${phone}`, "_blank")
     } else if (business.telegram) {
       window.open(`https://t.me/${business.telegram.replace(/^@/, "")}`, "_blank")
     }
-    setIsExpanded(false)
+    handleCollapse()
   }
 
   const handleCall = () => {
+    clearAutoCollapseTimer()
     if (business.phone) {
       window.open(`tel:${business.phone}`, "_self")
     }
-    setIsExpanded(false)
+    handleCollapse()
   }
 
   const hasContact = business.whatsapp || business.telegram || business.phone
@@ -79,7 +124,11 @@ export function ContactButton({ business, variant = "default" }: ContactButtonPr
             {hasWrite && (
               <button
                 onClick={handleWrite}
-                className={`${hasWrite && hasCall ? 'flex-1' : 'w-full'} px-4 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-all duration-300 flex items-center justify-center gap-2 animate-in fade-in ${hasCall ? 'slide-in-from-left-4' : 'slide-in-from-top-2'}`}
+                className={`${hasWrite && hasCall ? 'flex-1' : 'w-full'} px-4 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-all duration-300 flex items-center justify-center gap-2 ${
+                  isCollapsing 
+                    ? `animate-out fade-out duration-300 ${hasCall ? 'slide-out-to-left-4' : 'slide-out-to-top-2'}` 
+                    : `animate-in fade-in duration-300 ${hasCall ? 'slide-in-from-left-4' : 'slide-in-from-top-2'}`
+                }`}
               >
                 <MessageCircle className="h-5 w-5" />
                 Написать
@@ -88,7 +137,11 @@ export function ContactButton({ business, variant = "default" }: ContactButtonPr
             {hasCall && (
               <button
                 onClick={handleCall}
-                className={`${hasWrite && hasCall ? 'flex-1' : 'w-full'} px-4 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all duration-300 flex items-center justify-center gap-2 animate-in fade-in ${hasWrite ? 'slide-in-from-right-4' : 'slide-in-from-top-2'}`}
+                className={`${hasWrite && hasCall ? 'flex-1' : 'w-full'} px-4 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all duration-300 flex items-center justify-center gap-2 ${
+                  isCollapsing 
+                    ? `animate-out fade-out duration-300 ${hasWrite ? 'slide-out-to-right-4' : 'slide-out-to-top-2'}` 
+                    : `animate-in fade-in duration-300 ${hasWrite ? 'slide-in-from-right-4' : 'slide-in-from-top-2'}`
+                }`}
               >
                 <Phone className="h-5 w-5" />
                 Позвонить

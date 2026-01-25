@@ -51,6 +51,12 @@ export function generateOrderMessage(order: Order): string {
     lines.push(`*Комментарий:* ${order.comment}`);
   }
 
+  // Промокод, если есть
+  if (order.promoCode) {
+    lines.push('');
+    lines.push(`*Промокод:* ${order.promoCode}`);
+  }
+
   // Способ получения заказа
   if (order.deliveryType) {
     lines.push('');

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   Sheet,
   SheetContent,
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Business, DeliveryType } from "@/types"
 import { Phone, ChevronRight, X, Truck, Store, UtensilsCrossed } from "lucide-react"
 import { useCartStore } from "@/store/cart"
+import { useSheetDrag } from "@/lib/useSheetDrag"
 
 interface CheckoutDialogProps {
   open: boolean
@@ -114,6 +115,21 @@ export function CheckoutDialog({
 
   const availableOptions = availableContacts.filter((c) => c.available)
 
+  // Сбрасываем состояние при закрытии
+  const handleOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setStep("delivery")
+      setDeliveryAddress("")
+    }
+    onOpenChange(open)
+  }, [onOpenChange])
+
+  // Используем хук для перетаскивания (должен быть вызван до условных возвратов)
+  const { dragHandlers, sheetStyle, scrollableStyle } = useSheetDrag({
+    open,
+    onOpenChange: handleOpenChange,
+  })
+
   if (availableOptions.length === 0) {
     return null
   }
@@ -152,24 +168,27 @@ export function CheckoutDialog({
     onOpenChange(false)
   }
 
-  // Сбрасываем состояние при закрытии
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      setStep("delivery")
-      setDeliveryAddress("")
-    }
-    onOpenChange(open)
-  }
-
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent
         side="bottom"
         className="w-full rounded-t-3xl flex flex-col p-0 bg-white border-t-0 !bottom-0 data-[state=open]:duration-500 data-[state=closed]:duration-500"
         showCloseButton={false}
+        style={sheetStyle}
       >
+        {/* Индикатор свайпа */}
+        <div
+          {...dragHandlers}
+          className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none"
+        >
+          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+        </div>
+
         {/* Заголовок с кнопкой закрытия */}
-        <div className="px-6 pt-6 pb-4">
+        <div
+          {...dragHandlers}
+          className="px-6 pt-3 pb-4 select-none"
+        >
           <div className="flex items-start justify-between mb-2">
             <SheetTitle className="text-xl font-bold">
               {step === "delivery" ? "Способ получения заказа" : "Выберите способ связи"}
@@ -190,7 +209,10 @@ export function CheckoutDialog({
         </div>
 
         {/* Контент в зависимости от шага */}
-        <div className="px-6 pb-6 space-y-4">
+        <div
+          className="px-6 pb-6 space-y-4 overflow-y-auto flex-1"
+          style={scrollableStyle}
+        >
           {step === "delivery" ? (
             <>
               {/* Выбор способа получения */}

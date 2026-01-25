@@ -96,6 +96,7 @@ export type DeliveryType = "delivery" | "pickup" | "dine-in";
 export interface Cart {
   items: CartItem[];
   comment: string | null;
+  promoCode: string | null;
   deliveryType: DeliveryType | null;
   deliveryAddress: string | null;
 }
@@ -112,6 +113,7 @@ export interface Order {
   totalQuantity: number;
 
   comment: string | null;
+  promoCode: string | null;
   deliveryType: DeliveryType | null;
   deliveryAddress: string | null;
   createdAt: string; // timestamp (ISO string)

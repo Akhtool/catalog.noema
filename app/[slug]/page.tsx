@@ -6,6 +6,7 @@ import { ContactButton } from "@/components/contact-button";
 import { Catalog } from "@/components/catalog/catalog";
 import { BusinessProvider } from "@/components/business-provider";
 import { CartBottomBar } from "@/components/cart/cart-bottom-bar";
+import { Footer } from "@/components/footer";
 import { Business, Category, Product } from "@/types";
 import { parseDeliveryTypes } from "@/lib/order";
 import { Clock } from "lucide-react";
@@ -139,7 +140,7 @@ export default async function Page({ params }: PageProps) {
 
   return (
     <BusinessProvider business={businessTyped}>
-      <div className="min-h-screen bg-background-light pb-24">
+      <div className="min-h-screen bg-background-light pb-16">
         {/* Баннер с обложкой */}
         {businessTyped.coverUrl && (
           <div className="relative w-full min-h-[180px] flex flex-col justify-end rounded-b-[2.5rem] overflow-hidden shadow-xl z-10">
@@ -262,6 +263,8 @@ export default async function Page({ params }: PageProps) {
         <div className="px-5">
           <Catalog categories={categoriesTyped} products={productsTyped} />
         </div>
+
+        <Footer />
 
         {/* Фиксированная нижняя панель с корзиной */}
         <CartBottomBar />

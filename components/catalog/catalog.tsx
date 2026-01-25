@@ -202,7 +202,7 @@ export function Catalog({ categories, products }: CatalogProps) {
         ) : (
           <div
             className={
-              viewMode === "grid" ? "grid grid-cols-2 gap-4 mt-2.5" : "space-y-4 mt-2.5"
+              viewMode === "grid" ? "grid grid-cols-2 gap-4 mt-2.5 pb-4" : "space-y-4 mt-2.5"
             }
           >
             {filteredProducts.map((product) => (
