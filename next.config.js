@@ -8,6 +8,11 @@ const nextConfig = {
       },
     ],
   },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '5mb', // Лимит соответствует лимиту Supabase Storage bucket
+    },
+  },
 }
 
 module.exports = nextConfig

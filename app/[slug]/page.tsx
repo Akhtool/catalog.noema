@@ -11,6 +11,7 @@ import { Business, Category, Product } from "@/types";
 import { parseDeliveryTypes } from "@/lib/order";
 import { Clock } from "lucide-react";
 import type { Metadata } from "next";
+import { BusinessProfileEditorWrapper } from "@/components/business/business-profile-editor-wrapper";
 
 interface PageProps {
   params: Promise<{
@@ -140,7 +141,10 @@ export default async function Page({ params }: PageProps) {
 
   return (
     <BusinessProvider business={businessTyped}>
-      <div className="min-h-screen bg-background-light pb-16">
+      <div className="min-h-screen bg-background-light pb-16 relative">
+        {/* Кнопка редактирования профиля (только для owner/admin) */}
+        <BusinessProfileEditorWrapper business={businessTyped} />
+
         {/* Баннер с обложкой */}
         {businessTyped.coverUrl && (
           <div className="relative w-full min-h-[180px] flex flex-col justify-end rounded-b-[2.5rem] overflow-hidden shadow-xl z-10">
@@ -161,7 +165,7 @@ export default async function Page({ params }: PageProps) {
             <div className="relative p-8 z-20">
               <div className="flex items-end gap-4">
                 {businessTyped.logoUrl && (
-                  <div className="flex-shrink-0">
+                  <div className="flex-shrink-0 relative">
                     <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-brand-yellow bg-white shadow-lg">
                       <Image
                         src={businessTyped.logoUrl}
