@@ -4,12 +4,19 @@ import { useState } from "react";
 import Image from "next/image";
 import { Product } from "@/types";
 import { useCartStore } from "@/store/cart";
-import { Plus, Minus } from "lucide-react";
+import { Plus, Minus, Pencil, EyeOff } from "lucide-react";
 import { ProductDetailCard } from "./product-detail-card";
 
 interface ProductCardProps {
   product: Product;
   viewMode: "grid" | "list";
+  /** Показывать кнопки редактировать/скрыть и восстановить (для админа) */
+  showAdminActions?: boolean;
+  onEdit?: () => void;
+  /** Скрыть карточку из каталога (деактивировать) */
+  onHide?: () => void | Promise<void>;
+  /** Показать карточку снова (восстановить) */
+  onRestore?: () => void | Promise<void>;
 }
 
 // Извлекаем вес/объем из description или используем description как есть
@@ -25,7 +32,14 @@ function extractWeight(description: string | null): string | null {
   return null;
 }
 
-export function ProductCard({ product, viewMode }: ProductCardProps) {
+export function ProductCard({
+  product,
+  viewMode,
+  showAdminActions = false,
+  onEdit,
+  onHide,
+  onRestore,
+}: ProductCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
   const increaseQuantity = useCartStore((state) => state.increaseQuantity);
@@ -57,18 +71,59 @@ export function ProductCard({ product, viewMode }: ProductCardProps) {
   };
 
   const handleCardClick = () => {
+    if (showAdminActions && !product.isActive) return;
     setIsDetailOpen(true);
   };
 
   const weight = extractWeight(product.description);
+  const isHidden = showAdminActions && !product.isActive;
 
   if (viewMode === "list") {
     return (
       <>
         <div
-          className="bg-card-white rounded-[1.25rem] p-4 shadow-soft relative group flex gap-4 border border-transparent hover:border-brand-yellow/30 transition-all cursor-pointer"
+          className={`bg-card-white rounded-[1.25rem] p-4 shadow-soft relative group flex gap-4 border transition-all ${
+            isHidden
+              ? "border-gray-200 bg-gray-100 opacity-75 cursor-default"
+              : "border-transparent hover:border-brand-yellow/30 cursor-pointer"
+          }`}
           onClick={handleCardClick}
         >
+          {isHidden && onRestore && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[1.25rem] bg-gray-200/50" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={onRestore}
+                className="px-4 py-2 rounded-xl bg-gray-800 text-white text-sm font-medium hover:bg-gray-900"
+              >
+                Показать карточку снова
+              </button>
+            </div>
+          )}
+          {showAdminActions && (onEdit || onHide) && product.isActive && (
+            <div className="absolute top-2 right-2 z-20 flex gap-1" onClick={(e) => e.stopPropagation()}>
+              {onEdit && (
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  className="p-1.5 rounded-full bg-white/90 shadow border border-gray-200 hover:bg-gray-50"
+                  aria-label="Редактировать"
+                >
+                  <Pencil className="h-4 w-4 text-gray-600" />
+                </button>
+              )}
+              {onHide && (
+                <button
+                  type="button"
+                  onClick={onHide}
+                  className="p-1.5 rounded-full bg-white/90 shadow border border-gray-200 hover:bg-gray-50"
+                  aria-label="Скрыть из каталога"
+                >
+                  <EyeOff className="h-4 w-4 text-gray-600" />
+                </button>
+              )}
+            </div>
+          )}
           {product.images && product.images.length > 0 && (
             <div className="relative w-24 h-24 flex-shrink-0 rounded-md overflow-hidden">
               <Image
@@ -148,9 +203,48 @@ export function ProductCard({ product, viewMode }: ProductCardProps) {
   return (
     <>
       <div
-        className="bg-card-white rounded-[1.25rem] p-4 shadow-soft relative group flex flex-col justify-between h-full border border-transparent hover:border-brand-yellow/30 transition-all cursor-pointer"
+        className={`bg-card-white rounded-[1.25rem] p-4 shadow-soft relative group flex flex-col justify-between h-full border transition-all ${
+          isHidden
+            ? "border-gray-200 bg-gray-100 opacity-75 cursor-default"
+            : "border-transparent hover:border-brand-yellow/30 cursor-pointer"
+        }`}
         onClick={handleCardClick}
       >
+        {isHidden && onRestore && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[1.25rem] bg-gray-200/50" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={onRestore}
+              className="px-4 py-2 rounded-xl bg-gray-800 text-white text-sm font-medium hover:bg-gray-900"
+            >
+              Показать карточку снова
+            </button>
+          </div>
+        )}
+        {showAdminActions && (onEdit || onHide) && product.isActive && (
+          <div className="absolute top-2 right-2 z-20 flex gap-1" onClick={(e) => e.stopPropagation()}>
+            {onEdit && (
+              <button
+                type="button"
+                onClick={onEdit}
+                className="p-1.5 rounded-full bg-white/90 shadow border border-gray-200 hover:bg-gray-50"
+                aria-label="Редактировать"
+              >
+                <Pencil className="h-4 w-4 text-gray-600" />
+              </button>
+            )}
+            {onHide && (
+              <button
+                type="button"
+                onClick={onHide}
+                className="p-1.5 rounded-full bg-white/90 shadow border border-gray-200 hover:bg-gray-50"
+                aria-label="Скрыть из каталога"
+              >
+                <EyeOff className="h-4 w-4 text-gray-600" />
+              </button>
+            )}
+          </div>
+        )}
         {/* Вес/объем в левом верхнем углу */}
         {weight && (
           <div className="absolute top-3 left-3 bg-gray-100 px-2 py-1 rounded-md z-10">

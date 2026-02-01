@@ -153,6 +153,7 @@ export function ProductDetailCard({
                 className="object-cover"
                 priority
                 sizes="100vw"
+                unoptimized
               />
 
               {/* Индикаторы карусели */}

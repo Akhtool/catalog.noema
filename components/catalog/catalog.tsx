@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { Category, Product } from "@/types";
 import { useCatalogFiltersStore } from "@/store/catalog-filters";
+import { useHasAccess, useProductEditor, useDeleteProduct, useRestoreProduct } from "@/components/business/profile-editor-context";
 import { CategoryList } from "./category-list";
 import { SearchInput } from "./search-input";
 import { ViewToggle } from "./view-toggle";
@@ -14,6 +15,10 @@ interface CatalogProps {
 }
 
 export function Catalog({ categories, products }: CatalogProps) {
+  const hasAccess = useHasAccess();
+  const openProductEditor = useProductEditor();
+  const hideProduct = useDeleteProduct();
+  const restoreProduct = useRestoreProduct();
   const {
     searchQuery,
     selectedCategoryId,
@@ -210,6 +215,22 @@ export function Catalog({ categories, products }: CatalogProps) {
                 key={product.id}
                 product={product}
                 viewMode={viewMode}
+                showAdminActions={hasAccess === true}
+                onEdit={
+                  openProductEditor
+                    ? () => openProductEditor(product.id)
+                    : undefined
+                }
+                onHide={
+                  hideProduct && product.isActive
+                    ? () => hideProduct(product.id)
+                    : undefined
+                }
+                onRestore={
+                  restoreProduct && !product.isActive
+                    ? () => restoreProduct(product.id)
+                    : undefined
+                }
               />
             ))}
           </div>

@@ -1,8 +1,9 @@
 // app/[slug]/page.tsx
 import { supabase } from "@/lib/supabase";
+import { createServerClient } from "@/lib/supabase-server";
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { ContactButton } from "@/components/contact-button";
+import { ContactOrEditSection } from "@/components/business/contact-or-edit-section";
 import { Catalog } from "@/components/catalog/catalog";
 import { BusinessProvider } from "@/components/business-provider";
 import { CartBottomBar } from "@/components/cart/cart-bottom-bar";
@@ -22,7 +23,9 @@ interface PageProps {
 /**
  * Генерирует метаданные для страницы бизнеса, включая динамический favicon
  */
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const { data: business } = await supabase
     .from("business")
@@ -73,11 +76,22 @@ export default async function Page({ params }: PageProps) {
     .eq("is_active", true)
     .order("order", { ascending: true });
 
-  const { data: products } = await supabase
-    .from("product")
-    .select("*")
-    .eq("business_id", business.id)
-    .eq("is_active", true);
+  // Для админа загружаем все товары (в т.ч. скрытые) через serverClient; для остальных — только активные через anon
+  const serverClient = await createServerClient();
+  const { data: { user } } = await serverClient.auth.getUser();
+  let isAdmin = false;
+  if (user) {
+    const { data: bu } = await serverClient
+      .from("business_user")
+      .select("role")
+      .eq("business_id", business.id)
+      .eq("user_id", user.id)
+      .single();
+    isAdmin = !!(bu && (bu.role === "owner" || bu.role === "admin"));
+  }
+  const { data: products } = isAdmin
+    ? await serverClient.from("product").select("*").eq("business_id", business.id)
+    : await supabase.from("product").select("*").eq("business_id", business.id).eq("is_active", true);
 
   // Преобразуем данные из snake_case в camelCase для типизации
   const businessTyped: Business = {
@@ -141,10 +155,7 @@ export default async function Page({ params }: PageProps) {
 
   return (
     <BusinessProvider business={businessTyped}>
-      <div className="min-h-screen bg-background-light pb-16 relative">
-        {/* Кнопка редактирования профиля (только для owner/admin) */}
-        <BusinessProfileEditorWrapper business={businessTyped} />
-
+      <BusinessProfileEditorWrapper business={businessTyped}>
         {/* Баннер с обложкой */}
         {businessTyped.coverUrl && (
           <div className="relative w-full min-h-[180px] flex flex-col justify-end rounded-b-[2.5rem] overflow-hidden shadow-xl z-10">
@@ -258,10 +269,8 @@ export default async function Page({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Кнопка "Связаться с нами" */}
-        <div className="px-5 my-2.5">
-          <ContactButton business={businessTyped} variant="wide" />
-        </div>
+        {/* Секция "Связаться с нами" или "Редактировать профиль" (для admin/owner) */}
+        <ContactOrEditSection business={businessTyped} />
 
         {/* Каталог */}
         <div className="px-5">
@@ -272,7 +281,7 @@ export default async function Page({ params }: PageProps) {
 
         {/* Фиксированная нижняя панель с корзиной */}
         <CartBottomBar />
-      </div>
+      </BusinessProfileEditorWrapper>
     </BusinessProvider>
   );
 }

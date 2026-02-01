@@ -66,11 +66,11 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
+
   .pb-safe {
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
-  
+
   .pb-safe-sm {
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   }

@@ -75,7 +75,7 @@
 
 ---
 
-## 🟡 ЭТАП 3 — Business Admin Overlay (В ПРОЦЕССЕ)
+## ✅ ЭТАП 3 — Business Admin Overlay (ЗАВЕРШЁН)
 
 **Цель:** сделать бизнес-профиль редактируемым поверх public UI.
 
@@ -94,19 +94,19 @@
 - Server Actions
 - RLS-проверки
 
-### 3.2 Media (ОСТАЛОСЬ СДЕЛАТЬ)
+### 3.2 Media (ГОТОВО)
 - Логотип (1:1)
 - Обложка (4:1)
 - Загрузка в Supabase Storage
 - Сохранение `logo_url`, `cover_url`
 - Preview
-- (Опционально) crop
+- (Опционально) crop — на этапе 8 (Media UX)
 
 📌 Никаких новых страниц. Всё поверх public UI.
 
 ---
 
-## 🔜 ЭТАП 4 — Brand Manager
+## ✅ ЭТАП 4 — Brand Manager (ЗАВЕРШЁН)
 
 **Цель:** управляемые бренды товаров.
 
@@ -130,7 +130,7 @@
 
 ---
 
-## 🔜 ЭТАП 5 — Category Manager
+## ✅ ЭТАП 5 — Category Manager (ЗАВЕРШЁН)
 
 **Цель:** управление структурой каталога.
 
@@ -150,7 +150,7 @@
 
 ---
 
-## 🔜 ЭТАП 6 — Product Editor (ЯДРО V2)
+## ✅ ЭТАП 6 — Product Editor (ЯДРО V2) (ЗАВЕРШЁН)
 
 **Цель:** полноценное управление товарами.
 
@@ -163,7 +163,7 @@
 - Кнопка ➕ “Добавить позицию”
 - Карточка товара:
   - ✏️ редактировать
-  - 🗑️ удалить
+  - 👁️ скрыть из каталога (деактивация; для админа скрытая карточка серая с кнопкой «Показать карточку снова»)
 - Модалка Product Editor:
   - name
   - subtitle
@@ -178,7 +178,7 @@
 
 ---
 
-## 🔜 ЭТАП 7 — Product Images
+## ✅ ЭТАП 7 — Product Images (ЗАВЕРШЁН)
 
 **Цель:** управление изображениями товаров.
 
@@ -188,10 +188,10 @@
 - FK → product
 
 ### UI
-- Загрузка 1–12 изображений
-- Drag & reorder
-- Первое изображение = карточка
+- Загрузка 1–12 изображений (в редакторе позиции, после сохранения)
+- Кнопки «вверх/вниз» для изменения порядка (первое = карточка в каталоге)
 - Удаление изображений
+- Bucket в Supabase Storage: `product` (нужно создать публичный bucket, если ещё нет)
 
 📌 Используется и в public, и в admin.
 
@@ -259,7 +259,7 @@
 - Миграция: `migrations/v2_auth.sql`
 - UI: `/app/login`, `/app/signup`, `/app/admin`
 
-**ЭТАП 3 — Business Admin Overlay** 🟡 В ПРОЦЕССЕ
+**ЭТАП 3 — Business Admin Overlay** ✅ ЗАВЕРШЁН
 
 **3.1 Базовое редактирование** ✅ ГОТОВО
 - Реализовано редактирование полей:
@@ -270,24 +270,42 @@
   - `telegram` (Telegram)
   - `yandex_metrika` (ID Яндекс.Метрики)
 - Server Actions: `app/admin/business/actions.ts`
-- UI: `app/admin/business/business-form.tsx`
-- Страница: `app/admin/business/page.tsx`
+- Overlay: `BusinessProfileEditorSheet`, `ContactOrEditSection`, `BusinessProfileEditorWrapper`
+- Отдельная страница: `app/admin/business/page.tsx`, `business-form.tsx`
 - RLS-проверки реализованы
 
-**3.2 Media** ❌ НЕ СДЕЛАНО
-- Загрузка логотипа (1:1) — не реализовано
-- Загрузка обложки (4:1) — не реализовано
-- Интеграция с Supabase Storage — не реализовано
-- Preview изображений — не реализовано
-- Crop функциональность — не реализовано
+**3.2 Media** ✅ ГОТОВО
+- Загрузка логотипа (1:1) и обложки (4:1) в Supabase Storage
+- Сохранение `logo_url`, `cover_url` через Server Actions
+- Preview в overlay (`business-profile-editor-sheet.tsx`) и в форме админки
+- Crop — отложен на этап 8 (Media UX)
+
+**ЭТАП 4 — Brand Manager** ✅ ЗАВЕРШЁН
+- Server Actions: `getBrands`, `createBrand`, `updateBrand`, `deleteBrand`, `getProductCountByBrand`
+- Модалка выбора/управления брендами: BrandPickerSheet (добавить, переименовать, удалить с подтверждением и опцией «удалить связанные товары»)
+- Интеграция в Product Editor (выбор бренда для позиции)
+
+**ЭТАП 5 — Category Manager** ✅ ЗАВЕРШЁН
+- Server Actions: `getCategories`, `createCategory`, `updateCategory`, `deleteCategory`, `getProductCountByCategory`
+- Модалка выбора/управления категориями: CategoryPickerSheet (добавить, переименовать, удалить с подтверждением)
+- Интеграция в Product Editor (выбор категории для позиции)
+
+**ЭТАП 6 — Product Editor (ЯДРО V2)** ✅ ЗАВЕРШЁН
+- Server Actions: `getProduct`, `createProduct`, `updateProduct`, `deleteProduct` (soft delete), `restoreProduct`
+- ProductEditorSheet: создание/редактирование позиции (name, subtitle, description, price, brand, category, isActive, inStock), фиксированная высота, лоадер при загрузке
+- Контекст: `openProductEditor(productId?)`, `hasAccess`, `deleteProduct`, `restoreProduct`
+- Карточка товара для админа: кнопки «Редактировать» и «Скрыть» (иконка глаза); скрытая карточка — серая, по центру кнопка «Показать карточку снова»
+- Страница `[slug]`: для админа загружаются все товары (в т.ч. скрытые), для остальных — только активные
+
+**ЭТАП 7 — Product Images** ✅ ЗАВЕРШЁН
+- Таблица `product_image`: загрузка изображений в bucket `product`, CRUD через Server Actions
+- Каталог `[slug]`: товары загружаются с изображениями из `product_image` (по position)
+- Редактор позиции: список фото (1–12), загрузка, удаление, изменение порядка (кнопки вверх/вниз)
+- Первое изображение используется на карточке товара и в деталях
 
 ### 🔜 Следующие этапы
 
-- ЭТАП 4 — Brand Manager (не начат)
-- ЭТАП 5 — Category Manager (не начат)
-- ЭТАП 6 — Product Editor (не начат)
-- ЭТАП 7 — Product Images (не начат)
-- ЭТАП 8 — Media UX (не начат)
-- ЭТАП 9 — UX & Stability (не начат)
-- ЭТАП 10 — V3 (не начат)
+- ЭТАП 8 — Media UX
+- ЭТАП 9 — UX & Stability
+- ЭТАП 10 — V3 (ПОЗЖЕ)
 

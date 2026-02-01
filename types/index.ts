@@ -36,6 +36,18 @@ export interface Business {
 }
 
 /**
+ * Бренд товаров (привязан к business)
+ */
+export interface Brand {
+  id: string;
+  businessId: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
  * Категория товаров или услуг
  */
 export interface Category {

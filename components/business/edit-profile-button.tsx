@@ -1,13 +1,13 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { checkBusinessAccess } from '@/app/admin/business/actions'
-import { Button } from '@/components/ui/button'
-import { Pencil } from 'lucide-react'
+import { useEffect, useState } from "react";
+import { checkBusinessAccess } from "@/app/admin/business/actions";
+import { Button } from "@/components/ui/button";
+import { Pencil } from "lucide-react";
 
 interface EditProfileButtonProps {
-  businessSlug: string
-  onOpenEditor: () => void
+  businessSlug: string;
+  onOpenEditor: () => void;
 }
 
 /**
@@ -18,23 +18,23 @@ export function EditProfileButton({
   businessSlug,
   onOpenEditor,
 }: EditProfileButtonProps) {
-  const [hasAccess, setHasAccess] = useState<boolean | null>(null)
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
 
   useEffect(() => {
     /**
      * Проверяет права доступа к бизнесу
      */
     async function checkAccess() {
-      const result = await checkBusinessAccess(businessSlug)
-      setHasAccess(result.hasAccess ?? false)
+      const result = await checkBusinessAccess(businessSlug);
+      setHasAccess(result.hasAccess ?? false);
     }
 
-    checkAccess()
-  }, [businessSlug])
+    checkAccess();
+  }, [businessSlug]);
 
   // Показываем кнопку только если есть доступ
   if (hasAccess !== true) {
-    return null
+    return null;
   }
 
   return (
@@ -47,5 +47,5 @@ export function EditProfileButton({
       <Pencil className="w-4 h-4" />
       <span>Редактировать профиль</span>
     </Button>
-  )
+  );
 }
