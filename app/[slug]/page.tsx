@@ -89,9 +89,10 @@ export default async function Page({ params }: PageProps) {
       .single();
     isAdmin = !!(bu && (bu.role === "owner" || bu.role === "admin"));
   }
+  const productSelect = "*, product_image(url, position), brand(name)";
   const { data: products } = isAdmin
-    ? await serverClient.from("product").select("*").eq("business_id", business.id)
-    : await supabase.from("product").select("*").eq("business_id", business.id).eq("is_active", true);
+    ? await serverClient.from("product").select(productSelect).eq("business_id", business.id)
+    : await supabase.from("product").select(productSelect).eq("business_id", business.id).eq("is_active", true);
 
   // Преобразуем данные из snake_case в camelCase для типизации
   const businessTyped: Business = {
@@ -123,19 +124,11 @@ export default async function Page({ params }: PageProps) {
   }));
 
   const productsTyped: Product[] = (products || []).map((prod) => {
-    // Обработка images: может быть массивом или JSON строкой
-    let images: string[] = [];
-    if (prod.images) {
-      if (typeof prod.images === "string") {
-        try {
-          images = JSON.parse(prod.images);
-        } catch {
-          images = [prod.images];
-        }
-      } else if (Array.isArray(prod.images)) {
-        images = prod.images;
-      }
-    }
+    // Изображения из product_image по position (data-model.md)
+    const productImages = (prod.product_image ?? []) as { url: string; position: number }[];
+    const images = productImages
+      .sort((a, b) => a.position - b.position)
+      .map((img) => img.url);
 
     return {
       id: prod.id,
@@ -145,7 +138,7 @@ export default async function Page({ params }: PageProps) {
       description: prod.description || null,
       price: prod.price,
       images,
-      brand: prod.brand || null,
+      brand: (prod.brand as { name: string } | null)?.name ?? null,
       inStock: prod.in_stock,
       isActive: prod.is_active,
       createdAt: prod.created_at,
@@ -170,6 +163,7 @@ export default async function Page({ params }: PageProps) {
               className="object-cover"
               priority
               sizes="100vw"
+              unoptimized
             />
 
             {/* Информация о бизнесе внизу баннера — в потоке, блок растёт с описанием */}
@@ -184,6 +178,7 @@ export default async function Page({ params }: PageProps) {
                         fill
                         className="object-cover"
                         sizes="96px"
+                        unoptimized
                       />
                     </div>
                   </div>

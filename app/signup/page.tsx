@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase-server'
 import { SignupForm } from './signup-form'
@@ -28,9 +29,9 @@ export default async function SignupPage() {
         </div>
         <SignupForm />
         <div className="text-center text-sm">
-          <a href="/login" className="text-primary hover:underline">
+          <Link href="/login" className="text-primary hover:underline">
             Уже есть аккаунт? Войти
-          </a>
+          </Link>
         </div>
       </div>
     </div>

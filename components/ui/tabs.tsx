@@ -33,7 +33,7 @@ function Tabs({ defaultValue = "", value: controlledValue, onValueChange, childr
   )
 }
 
-interface TabsListProps extends React.HTMLAttributes<HTMLDivElement> {}
+type TabsListProps = React.HTMLAttributes<HTMLDivElement>
 
 /**
  * Контейнер для триггеров вкладок

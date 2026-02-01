@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet'
@@ -321,7 +320,7 @@ export function BusinessProfileEditorSheet({
           }
         }, 1500)
       }
-    } catch (error) {
+    } catch {
       setMessage({ 
         type: 'error', 
         text: 'Произошла ошибка при сохранении. Попробуйте ещё раз.' 
@@ -411,6 +410,7 @@ export function BusinessProfileEditorSheet({
                           fill
                           className="object-cover"
                           sizes="100vw"
+                          unoptimized
                         />
                       </>
                     ) : (
@@ -434,6 +434,7 @@ export function BusinessProfileEditorSheet({
                           fill
                           className="object-cover"
                           sizes="96px"
+                          unoptimized
                         />
                       </div>
                     </div>

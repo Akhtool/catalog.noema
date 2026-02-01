@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button'
  * Поддерживает email/password и magic link
  */
 export function LoginForm() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -54,7 +53,7 @@ export function LoginForm() {
         setError('Сессия не создана. Попробуйте ещё раз.')
         setIsLoading(false)
       }
-    } catch (err) {
+    } catch {
       setError('Произошла ошибка при входе')
       setIsLoading(false)
     }
@@ -81,7 +80,7 @@ export function LoginForm() {
 
       setMagicLinkSent(true)
       setIsLoading(false)
-    } catch (err) {
+    } catch {
       setError('Произошла ошибка при отправке ссылки')
       setIsLoading(false)
     }
@@ -219,9 +218,9 @@ export function LoginForm() {
       )}
 
       <div className="text-center text-sm pt-4 border-t">
-        <a href="/signup" className="text-primary hover:underline">
+        <Link href="/signup" className="text-primary hover:underline">
           Нет аккаунта? Зарегистрироваться
-        </a>
+        </Link>
       </div>
     </div>
   )

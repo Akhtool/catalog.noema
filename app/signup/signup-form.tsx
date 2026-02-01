@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -10,7 +9,6 @@ import { Button } from '@/components/ui/button'
  * Форма регистрации
  */
 export function SignupForm() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
@@ -61,7 +59,7 @@ export function SignupForm() {
         // Используем window.location для гарантированного редиректа
         window.location.replace('/admin')
       }
-    } catch (err) {
+    } catch {
       setError('Произошла ошибка при регистрации')
       setIsLoading(false)
     }

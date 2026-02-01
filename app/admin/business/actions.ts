@@ -160,16 +160,18 @@ export async function saveImageUrl(
     return { error: 'Нет доступа к этому бизнесу' }
   }
 
-  // Получаем старое изображение для удаления
+  // Получаем старое изображение для удаления (оба поля для корректной типизации)
   const { data: businessData } = await supabase
     .from('business')
-    .select(`${type}_url, slug`)
+    .select('logo_url, cover_url, slug')
     .eq('id', businessId)
     .single()
 
+  const oldImageUrl = type === 'logo' ? businessData?.logo_url : businessData?.cover_url
+
   // Удаляем старое изображение, если оно есть и отличается от нового
-  if (businessData?.[`${type}_url`]) {
-    const oldUrl = businessData[`${type}_url`] as string
+  if (oldImageUrl) {
+    const oldUrl = oldImageUrl as string
     if (oldUrl !== imageUrl) {
       // Извлекаем путь из старого URL
       try {
@@ -198,7 +200,7 @@ export async function saveImageUrl(
   // Обновляем кэш страниц
   revalidatePath('/admin/business')
   if (businessSlug || businessData?.slug) {
-    revalidatePath(`/${businessSlug || businessData.slug}`)
+    revalidatePath(`/${businessSlug ?? businessData?.slug}`)
   }
 
   return { success: true }

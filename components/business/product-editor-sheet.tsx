@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +12,13 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useSheetDrag } from "@/lib/useSheetDrag";
 import { Business } from "@/types";
 import { X, ChevronRight, Camera, Calendar, Trash2, Loader2 } from "lucide-react";
@@ -21,15 +29,31 @@ import {
   DiscountDatePickerDialog,
   formatDiscountDateDisplay,
 } from "./discount-date-picker-dialog";
+import { ProductImageCropSheet } from "./product-image-crop-sheet";
 import {
   getProduct,
   createProduct,
   updateProduct,
+  uploadProductImage,
+  deleteProductImage,
+  reorderProductImages,
+  type ProductImageForEdit,
 } from "@/app/admin/product/actions";
 
 const NAME_MAX_LENGTH = 70;
 const SUBTITLE_MAX_LENGTH = 60;
 const DESCRIPTION_MAX_LENGTH = 2000;
+
+/** Элемент списка для отображения (серверное фото или pending) */
+interface DisplayImageItem {
+  id: string;
+  url: string;
+  position: number;
+  /** Индекс в массиве images (для «Главное» и удаления серверного) */
+  originalIndex?: number;
+  isPendingAdd?: boolean;
+  file?: File;
+}
 
 interface ProductEditorSheetProps {
   business: Business;
@@ -76,11 +100,123 @@ export function ProductEditorSheet({
   const [isBrandPickerOpen, setIsBrandPickerOpen] = useState(false);
   const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
   const [isDiscountCalendarOpen, setIsDiscountCalendarOpen] = useState(false);
+  const [images, setImages] = useState<ProductImageForEdit[]>([]);
+  const [imageUploading] = useState(false);
+  const [cropSheetOpen, setCropSheetOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [cropReplacingImageId, setCropReplacingImageId] = useState<string | null>(null);
+  const [cropReplacingIndex, setCropReplacingIndex] = useState<number | null>(null);
+  const [pendingAddFiles, setPendingAddFiles] = useState<{ id: string; url: string; file: File }[]>([]);
+  const [pendingReplaces, setPendingReplaces] = useState<Record<string, { index: number; url: string; file: File }>>({});
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
+  const [pendingMainImageId, setPendingMainImageId] = useState<string | null>(null);
+  const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  /** Ref для проверки несохранённых изменений при любом способе закрытия (свайп, кнопка, overlay). */
+  const hasUnsavedRef = useRef<() => boolean>(() => false);
+  const initialFormRef = useRef<{
+    name: string;
+    subtitle: string;
+    description: string;
+    price: string;
+    categoryId: string | null;
+    brandId: string | null;
+    isActive: boolean;
+    inStock: boolean;
+    hasDiscount: boolean;
+    discountPercent: string;
+    totalWithDiscount: string;
+    discountDateFrom: string | null;
+    discountDateTo: string | null;
+  } | null>(null);
 
   const { dragHandlers, sheetStyle, scrollableStyle } = useSheetDrag({
     open,
-    onOpenChange,
+    onOpenChange: handleSheetOpenChange,
   });
+
+  const hasPendingImageChanges = useCallback(
+    () =>
+      pendingAddFiles.length > 0 ||
+      Object.keys(pendingReplaces).length > 0 ||
+      pendingDeleteIds.length > 0 ||
+      pendingMainImageId != null,
+    [pendingAddFiles.length, pendingReplaces, pendingDeleteIds.length, pendingMainImageId]
+  );
+
+  const hasFormDirty = useCallback(() => {
+    const i = initialFormRef.current;
+    if (!i) return false;
+    const discountFrom = discountDateRange.from ?? null;
+    const discountTo = discountDateRange.to ?? null;
+    return (
+      name !== i.name ||
+      subtitle !== i.subtitle ||
+      description !== i.description ||
+      price !== i.price ||
+      selectedCategoryId !== i.categoryId ||
+      selectedBrandId !== i.brandId ||
+      isActive !== i.isActive ||
+      inStock !== i.inStock ||
+      hasDiscount !== i.hasDiscount ||
+      discountPercent !== i.discountPercent ||
+      totalWithDiscount !== i.totalWithDiscount ||
+      discountFrom !== i.discountDateFrom ||
+      discountTo !== i.discountDateTo
+    );
+  }, [name, subtitle, description, price, selectedCategoryId, selectedBrandId, isActive, inStock, hasDiscount, discountPercent, totalWithDiscount, discountDateRange.from, discountDateRange.to]);
+
+  const displayImages = useMemo((): DisplayImageItem[] => {
+    const list: DisplayImageItem[] = [];
+    images.forEach((img, idx) => {
+      if (pendingDeleteIds.includes(img.id)) return;
+      const replace = pendingReplaces[img.id];
+      list.push({
+        id: img.id,
+        url: replace?.url ?? img.url,
+        position: list.length,
+        originalIndex: idx,
+      });
+    });
+    pendingAddFiles.forEach((p) => {
+      list.push({
+        id: p.id,
+        url: p.url,
+        position: list.length,
+        isPendingAdd: true,
+        file: p.file,
+      });
+    });
+    if (pendingMainImageId && list.length > 1) {
+      const idx = list.findIndex((i) => i.id === pendingMainImageId);
+      if (idx > 0) {
+        const [main] = list.splice(idx, 1);
+        list.unshift(main);
+      }
+    }
+    return list;
+  }, [images, pendingReplaces, pendingAddFiles, pendingDeleteIds, pendingMainImageId]);
+
+  hasUnsavedRef.current = () => hasPendingImageChanges() || hasFormDirty();
+
+  function handleSheetOpenChange(nextOpen: boolean) {
+    if (!nextOpen && hasUnsavedRef.current()) {
+      setShowUnsavedConfirm(true);
+      return;
+    }
+    onOpenChange(nextOpen);
+  }
+
+  function handleConfirmClose() {
+    pendingAddFiles.forEach((p) => URL.revokeObjectURL(p.url));
+    Object.values(pendingReplaces).forEach((r) => URL.revokeObjectURL(r.url));
+    setPendingAddFiles([]);
+    setPendingReplaces({});
+    setPendingDeleteIds([]);
+    setPendingMainImageId(null);
+    setShowUnsavedConfirm(false);
+    onOpenChange(false);
+  }
 
   const resetForm = useCallback(() => {
     setName("");
@@ -98,6 +234,26 @@ export function ProductEditorSheet({
     setIsActive(false);
     setInStock(true);
     setSubmitError(null);
+    setImages([]);
+    setPendingAddFiles([]);
+    setPendingReplaces({});
+    setPendingDeleteIds([]);
+    setPendingMainImageId(null);
+    initialFormRef.current = {
+      name: "",
+      subtitle: "",
+      description: "",
+      price: "",
+      categoryId: null,
+      brandId: null,
+      isActive: false,
+      inStock: true,
+      hasDiscount: false,
+      discountPercent: "",
+      totalWithDiscount: "",
+      discountDateFrom: null,
+      discountDateTo: null,
+    };
   }, []);
 
   useEffect(() => {
@@ -124,6 +280,22 @@ export function ProductEditorSheet({
           setSelectedCategoryName(p.categoryName ?? null);
           setIsActive(p.isActive);
           setInStock(p.inStock);
+          setImages(p.images ?? []);
+          initialFormRef.current = {
+            name: p.name,
+            subtitle: p.subtitle ?? "",
+            description: p.description ?? "",
+            price: String(p.price),
+            categoryId: p.categoryId,
+            brandId: p.brandId,
+            isActive: p.isActive,
+            inStock: p.inStock,
+            hasDiscount: false,
+            discountPercent: "",
+            totalWithDiscount: "",
+            discountDateFrom: null,
+            discountDateTo: null,
+          };
         }
       });
     } else {
@@ -148,7 +320,7 @@ export function ProductEditorSheet({
     } else if (!discountPercent.trim()) {
       setTotalWithDiscount("");
     }
-  }, [price, discountPercent, hasValidPrice, hasValidDiscount]);
+  }, [price, discountPercent, hasValidPrice, hasValidDiscount, priceNum, discountNum]);
 
   /** Обновляет итог и пересчитывает процент скидки при вводе в поле «Итоговая сумма» */
   function handleTotalWithDiscountChange(value: string) {
@@ -166,6 +338,93 @@ export function ProductEditorSheet({
     }
   }
 
+  /** Выбор файла: открывает модалку обрезки (3:4), затем загрузка обрезанного фото */
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !productId) return;
+    if (!file.type.startsWith("image/")) {
+      setSubmitError("Файл должен быть изображением");
+      return;
+    }
+    setSubmitError(null);
+    setCropReplacingImageId(null);
+    setCropReplacingIndex(null);
+    setCropImageSrc(URL.createObjectURL(file));
+    setCropSheetOpen(true);
+    e.target.value = "";
+  }
+
+  /** Открыть кроп по клику на превью существующего фото (замена) */
+  function openCropForExistingImage(img: ProductImageForEdit, index: number) {
+    setSubmitError(null);
+    setCropReplacingImageId(img.id);
+    setCropReplacingIndex(index);
+    setCropImageSrc(img.url);
+    setCropSheetOpen(true);
+  }
+
+  /** После обрезки: добавляем в pending (на сервер — только по «Сохранить изменения») */
+  function handleCropComplete(croppedFile: File) {
+    const replacingId = cropReplacingImageId;
+    const replacingIndex = cropReplacingIndex;
+    if (cropImageSrc?.startsWith("blob:")) {
+      URL.revokeObjectURL(cropImageSrc);
+    }
+    setCropImageSrc(null);
+    setCropReplacingImageId(null);
+    setCropReplacingIndex(null);
+    setCropSheetOpen(false);
+    const url = URL.createObjectURL(croppedFile);
+    if (replacingId != null && replacingIndex != null) {
+      setPendingReplaces((prev) => ({
+        ...prev,
+        [replacingId]: { index: replacingIndex, url, file: croppedFile },
+      }));
+    } else if (productId) {
+      setPendingAddFiles((prev) => [
+        ...prev,
+        { id: `pending-add-${Date.now()}`, url, file: croppedFile },
+      ]);
+    }
+  }
+
+  function handleCropSheetOpenChange(open: boolean) {
+    setCropSheetOpen(open);
+    if (!open) {
+      if (cropImageSrc?.startsWith("blob:")) {
+        URL.revokeObjectURL(cropImageSrc);
+      }
+      setCropImageSrc(null);
+      setCropReplacingImageId(null);
+      setCropReplacingIndex(null);
+    }
+  }
+
+  /** Удаление фото: pending-add убираем из списка; серверное — помечаем на удаление при сохранении */
+  function handleDeleteImage(imageId: string) {
+    if (imageId.startsWith("pending-add-")) {
+      setPendingAddFiles((prev) => {
+        const item = prev.find((p) => p.id === imageId);
+        if (item) URL.revokeObjectURL(item.url);
+        return prev.filter((p) => p.id !== imageId);
+      });
+      return;
+    }
+    setPendingDeleteIds((prev) => (prev.includes(imageId) ? prev : [...prev, imageId]));
+    setPendingReplaces((prev) => {
+      const next = { ...prev };
+      const rep = next[imageId];
+      if (rep) URL.revokeObjectURL(rep.url);
+      delete next[imageId];
+      return next;
+    });
+  }
+
+  /** Пометить фото как главное; порядок применится при сохранении */
+  function handleSetMainImage(imageId: string) {
+    setPendingMainImageId(imageId);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
@@ -174,6 +433,10 @@ export function ProductEditorSheet({
     }
     if (!selectedCategoryId) {
       setSubmitError("Выберите категорию");
+      return;
+    }
+    if (productId && displayImages.length === 0) {
+      setSubmitError("Добавьте минимум одно фото");
       return;
     }
     const priceVal = parseFloat(price.replace(",", "."));
@@ -193,21 +456,95 @@ export function ProductEditorSheet({
       inStock: inStock,
       isActive: isActive,
     };
-    const result = productId
-      ? await updateProduct(productId, payload, business.slug)
+    let currentProductId = productId ?? undefined;
+    const result = currentProductId
+      ? await updateProduct(currentProductId, payload, business.slug)
       : await createProduct(business.id, payload, business.slug);
-    setSubmitInProgress(false);
     if (result.error) {
+      setSubmitInProgress(false);
       setSubmitError(result.error);
       return;
     }
+    if (result.data?.id) currentProductId = result.data.id;
+    if (currentProductId) {
+      let currentImages = [...images];
+      const replaceMap: Record<string, string> = {};
+      for (const key of Object.keys(pendingReplaces)) {
+        const rep = pendingReplaces[key];
+        const formData = new FormData();
+        formData.append("file", rep.file);
+        const up = await uploadProductImage(currentProductId, formData, business.slug);
+        if (up.error) {
+          setSubmitError(up.error);
+          setSubmitInProgress(false);
+          return;
+        }
+        if (!up.data) continue;
+        replaceMap[key] = up.data.id;
+        const newOrderedIds = currentImages.map((img, idx) => (idx === rep.index ? up.data!.id : img.id));
+        const reorderRes = await reorderProductImages(currentProductId, newOrderedIds, business.slug);
+        if (reorderRes.error) {
+          setSubmitError(reorderRes.error);
+          setSubmitInProgress(false);
+          return;
+        }
+        await deleteProductImage(key, business.slug);
+        currentImages = currentImages.map((img, idx) =>
+          idx === rep.index ? { id: up.data!.id, url: up.data!.url, position: idx } : img
+        );
+      }
+      const newIdsFromAdds: string[] = [];
+      for (const p of pendingAddFiles) {
+        const formData = new FormData();
+        formData.append("file", p.file);
+        const up = await uploadProductImage(currentProductId, formData, business.slug);
+        if (up.error) {
+          setSubmitError(up.error);
+          setSubmitInProgress(false);
+          return;
+        }
+        if (up.data) {
+          setImages((prev) => [...prev, up.data!]);
+          newIdsFromAdds.push(up.data.id);
+        }
+      }
+      setImages(currentImages);
+      for (const id of pendingDeleteIds) {
+        const delRes = await deleteProductImage(id, business.slug);
+        if (delRes.error) {
+          setSubmitError(delRes.error);
+          setSubmitInProgress(false);
+          return;
+        }
+      }
+      setImages((prev) => prev.filter((img) => !pendingDeleteIds.includes(img.id)));
+      if (pendingMainImageId) {
+        const mainId = replaceMap[pendingMainImageId] ?? pendingMainImageId;
+        const afterDelete = currentImages.filter((img) => !pendingDeleteIds.includes(img.id));
+        const allIds = [...afterDelete.map((i) => i.id), ...newIdsFromAdds];
+        if (allIds.includes(mainId)) {
+          const finalOrder = [mainId, ...allIds.filter((id) => id !== mainId)];
+          const reorderRes = await reorderProductImages(currentProductId, finalOrder, business.slug);
+          if (reorderRes.error) {
+            setSubmitError(reorderRes.error);
+          }
+        }
+      }
+      pendingAddFiles.forEach((p) => URL.revokeObjectURL(p.url));
+      Object.values(pendingReplaces).forEach((r) => URL.revokeObjectURL(r.url));
+      setPendingAddFiles([]);
+      setPendingReplaces({});
+      setPendingDeleteIds([]);
+      setPendingMainImageId(null);
+    }
+    setSubmitInProgress(false);
     router.refresh();
     onOpenChange(false);
   }
 
   return (
     <>
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleSheetOpenChange}>
       <SheetContent
         side="bottom"
         showCloseButton={false}
@@ -226,7 +563,7 @@ export function ProductEditorSheet({
             <SheetTitle className="text-xl font-bold">Редактор позиции</SheetTitle>
             <button
               type="button"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleSheetOpenChange(false)}
               className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors"
               aria-label="Закрыть редактор"
             >
@@ -483,14 +820,96 @@ export function ProductEditorSheet({
                 Нужно минимум одно фото. Первое фото показывается на карточке в
                 каталоге.
               </p>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full border-2 border-dashed border-gray-300 rounded-xl py-6 hover:bg-gray-50"
-              >
-                <Camera className="w-5 h-5 mr-2" />
-                Добавить фото
-              </Button>
+              {!productId ? (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  После сохранения позиции вы сможете добавить фото.
+                </p>
+              ) : (
+                <>
+                  {displayImages.length > 0 && (
+                    <ul className="grid grid-cols-3 gap-2">
+                      {displayImages.map((item, displayIndex) => {
+                        const canOpenCrop = item.originalIndex != null;
+                        return (
+                          <li
+                            key={item.id}
+                            className="relative flex flex-col rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
+                          >
+                            <button
+                              type="button"
+                              onClick={() =>
+                                canOpenCrop &&
+                                openCropForExistingImage(images[item.originalIndex!], item.originalIndex!)
+                              }
+                              disabled={!canOpenCrop}
+                              className="relative aspect-square w-full block cursor-pointer disabled:cursor-default disabled:pointer-events-none text-left"
+                              aria-label={canOpenCrop ? "Обрезать фото" : "Превью"}
+                            >
+                              <Image
+                                src={item.url}
+                                alt=""
+                                width={160}
+                                height={160}
+                                className="w-full h-full object-cover"
+                                unoptimized
+                              />
+                              <span className="absolute bottom-1 left-1 text-xs font-medium text-white bg-black/50 rounded px-1">
+                                {displayIndex + 1} / {displayImages.length}
+                              </span>
+                            </button>
+                            <div className="flex items-center justify-center gap-1 p-1.5 bg-gray-50 border-t border-gray-200">
+                              {!item.isPendingAdd && item.originalIndex != null && item.originalIndex > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetMainImage(item.id)}
+                                  className="px-2 py-1 rounded-md bg-amber-100 text-amber-800 text-xs font-medium touch-manipulation hover:bg-amber-200"
+                                  aria-label="Сделать главным"
+                                >
+                                  Главное
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteImage(item.id)}
+                                className="p-1.5 rounded-md bg-red-500 text-white touch-manipulation disabled:opacity-50 disabled:pointer-events-none"
+                                aria-label="Удалить фото"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  {displayImages.length < 12 && (
+                    <>
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleImageSelect}
+                        disabled={imageUploading}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={imageUploading}
+                        onClick={() => imageInputRef.current?.click()}
+                        className="w-full border-2 border-dashed border-gray-300 rounded-xl py-6 hover:bg-gray-50"
+                      >
+                        {imageUploading ? (
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        ) : (
+                          <Camera className="w-5 h-5 mr-2" />
+                        )}
+                        {imageUploading ? "Загрузка…" : "Добавить фото"}
+                      </Button>
+                    </>
+                  )}
+                </>
+              )}
             </div>
 
             <Button
@@ -532,6 +951,38 @@ export function ProductEditorSheet({
       selectedRange={discountDateRange}
       onSelectRange={setDiscountDateRange}
     />
+    <ProductImageCropSheet
+      open={cropSheetOpen}
+      onOpenChange={handleCropSheetOpenChange}
+      imageSrc={cropImageSrc}
+      onComplete={handleCropComplete}
+    />
+    <Dialog open={showUnsavedConfirm} onOpenChange={setShowUnsavedConfirm}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Вы не сохранили изменения</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-gray-600">
+          Закрыть редактор без сохранения? Все несохранённые изменения (поля формы и фото) будут потеряны.
+        </p>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowUnsavedConfirm(false)}
+          >
+            Остаться
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={handleConfirmClose}
+          >
+            Закрыть
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </>
   );
 }

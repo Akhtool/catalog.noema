@@ -155,7 +155,7 @@ export function BusinessForm({ business }: BusinessFormProps) {
       const filePath = fileName
 
       // Загружаем файл напрямую в Supabase Storage с клиента
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('business')
         .upload(filePath, file, {
           contentType: file.type,
@@ -238,7 +238,7 @@ export function BusinessForm({ business }: BusinessFormProps) {
       const filePath = fileName
 
       // Загружаем файл напрямую в Supabase Storage с клиента
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('business')
         .upload(filePath, file, {
           contentType: file.type,
@@ -306,13 +306,13 @@ export function BusinessForm({ business }: BusinessFormProps) {
       const result = await updateBusiness(formData)
       
       if ('error' in result) {
-        setMessage({ type: 'error', text: result.error })
+        setMessage({ type: 'error', text: result.error ?? 'Неизвестная ошибка' })
       } else {
         setMessage({ type: 'success', text: 'Данные успешно сохранены' })
         // Очищаем сообщение через 3 секунды
         setTimeout(() => setMessage(null), 3000)
       }
-    } catch (error) {
+    } catch {
       setMessage({ 
         type: 'error', 
         text: 'Произошла ошибка при сохранении. Попробуйте ещё раз.' 
@@ -351,6 +351,7 @@ export function BusinessForm({ business }: BusinessFormProps) {
                   fill
                   className="object-cover"
                   sizes="96px"
+                  unoptimized
                 />
               </div>
             )}
@@ -382,6 +383,7 @@ export function BusinessForm({ business }: BusinessFormProps) {
                   fill
                   className="object-cover"
                   sizes="192px"
+                  unoptimized
                 />
               </div>
             )}

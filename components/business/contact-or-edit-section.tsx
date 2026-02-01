@@ -52,7 +52,7 @@ export function ContactOrEditSection({ business }: ContactOrEditSectionProps) {
           </Button>
         )}
         {openProductEditor && (
-          <Button onClick={openProductEditor} className={ADMIN_BUTTON_CLASS}>
+          <Button onClick={() => openProductEditor()} className={ADMIN_BUTTON_CLASS}>
             <Plus className="w-5 h-5" />
             Добавить позицию
           </Button>

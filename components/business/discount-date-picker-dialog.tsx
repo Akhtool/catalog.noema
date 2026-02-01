@@ -66,7 +66,7 @@ export function DiscountDatePickerDialog({
     if (open) {
       setTempRange(toRange(selectedRange));
     }
-  }, [open, selectedRange.from, selectedRange.to]);
+  }, [open, selectedRange]);
 
   function handleOpenChange(next: boolean) {
     if (!next) {

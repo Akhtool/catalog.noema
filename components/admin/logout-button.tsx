@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { logout } from '@/app/login/actions'
 import { Button } from '@/components/ui/button'
@@ -10,7 +9,6 @@ import { Button } from '@/components/ui/button'
  * Кнопка выхода из админ-панели
  */
 export function LogoutButton() {
-  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
 
   async function handleLogout() {

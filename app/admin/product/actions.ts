@@ -19,6 +19,13 @@ async function ensureBusinessAccess(
   return !!data;
 }
 
+/** Элемент изображения товара для редактора */
+export interface ProductImageForEdit {
+  id: string;
+  url: string;
+  position: number;
+}
+
 /** Данные товара для редактирования (из БД) */
 export interface ProductForEdit {
   id: string;
@@ -33,6 +40,7 @@ export interface ProductForEdit {
   price: number;
   inStock: boolean;
   isActive: boolean;
+  images: ProductImageForEdit[];
 }
 
 /**
@@ -87,6 +95,12 @@ export async function getProduct(
     return { error: "Нет доступа к этому товару" };
   }
 
+  const { data: imageRows } = await supabase
+    .from("product_image")
+    .select("id, url, position")
+    .eq("product_id", row.id)
+    .order("position", { ascending: true });
+
   let categoryName: string | null = null;
   let brandName: string | null = null;
   if (row.category_id) {
@@ -106,6 +120,12 @@ export async function getProduct(
     brandName = brand?.name ?? null;
   }
 
+  const images: ProductImageForEdit[] = (imageRows ?? []).map((img) => ({
+    id: img.id,
+    url: img.url,
+    position: img.position,
+  }));
+
   const data: ProductForEdit = {
     id: row.id,
     businessId: row.business_id,
@@ -119,6 +139,7 @@ export async function getProduct(
     price: row.price,
     inStock: row.in_stock,
     isActive: row.is_active,
+    images,
   };
   return { data };
 }
@@ -203,7 +224,7 @@ export async function updateProduct(
   productId: string,
   payload: ProductUpsertPayload,
   businessSlug?: string
-): Promise<{ error?: string }> {
+): Promise<{ data?: { id: string }; error?: string }> {
   const supabase = await createServerClient();
   const {
     data: { user },
@@ -266,7 +287,7 @@ export async function updateProduct(
   revalidatePath("/admin/business");
   if (businessSlug) revalidatePath(`/${businessSlug}`);
 
-  return {};
+  return { data: { id: productId } };
 }
 
 /**
@@ -363,6 +384,246 @@ export async function restoreProduct(
   if (updateError) {
     console.error("restoreProduct error:", updateError);
     return { error: "Ошибка восстановления товара" };
+  }
+
+  revalidatePath("/admin/business");
+  if (businessSlug) revalidatePath(`/${businessSlug}`);
+
+  return {};
+}
+
+const PRODUCT_IMAGE_MAX_COUNT = 12;
+const PRODUCT_IMAGE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Загружает изображение товара в Storage и создаёт запись в product_image.
+ */
+export async function uploadProductImage(
+  productId: string,
+  formData: FormData,
+  businessSlug?: string
+): Promise<{ data?: ProductImageForEdit; error?: string }> {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Не авторизован" };
+  }
+
+  const { data: product } = await supabase
+    .from("product")
+    .select("business_id")
+    .eq("id", productId)
+    .single();
+
+  if (!product) {
+    return { error: "Товар не найден" };
+  }
+
+  const hasAccess = await ensureBusinessAccess(
+    supabase,
+    user.id,
+    product.business_id
+  );
+  if (!hasAccess) {
+    return { error: "Нет доступа к этому товару" };
+  }
+
+  const file = formData.get("file") as File | null;
+  if (!file || !file.size) {
+    return { error: "Файл не выбран" };
+  }
+  if (!file.type.startsWith("image/")) {
+    return { error: "Файл должен быть изображением" };
+  }
+  if (file.size > PRODUCT_IMAGE_MAX_SIZE_BYTES) {
+    return { error: "Размер файла не должен превышать 5 МБ" };
+  }
+
+  const { count } = await supabase
+    .from("product_image")
+    .select("id", { count: "exact", head: true })
+    .eq("product_id", productId);
+  if ((count ?? 0) >= PRODUCT_IMAGE_MAX_COUNT) {
+    return { error: `Максимум ${PRODUCT_IMAGE_MAX_COUNT} фото на товар` };
+  }
+
+  const ext = file.name.split(".").pop() || "jpg";
+  const filePath = `${productId}/${crypto.randomUUID()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("product")
+    .upload(filePath, file, { contentType: file.type, upsert: false });
+
+  if (uploadError) {
+    console.error("uploadProductImage storage error:", uploadError);
+    return { error: "Ошибка загрузки изображения" };
+  }
+
+  const { data: urlData } = supabase.storage
+    .from("product")
+    .getPublicUrl(filePath);
+
+  if (!urlData?.publicUrl) {
+    return { error: "Не удалось получить URL изображения" };
+  }
+
+  const { data: maxPos } = await supabase
+    .from("product_image")
+    .select("position")
+    .eq("product_id", productId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .single();
+
+  const position = (maxPos?.position ?? -1) + 1;
+
+  const { data: inserted, error: insertError } = await supabase
+    .from("product_image")
+    .insert({
+      product_id: productId,
+      url: urlData.publicUrl,
+      position,
+    })
+    .select("id, url, position")
+    .single();
+
+  if (insertError) {
+    console.error("uploadProductImage insert error:", insertError);
+    return { error: "Ошибка сохранения записи об изображении" };
+  }
+
+  revalidatePath("/admin/business");
+  if (businessSlug) revalidatePath(`/${businessSlug}`);
+
+  return {
+    data: {
+      id: inserted.id,
+      url: inserted.url,
+      position: inserted.position,
+    },
+  };
+}
+
+/**
+ * Удаляет изображение товара из product_image и при возможности из Storage.
+ */
+export async function deleteProductImage(
+  imageId: string,
+  businessSlug?: string
+): Promise<{ error?: string }> {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Не авторизован" };
+  }
+
+  const { data: row } = await supabase
+    .from("product_image")
+    .select("product_id, url")
+    .eq("id", imageId)
+    .single();
+
+  if (!row) {
+    return { error: "Изображение не найдено" };
+  }
+
+  const { data: product } = await supabase
+    .from("product")
+    .select("business_id")
+    .eq("id", row.product_id)
+    .single();
+
+  if (!product) {
+    return { error: "Товар не найден" };
+  }
+
+  const hasAccess = await ensureBusinessAccess(
+    supabase,
+    user.id,
+    product.business_id
+  );
+  if (!hasAccess) {
+    return { error: "Нет доступа к этому товару" };
+  }
+
+  try {
+    const url = new URL(row.url);
+    const pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/product\/(.+)/);
+    if (pathMatch?.[1]) {
+      await supabase.storage.from("product").remove([pathMatch[1]]);
+    }
+  } catch {
+    // игнорируем ошибки удаления из Storage
+  }
+
+  const { error: deleteError } = await supabase
+    .from("product_image")
+    .delete()
+    .eq("id", imageId);
+
+  if (deleteError) {
+    console.error("deleteProductImage error:", deleteError);
+    return { error: "Ошибка удаления изображения" };
+  }
+
+  revalidatePath("/admin/business");
+  if (businessSlug) revalidatePath(`/${businessSlug}`);
+
+  return {};
+}
+
+/**
+ * Меняет порядок изображений товара по переданному списку id (индекс = position).
+ */
+export async function reorderProductImages(
+  productId: string,
+  orderedIds: string[],
+  businessSlug?: string
+): Promise<{ error?: string }> {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Не авторизован" };
+  }
+
+  const { data: product } = await supabase
+    .from("product")
+    .select("business_id")
+    .eq("id", productId)
+    .single();
+
+  if (!product) {
+    return { error: "Товар не найден" };
+  }
+
+  const hasAccess = await ensureBusinessAccess(
+    supabase,
+    user.id,
+    product.business_id
+  );
+  if (!hasAccess) {
+    return { error: "Нет доступа к этому товару" };
+  }
+
+  for (let i = 0; i < orderedIds.length; i++) {
+    const { error } = await supabase
+      .from("product_image")
+      .update({ position: i })
+      .eq("id", orderedIds[i])
+      .eq("product_id", productId);
+    if (error) {
+      console.error("reorderProductImages error:", error);
+      return { error: "Ошибка изменения порядка фото" };
+    }
   }
 
   revalidatePath("/admin/business");

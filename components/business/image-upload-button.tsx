@@ -28,7 +28,7 @@ export function ImageUploadButton({
   className,
 }: ImageUploadButtonProps) {
   const [isUploading, setIsUploading] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(currentUrl)
+  const [, setPreviewUrl] = useState<string | null>(currentUrl)
   const inputRef = useRef<HTMLInputElement>(null)
 
   /**
@@ -67,7 +67,7 @@ export function ImageUploadButton({
       const filePath = fileName
 
       // Загружаем файл напрямую в Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('business')
         .upload(filePath, file, {
           contentType: file.type,
