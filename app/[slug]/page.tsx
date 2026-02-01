@@ -13,6 +13,7 @@ import { parseDeliveryTypes } from "@/lib/order";
 import { Clock } from "lucide-react";
 import type { Metadata } from "next";
 import { BusinessProfileEditorWrapper } from "@/components/business/business-profile-editor-wrapper";
+import { BannerLogoutButton } from "@/components/business/banner-logout-button";
 
 interface PageProps {
   params: Promise<{
@@ -168,6 +169,9 @@ export default async function Page({ params }: PageProps) {
 
             {/* Информация о бизнесе внизу баннера — в потоке, блок растёт с описанием */}
             <div className="relative p-8 z-20">
+              <div className="absolute top-4 right-4 z-30">
+                <BannerLogoutButton />
+              </div>
               <div className="flex items-end gap-4">
                 {businessTyped.logoUrl && (
                   <div className="flex-shrink-0 relative">
@@ -185,7 +189,7 @@ export default async function Page({ params }: PageProps) {
                 )}
 
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tighter leading-none mb-2 drop-shadow-lg">
+                  <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tighter leading-none mb-2 drop-shadow-lg [text-shadow:0_2px_4px_rgba(0,0,0,0.85),0_4px_12px_rgba(0,0,0,0.75)]">
                     {businessTyped.name}
                   </h1>
                   {businessTyped.description && (
@@ -199,6 +203,13 @@ export default async function Page({ params }: PageProps) {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Кнопка «Выйти» при отсутствии обложки */}
+        {!businessTyped.coverUrl && (
+          <div className="pt-4 px-5 flex justify-end">
+            <BannerLogoutButton variant="default" />
           </div>
         )}
 

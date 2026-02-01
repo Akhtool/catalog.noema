@@ -4,8 +4,17 @@ import { useState } from "react";
 import Image from "next/image";
 import { Product } from "@/types";
 import { useCartStore } from "@/store/cart";
-import { Plus, Minus, Pencil, EyeOff } from "lucide-react";
+import { Plus, Minus, Pencil, EyeOff, Loader2 } from "lucide-react";
 import { ProductDetailCard } from "./product-detail-card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface ProductCardProps {
   product: Product;
@@ -15,7 +24,7 @@ interface ProductCardProps {
   onEdit?: () => void;
   /** Скрыть карточку из каталога (деактивировать) */
   onHide?: () => void | Promise<void>;
-  /** Показать карточку снова (восстановить) */
+  /** Вернуть в каталог (восстановить) */
   onRestore?: () => void | Promise<void>;
 }
 
@@ -41,6 +50,8 @@ export function ProductCard({
   onRestore,
 }: ProductCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [actionInProgress, setActionInProgress] = useState(false);
+  const [showHideConfirm, setShowHideConfirm] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
   const increaseQuantity = useCartStore((state) => state.increaseQuantity);
   const decreaseQuantity = useCartStore((state) => state.decreaseQuantity);
@@ -75,6 +86,33 @@ export function ProductCard({
     setIsDetailOpen(true);
   };
 
+  const handleHideClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onHide && !actionInProgress) setShowHideConfirm(true);
+  };
+
+  const handleHideConfirm = async () => {
+    if (!onHide || actionInProgress) return;
+    setShowHideConfirm(false);
+    setActionInProgress(true);
+    try {
+      await Promise.resolve(onHide());
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+
+  const handleRestore = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onRestore || actionInProgress) return;
+    setActionInProgress(true);
+    try {
+      await Promise.resolve(onRestore());
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+
   const weight = extractWeight(product.description);
   const isHidden = showAdminActions && !product.isActive;
 
@@ -84,19 +122,24 @@ export function ProductCard({
         <div
           className={`bg-card-white rounded-[1.25rem] p-4 shadow-soft relative group flex gap-4 border transition-all ${
             isHidden
-              ? "border-gray-200 bg-gray-100 opacity-75 cursor-default"
+              ? "border-gray-200 bg-gray-100 cursor-default"
               : "border-transparent hover:border-brand-yellow/30 cursor-pointer"
           }`}
           onClick={handleCardClick}
         >
-          {isHidden && onRestore && (
+          {actionInProgress && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[1.25rem] bg-white/80" onClick={(e) => e.stopPropagation()}>
+              <Loader2 className="h-8 w-8 text-gray-600 animate-spin" aria-hidden />
+            </div>
+          )}
+          {isHidden && onRestore && !actionInProgress && (
             <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[1.25rem] bg-gray-200/50" onClick={(e) => e.stopPropagation()}>
               <button
                 type="button"
-                onClick={onRestore}
-                className="px-4 py-2 rounded-xl bg-gray-800 text-white text-sm font-medium hover:bg-gray-900"
+                onClick={handleRestore}
+                className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-brand-yellow text-black hover:bg-amber-400 active:scale-[0.99] shadow-soft ring-2 ring-amber-400/50 transition-all"
               >
-                Показать карточку снова
+                Вернуть в каталог
               </button>
             </div>
           )}
@@ -115,8 +158,9 @@ export function ProductCard({
               {onHide && (
                 <button
                   type="button"
-                  onClick={onHide}
-                  className="p-1.5 rounded-full bg-white/90 shadow border border-gray-200 hover:bg-gray-50"
+                  onClick={handleHideClick}
+                  disabled={actionInProgress}
+                  className="p-1.5 rounded-full bg-white/90 shadow border border-gray-200 hover:bg-gray-50 disabled:opacity-70"
                   aria-label="Скрыть из каталога"
                 >
                   <EyeOff className="h-4 w-4 text-gray-600" />
@@ -197,6 +241,40 @@ export function ProductCard({
           open={isDetailOpen}
           onOpenChange={setIsDetailOpen}
         />
+        <Dialog open={showHideConfirm} onOpenChange={setShowHideConfirm}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Скрыть товар из каталога?</DialogTitle>
+              <DialogDescription>
+                «{product.name}» не будет отображаться в каталоге. Вы сможете
+                вернуть его в любой момент.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowHideConfirm(false)}
+              >
+                Отмена
+              </Button>
+              <Button
+                type="button"
+                onClick={handleHideConfirm}
+                disabled={actionInProgress}
+              >
+                {actionInProgress ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Скрытие…
+                  </>
+                ) : (
+                  "Скрыть"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </>
     );
   }
@@ -206,23 +284,28 @@ export function ProductCard({
       <div
         className={`bg-card-white rounded-[1.25rem] p-4 shadow-soft relative group flex flex-col justify-between h-full border transition-all ${
           isHidden
-            ? "border-gray-200 bg-gray-100 opacity-75 cursor-default"
+            ? "border-gray-200 bg-gray-100 cursor-default"
             : "border-transparent hover:border-brand-yellow/30 cursor-pointer"
         }`}
         onClick={handleCardClick}
       >
-        {isHidden && onRestore && (
+        {actionInProgress && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[1.25rem] bg-white/80" onClick={(e) => e.stopPropagation()}>
+            <Loader2 className="h-8 w-8 text-gray-600 animate-spin" aria-hidden />
+          </div>
+        )}
+        {isHidden && onRestore && !actionInProgress && (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[1.25rem] bg-gray-200/50" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
-              onClick={onRestore}
-              className="px-4 py-2 rounded-xl bg-gray-800 text-white text-sm font-medium hover:bg-gray-900"
+              onClick={handleRestore}
+              className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-brand-yellow text-black hover:bg-amber-400 active:scale-[0.99] shadow-soft ring-2 ring-amber-400/50 transition-all"
             >
-              Показать карточку снова
+              Вернуть в каталог
             </button>
           </div>
         )}
-        {showAdminActions && (onEdit || onHide) && product.isActive && (
+        {showAdminActions && (onEdit || onHide) && product.isActive && !actionInProgress && (
           <div className="absolute top-2 right-2 z-20 flex gap-1" onClick={(e) => e.stopPropagation()}>
             {onEdit && (
               <button
@@ -237,8 +320,9 @@ export function ProductCard({
             {onHide && (
               <button
                 type="button"
-                onClick={onHide}
-                className="p-1.5 rounded-full bg-white/90 shadow border border-gray-200 hover:bg-gray-50"
+                onClick={handleHideClick}
+                disabled={actionInProgress}
+                className="p-1.5 rounded-full bg-white/90 shadow border border-gray-200 hover:bg-gray-50 disabled:opacity-70"
                 aria-label="Скрыть из каталога"
               >
                 <EyeOff className="h-4 w-4 text-gray-600" />
@@ -327,6 +411,40 @@ export function ProductCard({
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
       />
+      <Dialog open={showHideConfirm} onOpenChange={setShowHideConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Скрыть товар из каталога?</DialogTitle>
+            <DialogDescription>
+              «{product.name}» не будет отображаться в каталоге. Вы сможете
+              вернуть его в любой момент.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowHideConfirm(false)}
+            >
+              Отмена
+            </Button>
+            <Button
+              type="button"
+              onClick={handleHideConfirm}
+              disabled={actionInProgress}
+            >
+              {actionInProgress ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Скрытие…
+                </>
+              ) : (
+                "Скрыть"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

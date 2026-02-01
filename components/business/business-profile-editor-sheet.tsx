@@ -16,8 +16,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
 import { Business } from '@/types'
-import { Camera, User, Settings, Image as ImageIcon, Frame, X, Phone } from 'lucide-react'
+import { Camera, User, Settings, Image as ImageIcon, Frame, X, Phone, Loader2 } from 'lucide-react'
 import { useSheetDrag } from '@/lib/useSheetDrag'
+import { BusinessImageCropSheet } from './business-image-crop-sheet'
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024
 
 /** Иконка WhatsApp (логотип бренда) */
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -105,6 +108,9 @@ export function BusinessProfileEditorSheet({
   const [isUploadingCover, setIsUploadingCover] = useState(false)
   const logoInputRef = useRef<HTMLInputElement>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
+  const [cropOpen, setCropOpen] = useState(false)
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null)
+  const [cropType, setCropType] = useState<'logo' | 'cover'>('logo')
 
   const { dragHandlers, sheetStyle, scrollableStyle } = useSheetDrag({
     open,
@@ -139,95 +145,55 @@ export function BusinessProfileEditorSheet({
   }
 
   /**
-   * Загрузка логотипа
+   * Открывает cropper для логотипа или обложки
    */
-  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleLogoFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-
     if (!file.type.startsWith('image/')) {
       setMessage({ type: 'error', text: 'Файл должен быть изображением' })
       return
     }
-
-    const MAX_FILE_SIZE = 5 * 1024 * 1024
     if (file.size > MAX_FILE_SIZE) {
       setMessage({ type: 'error', text: 'Размер файла не должен превышать 5MB' })
       return
     }
+    setCropImageSrc(URL.createObjectURL(file))
+    setCropType('logo')
+    setCropOpen(true)
+    if (logoInputRef.current) logoInputRef.current.value = ''
+  }
 
-    setIsUploadingLogo(true)
-    setMessage(null)
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        setMessage({ type: 'error', text: 'Не авторизован' })
-        return
-      }
-
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${business.id}/logo-${Date.now()}.${fileExt}`
-      const filePath = fileName
-
-      const { error: uploadError } = await supabase.storage
-        .from('business')
-        .upload(filePath, file, {
-          contentType: file.type,
-          upsert: true,
-        })
-
-      if (uploadError) {
-        console.error('Ошибка загрузки изображения:', uploadError)
-        setMessage({ type: 'error', text: 'Ошибка загрузки изображения' })
-        return
-      }
-
-      const { data: urlData } = supabase.storage
-        .from('business')
-        .getPublicUrl(filePath)
-
-      if (!urlData?.publicUrl) {
-        setMessage({ type: 'error', text: 'Не удалось получить URL изображения' })
-        return
-      }
-
-      const saveResult = await saveImageUrl(urlData.publicUrl, 'logo', business.id, business.slug)
-      if (saveResult.error) {
-        setMessage({ type: 'error', text: saveResult.error })
-        return
-      }
-
-      setLogoUrl(urlData.publicUrl)
-      setMessage({ type: 'success', text: 'Логотип успешно загружен' })
-      setTimeout(() => setMessage(null), 3000)
-    } catch (error) {
-      console.error('Ошибка загрузки логотипа:', error)
-      setMessage({ type: 'error', text: 'Ошибка загрузки логотипа' })
-    } finally {
-      setIsUploadingLogo(false)
+  function handleCoverFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setMessage({ type: 'error', text: 'Файл должен быть изображением' })
+      return
     }
+    if (file.size > MAX_FILE_SIZE) {
+      setMessage({ type: 'error', text: 'Размер файла не должен превышать 5MB' })
+      return
+    }
+    setCropImageSrc(URL.createObjectURL(file))
+    setCropType('cover')
+    setCropOpen(true)
+    if (coverInputRef.current) coverInputRef.current.value = ''
   }
 
   /**
-   * Загрузка обложки
+   * Загружает обрезанное изображение (logo или cover)
    */
-  async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    if (!file.type.startsWith('image/')) {
-      setMessage({ type: 'error', text: 'Файл должен быть изображением' })
-      return
+  async function handleCropComplete(croppedFile: File) {
+    const type = cropType
+    if (cropImageSrc?.startsWith('blob:')) {
+      URL.revokeObjectURL(cropImageSrc)
     }
+    setCropOpen(false)
+    setCropImageSrc(null)
 
-    const MAX_FILE_SIZE = 5 * 1024 * 1024
-    if (file.size > MAX_FILE_SIZE) {
-      setMessage({ type: 'error', text: 'Размер файла не должен превышать 5MB' })
-      return
-    }
-
-    setIsUploadingCover(true)
+    if (type === 'logo') setIsUploadingLogo(true)
+    else setIsUploadingCover(true)
     setMessage(null)
 
     try {
@@ -237,14 +203,12 @@ export function BusinessProfileEditorSheet({
         return
       }
 
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${business.id}/cover-${Date.now()}.${fileExt}`
-      const filePath = fileName
-
+      const fileExt = croppedFile.name.split('.').pop() ?? 'jpg'
+      const fileName = `${business.id}/${type}-${Date.now()}.${fileExt}`
       const { error: uploadError } = await supabase.storage
         .from('business')
-        .upload(filePath, file, {
-          contentType: file.type,
+        .upload(fileName, croppedFile, {
+          contentType: croppedFile.type,
           upsert: true,
         })
 
@@ -256,28 +220,38 @@ export function BusinessProfileEditorSheet({
 
       const { data: urlData } = supabase.storage
         .from('business')
-        .getPublicUrl(filePath)
+        .getPublicUrl(fileName)
 
       if (!urlData?.publicUrl) {
         setMessage({ type: 'error', text: 'Не удалось получить URL изображения' })
         return
       }
 
-      const saveResult = await saveImageUrl(urlData.publicUrl, 'cover', business.id, business.slug)
+      const saveResult = await saveImageUrl(urlData.publicUrl, type, business.id, business.slug)
       if (saveResult.error) {
         setMessage({ type: 'error', text: saveResult.error })
         return
       }
 
-      setCoverUrl(urlData.publicUrl)
-      setMessage({ type: 'success', text: 'Обложка успешно загружена' })
+      if (type === 'logo') setLogoUrl(urlData.publicUrl)
+      else setCoverUrl(urlData.publicUrl)
+      setMessage({ type: 'success', text: type === 'logo' ? 'Логотип загружен' : 'Обложка загружена' })
       setTimeout(() => setMessage(null), 3000)
     } catch (error) {
-      console.error('Ошибка загрузки обложки:', error)
-      setMessage({ type: 'error', text: 'Ошибка загрузки обложки' })
+      console.error(`Ошибка загрузки ${type}:`, error)
+      setMessage({ type: 'error', text: `Ошибка загрузки ${type === 'logo' ? 'логотипа' : 'обложки'}` })
     } finally {
-      setIsUploadingCover(false)
+      if (type === 'logo') setIsUploadingLogo(false)
+      else setIsUploadingCover(false)
     }
+  }
+
+  function handleCropClose(open: boolean) {
+    if (!open && cropImageSrc?.startsWith('blob:')) {
+      URL.revokeObjectURL(cropImageSrc)
+    }
+    setCropOpen(open)
+    setCropImageSrc(null)
   }
 
   /**
@@ -453,7 +427,7 @@ export function BusinessProfileEditorSheet({
                       <ImageIcon className="w-5 h-5 text-gray-600" />
                     </div>
                     <span className="text-sm font-medium text-gray-900">
-                      Изменить фото
+                      Изменить логотип
                     </span>
                   </button>
                   <button
@@ -477,7 +451,7 @@ export function BusinessProfileEditorSheet({
                   id="logo-upload"
                   type="file"
                   accept="image/*"
-                  onChange={handleLogoUpload}
+                  onChange={handleLogoFileSelect}
                   disabled={isUploadingLogo}
                   className="hidden"
                 />
@@ -486,7 +460,7 @@ export function BusinessProfileEditorSheet({
                   id="cover-upload"
                   type="file"
                   accept="image/*"
-                  onChange={handleCoverUpload}
+                  onChange={handleCoverFileSelect}
                   disabled={isUploadingCover}
                   className="hidden"
                 />
@@ -619,12 +593,26 @@ export function BusinessProfileEditorSheet({
             disabled={isSubmitting}
             className="w-full bg-brand-yellow text-black hover:bg-brand-yellow/90 font-semibold"
           >
-            {isSubmitting ? 'Сохранение...' : 'СОХРАНИТЬ ИЗМЕНЕНИЯ'}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Сохранение…
+              </>
+            ) : (
+              'СОХРАНИТЬ ИЗМЕНЕНИЯ'
+            )}
           </Button>
         </div>
         </form>
         </div>
       </SheetContent>
+      <BusinessImageCropSheet
+        open={cropOpen}
+        onOpenChange={handleCropClose}
+        type={cropType}
+        imageSrc={cropImageSrc}
+        onComplete={handleCropComplete}
+      />
     </Sheet>
   )
 }

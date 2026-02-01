@@ -1,22 +1,20 @@
 import { createServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 
+const FALLBACK_REDIRECT = '/admin'
+
 /**
- * Callback route для обработки OAuth и magic link
+ * Callback для OAuth и magic link: редирект на страницу бизнеса пользователя.
  */
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
-  const next = requestUrl.searchParams.get('next') || '/admin'
 
   if (code) {
     const supabase = await createServerClient()
-    
-    // Обмениваем code на session
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error) {
-      // Создаём профиль, если его нет
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -31,12 +29,27 @@ export async function GET(request: Request) {
           }, {
             onConflict: 'id',
           })
+
+        const { data: businessUsers } = await supabase
+          .from('business_user')
+          .select('business_id')
+          .eq('user_id', user.id)
+          .limit(1)
+        if (businessUsers?.length) {
+          const { data: business } = await supabase
+            .from('business')
+            .select('slug')
+            .eq('id', businessUsers[0].business_id)
+            .single()
+          if (business?.slug) {
+            return NextResponse.redirect(new URL(`/${business.slug}`, request.url))
+          }
+        }
       }
 
-      return NextResponse.redirect(new URL(next, request.url))
+      return NextResponse.redirect(new URL(FALLBACK_REDIRECT, request.url))
     }
   }
 
-  // Ошибка или нет code
   return NextResponse.redirect(new URL('/login?error=auth_failed', request.url))
 }

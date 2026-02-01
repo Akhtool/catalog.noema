@@ -43,6 +43,7 @@ import {
 const NAME_MAX_LENGTH = 70;
 const SUBTITLE_MAX_LENGTH = 60;
 const DESCRIPTION_MAX_LENGTH = 2000;
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
 /** Элемент списка для отображения (серверное фото или pending) */
 interface DisplayImageItem {
@@ -338,12 +339,16 @@ export function ProductEditorSheet({
     }
   }
 
-  /** Выбор файла: открывает модалку обрезки (3:4), затем загрузка обрезанного фото */
+  /** Выбор файла: открывает модалку обрезки (3:4); при создании — в pending, при редактировании — загрузка после сохранения */
   function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !productId) return;
+    if (!file) return;
     if (!file.type.startsWith("image/")) {
       setSubmitError("Файл должен быть изображением");
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      setSubmitError("Размер файла не должен превышать 5MB");
       return;
     }
     setSubmitError(null);
@@ -380,7 +385,7 @@ export function ProductEditorSheet({
         ...prev,
         [replacingId]: { index: replacingIndex, url, file: croppedFile },
       }));
-    } else if (productId) {
+    } else {
       setPendingAddFiles((prev) => [
         ...prev,
         { id: `pending-add-${Date.now()}`, url, file: croppedFile },
@@ -435,7 +440,7 @@ export function ProductEditorSheet({
       setSubmitError("Выберите категорию");
       return;
     }
-    if (productId && displayImages.length === 0) {
+    if (displayImages.length === 0) {
       setSubmitError("Добавьте минимум одно фото");
       return;
     }
@@ -494,6 +499,7 @@ export function ProductEditorSheet({
         );
       }
       const newIdsFromAdds: string[] = [];
+      const pendingIdToServerId: Record<string, string> = {};
       for (const p of pendingAddFiles) {
         const formData = new FormData();
         formData.append("file", p.file);
@@ -506,6 +512,7 @@ export function ProductEditorSheet({
         if (up.data) {
           setImages((prev) => [...prev, up.data!]);
           newIdsFromAdds.push(up.data.id);
+          pendingIdToServerId[p.id] = up.data.id;
         }
       }
       setImages(currentImages);
@@ -519,7 +526,7 @@ export function ProductEditorSheet({
       }
       setImages((prev) => prev.filter((img) => !pendingDeleteIds.includes(img.id)));
       if (pendingMainImageId) {
-        const mainId = replaceMap[pendingMainImageId] ?? pendingMainImageId;
+        const mainId = replaceMap[pendingMainImageId] ?? pendingIdToServerId[pendingMainImageId] ?? pendingMainImageId;
         const afterDelete = currentImages.filter((img) => !pendingDeleteIds.includes(img.id));
         const allIds = [...afterDelete.map((i) => i.id), ...newIdsFromAdds];
         if (allIds.includes(mainId)) {
@@ -606,6 +613,7 @@ export function ProductEditorSheet({
                   value={name}
                   onChange={(e) => setName(e.target.value.slice(0, NAME_MAX_LENGTH))}
                   placeholder="Например: ковер"
+                  disabled={submitInProgress}
                   className="pr-14 border-0 border-b rounded-none bg-gray-50 focus-visible:ring-0"
                 />
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">
@@ -625,6 +633,7 @@ export function ProductEditorSheet({
                     setSubtitle(e.target.value.slice(0, SUBTITLE_MAX_LENGTH))
                   }
                   placeholder="Например: 1 штука, 100 грамм, S размер"
+                  disabled={submitInProgress}
                   className="pr-14 border-0 border-b rounded-none bg-gray-50 focus-visible:ring-0"
                 />
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">
@@ -647,6 +656,7 @@ export function ProductEditorSheet({
                   }
                   placeholder="Например информация о доставке и ее сроках, условия предоставления услуги, технические важные характеристики, акции на данный товар и многое другое"
                   rows={4}
+                  disabled={submitInProgress}
                   className="pr-14 border-0 border-b rounded-none bg-gray-50 focus-visible:ring-0 resize-none"
                 />
                 <span className="absolute right-2 top-3 text-xs text-gray-400">
@@ -659,8 +669,9 @@ export function ProductEditorSheet({
               <label className="text-sm font-medium text-gray-700">Бренд</label>
               <button
                 type="button"
-                onClick={() => setIsBrandPickerOpen(true)}
-                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-gray-50 border border-transparent border-b-gray-200 text-left text-gray-500 hover:bg-gray-100"
+                onClick={() => !submitInProgress && setIsBrandPickerOpen(true)}
+                disabled={submitInProgress}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-gray-50 border border-transparent border-b-gray-200 text-left text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className={selectedBrandName ? "text-gray-900" : ""}>
                   {selectedBrandName ?? "Выбрать бренд"}
@@ -676,8 +687,9 @@ export function ProductEditorSheet({
               </label>
               <button
                 type="button"
-                onClick={() => setIsCategoryPickerOpen(true)}
-                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-gray-50 border border-transparent border-b-gray-200 text-left text-gray-500 hover:bg-gray-100"
+                onClick={() => !submitInProgress && setIsCategoryPickerOpen(true)}
+                disabled={submitInProgress}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-gray-50 border border-transparent border-b-gray-200 text-left text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className={selectedCategoryName ? "text-gray-900" : ""}>
                   {selectedCategoryName ?? "Выбрать категорию"}
@@ -698,6 +710,7 @@ export function ProductEditorSheet({
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                   placeholder="...0"
+                  disabled={submitInProgress}
                   className="pr-10 border-0 border-b rounded-none bg-gray-50 focus-visible:ring-0"
                 />
                 <span className="absolute right-3 text-gray-500">₽</span>
@@ -820,94 +833,87 @@ export function ProductEditorSheet({
                 Нужно минимум одно фото. Первое фото показывается на карточке в
                 каталоге.
               </p>
-              {!productId ? (
-                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  После сохранения позиции вы сможете добавить фото.
-                </p>
-              ) : (
-                <>
-                  {displayImages.length > 0 && (
-                    <ul className="grid grid-cols-3 gap-2">
-                      {displayImages.map((item, displayIndex) => {
-                        const canOpenCrop = item.originalIndex != null;
-                        return (
-                          <li
-                            key={item.id}
-                            className="relative flex flex-col rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
-                          >
+              {displayImages.length > 0 && (
+                <ul className="grid grid-cols-3 gap-2">
+                  {displayImages.map((item, displayIndex) => {
+                    const canOpenCrop = item.originalIndex != null;
+                    const canSetMain = displayIndex > 0 && (item.isPendingAdd || (item.originalIndex != null && item.originalIndex > 0));
+                    return (
+                      <li
+                        key={item.id}
+                        className="relative flex flex-col rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            canOpenCrop &&
+                            openCropForExistingImage(images[item.originalIndex!], item.originalIndex!)
+                          }
+                          disabled={!canOpenCrop}
+                          className="relative aspect-square w-full block cursor-pointer disabled:cursor-default disabled:pointer-events-none text-left"
+                          aria-label={canOpenCrop ? "Обрезать фото" : "Превью"}
+                        >
+                          <Image
+                            src={item.url}
+                            alt=""
+                            width={160}
+                            height={160}
+                            className="w-full h-full object-cover"
+                            unoptimized
+                          />
+                          <span className="absolute bottom-1 left-1 text-xs font-medium text-white bg-black/50 rounded px-1">
+                            {displayIndex + 1} / {displayImages.length}
+                          </span>
+                        </button>
+                        <div className="flex items-center justify-center gap-1 p-1.5 bg-gray-50 border-t border-gray-200">
+                          {canSetMain && (
                             <button
                               type="button"
-                              onClick={() =>
-                                canOpenCrop &&
-                                openCropForExistingImage(images[item.originalIndex!], item.originalIndex!)
-                              }
-                              disabled={!canOpenCrop}
-                              className="relative aspect-square w-full block cursor-pointer disabled:cursor-default disabled:pointer-events-none text-left"
-                              aria-label={canOpenCrop ? "Обрезать фото" : "Превью"}
+                              onClick={() => handleSetMainImage(item.id)}
+                              className="px-2 py-1 rounded-md bg-amber-100 text-amber-800 text-xs font-medium touch-manipulation hover:bg-amber-200"
+                              aria-label="Сделать главным"
                             >
-                              <Image
-                                src={item.url}
-                                alt=""
-                                width={160}
-                                height={160}
-                                className="w-full h-full object-cover"
-                                unoptimized
-                              />
-                              <span className="absolute bottom-1 left-1 text-xs font-medium text-white bg-black/50 rounded px-1">
-                                {displayIndex + 1} / {displayImages.length}
-                              </span>
+                              Главное
                             </button>
-                            <div className="flex items-center justify-center gap-1 p-1.5 bg-gray-50 border-t border-gray-200">
-                              {!item.isPendingAdd && item.originalIndex != null && item.originalIndex > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleSetMainImage(item.id)}
-                                  className="px-2 py-1 rounded-md bg-amber-100 text-amber-800 text-xs font-medium touch-manipulation hover:bg-amber-200"
-                                  aria-label="Сделать главным"
-                                >
-                                  Главное
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteImage(item.id)}
-                                className="p-1.5 rounded-md bg-red-500 text-white touch-manipulation disabled:opacity-50 disabled:pointer-events-none"
-                                aria-label="Удалить фото"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                  {displayImages.length < 12 && (
-                    <>
-                      <input
-                        ref={imageInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleImageSelect}
-                        disabled={imageUploading}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={imageUploading}
-                        onClick={() => imageInputRef.current?.click()}
-                        className="w-full border-2 border-dashed border-gray-300 rounded-xl py-6 hover:bg-gray-50"
-                      >
-                        {imageUploading ? (
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        ) : (
-                          <Camera className="w-5 h-5 mr-2" />
-                        )}
-                        {imageUploading ? "Загрузка…" : "Добавить фото"}
-                      </Button>
-                    </>
-                  )}
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteImage(item.id)}
+                            className="p-1.5 rounded-md bg-red-500 text-white touch-manipulation disabled:opacity-50 disabled:pointer-events-none"
+                            aria-label="Удалить фото"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {displayImages.length < 12 && (
+                <>
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageSelect}
+                    disabled={imageUploading || submitInProgress}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={imageUploading || submitInProgress}
+                    onClick={() => imageInputRef.current?.click()}
+                    className="w-full border-2 border-dashed border-gray-300 rounded-xl py-6 hover:bg-gray-50"
+                  >
+                    {imageUploading ? (
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    ) : (
+                      <Camera className="w-5 h-5 mr-2" />
+                    )}
+                    {imageUploading ? "Загрузка…" : "Добавить фото"}
+                  </Button>
                 </>
               )}
             </div>
@@ -917,7 +923,14 @@ export function ProductEditorSheet({
               disabled={submitInProgress}
               className="w-full mt-6 py-3 bg-gray-900 text-white rounded-xl font-semibold hover:bg-black disabled:opacity-70"
             >
-              {submitInProgress ? "Сохранение…" : "Сохранить изменения"}
+              {submitInProgress ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                  Сохранение…
+                </>
+              ) : (
+                "Сохранить изменения"
+              )}
             </Button>
           </form>
           )}

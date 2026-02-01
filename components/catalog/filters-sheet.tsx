@@ -48,8 +48,10 @@ export function FiltersSheet({
 
   // Вычисляем минимальную и максимальную цены
   const prices = products.map((p) => p.price)
-  const minProductPrice = Math.min(...prices)
-  const maxProductPrice = Math.max(...prices)
+  const minProductPrice =
+    prices.length > 0 ? Math.min(...prices) : 0
+  const maxProductPrice =
+    prices.length > 0 ? Math.max(...prices) : 0
 
   const [localMinPrice, setLocalMinPrice] = useState(
     minPrice?.toString() || ""

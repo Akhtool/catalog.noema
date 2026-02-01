@@ -3,9 +3,9 @@ import Link from "next/link"
 
 const NOEMA_URL = "https://noema.digital/"
 const NOEMA_LOGO_ALT = "NOEMA"
-const NOEMA_LOGO_PATH = "/noema_logo.png"
-const NOEMA_LOGO_WIDTH = 100
-const NOEMA_LOGO_HEIGHT = 28
+const NOEMA_LOGO_PATH = "/noema-logo.jpeg"
+const NOEMA_LOGO_WIDTH = 50
+const NOEMA_LOGO_HEIGHT = 14
 
 /** Футер с текстом «Разработано командой» и кликабельным логотипом NOEMA. */
 export function Footer() {
@@ -27,8 +27,8 @@ export function Footer() {
             alt={NOEMA_LOGO_ALT}
             width={NOEMA_LOGO_WIDTH}
             height={NOEMA_LOGO_HEIGHT}
-            className="h-7 w-auto"
-            sizes="100px"
+            className="h-3.5 w-auto"
+            sizes="50px"
             priority={false}
           />
         </Link>

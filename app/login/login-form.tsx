@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Loader2 } from 'lucide-react'
 
 /**
  * Форма входа в админ-панель
@@ -36,15 +37,11 @@ export function LoginForm() {
       }
 
       if (data.user && data.session) {
-        // Создаём профиль, если его нет
         await ensureProfile(data.user.id, email)
-        
-        // Устанавливаем сессию на сервере через server action
-        const { setServerSession } = await import('./actions')
+        const { setServerSession, getRedirectAfterLogin } = await import('./actions')
         await setServerSession(data.session.access_token, data.session.refresh_token)
-        
-        // Делаем полный редирект с обновлением страницы
-        window.location.replace('/admin')
+        const redirectTo = await getRedirectAfterLogin()
+        window.location.replace(redirectTo)
         return
       }
       
@@ -64,11 +61,11 @@ export function LoginForm() {
     setIsLoading(true)
     setError(null)
 
-    try {
+        try {
       const { error: signInError } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/admin`,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
 
@@ -156,7 +153,14 @@ export function LoginForm() {
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? 'Отправка...' : 'Отправить ссылку для входа'}
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Отправка…
+              </>
+            ) : (
+              'Отправить ссылку для входа'
+            )}
           </Button>
 
           <Button
@@ -202,7 +206,14 @@ export function LoginForm() {
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? 'Вход...' : 'Войти'}
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Вход…
+              </>
+            ) : (
+              'Войти'
+            )}
           </Button>
 
           <Button

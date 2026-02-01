@@ -5,6 +5,10 @@ import { saveImageUrl } from '@/app/admin/business/actions'
 import { supabase } from '@/lib/supabase'
 import { Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { BusinessImageCropSheet } from './business-image-crop-sheet'
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024
 
 interface ImageUploadButtonProps {
   businessId: string
@@ -16,8 +20,8 @@ interface ImageUploadButtonProps {
 }
 
 /**
- * Кнопка для загрузки изображения (logo или cover) на публичной странице бизнеса
- * Показывается только для owner/admin бизнеса
+ * Кнопка для загрузки изображения (logo или cover) на публичной странице бизнеса.
+ * Показывается только для owner/admin. Перед загрузкой открывает cropper.
  */
 export function ImageUploadButton({
   businessId,
@@ -29,89 +33,93 @@ export function ImageUploadButton({
 }: ImageUploadButtonProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [, setPreviewUrl] = useState<string | null>(currentUrl)
+  const [cropOpen, setCropOpen] = useState(false)
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  /**
-   * Обработка загрузки изображения
-   */
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Проверка типа файла
     if (!file.type.startsWith('image/')) {
-      alert('Файл должен быть изображением')
+      toast.error('Файл должен быть изображением')
       return
     }
 
-    // Проверка размера файла (5MB)
-    const MAX_FILE_SIZE = 5 * 1024 * 1024
     if (file.size > MAX_FILE_SIZE) {
-      alert('Размер файла не должен превышать 5MB')
+      toast.error('Размер файла не должен превышать 5MB')
       return
     }
+
+    const url = URL.createObjectURL(file)
+    setCropImageSrc(url)
+    setCropOpen(true)
+    if (inputRef.current) inputRef.current.value = ''
+  }
+
+  async function handleCropComplete(croppedFile: File) {
+    if (cropImageSrc?.startsWith('blob:')) {
+      URL.revokeObjectURL(cropImageSrc)
+    }
+    setCropImageSrc(null)
 
     setIsUploading(true)
-
     try {
-      // Получаем текущего пользователя
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        alert('Не авторизован')
+        toast.error('Не авторизован')
         return
       }
 
-      // Генерируем уникальное имя файла
-      const fileExt = file.name.split('.').pop()
+      const fileExt = croppedFile.name.split('.').pop() ?? 'jpg'
       const fileName = `${businessId}/${type}-${Date.now()}.${fileExt}`
       const filePath = fileName
 
-      // Загружаем файл напрямую в Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('business')
-        .upload(filePath, file, {
-          contentType: file.type,
+        .upload(filePath, croppedFile, {
+          contentType: croppedFile.type,
           upsert: true,
         })
 
       if (uploadError) {
         console.error('Ошибка загрузки изображения:', uploadError)
-        alert('Ошибка загрузки изображения')
+        toast.error('Ошибка загрузки изображения')
         return
       }
 
-      // Получаем публичный URL
       const { data: urlData } = supabase.storage
         .from('business')
         .getPublicUrl(filePath)
 
       if (!urlData?.publicUrl) {
-        alert('Не удалось получить URL изображения')
+        toast.error('Не удалось получить URL изображения')
         return
       }
 
-      // Сохраняем URL в базу данных через Server Action
       const saveResult = await saveImageUrl(urlData.publicUrl, type, businessId, businessSlug)
       if (saveResult.error) {
-        alert(saveResult.error)
+        toast.error(saveResult.error)
         return
       }
 
-      // Обновляем preview
       setPreviewUrl(urlData.publicUrl)
-      if (onUploadSuccess) {
-        onUploadSuccess(urlData.publicUrl)
-      }
+      toast.success(type === 'logo' ? 'Логотип загружен' : 'Обложка загружена')
+      onUploadSuccess?.(urlData.publicUrl)
     } catch (error) {
       console.error(`Ошибка загрузки ${type}:`, error)
-      alert(`Ошибка загрузки ${type === 'logo' ? 'логотипа' : 'обложки'}`)
+      toast.error(`Ошибка загрузки ${type === 'logo' ? 'логотипа' : 'обложки'}`)
     } finally {
       setIsUploading(false)
-      // Сбрасываем input для возможности повторной загрузки того же файла
-      if (inputRef.current) {
-        inputRef.current.value = ''
-      }
     }
+  }
+
+  function handleCropClose(open: boolean) {
+    if (!open && cropImageSrc?.startsWith('blob:')) {
+      URL.revokeObjectURL(cropImageSrc)
+    }
+    setCropOpen(open)
+    setCropImageSrc(null)
   }
 
   return (
@@ -120,7 +128,7 @@ export function ImageUploadButton({
         ref={inputRef}
         type="file"
         accept="image/*"
-        onChange={handleUpload}
+        onChange={handleFileSelect}
         disabled={isUploading}
         className="hidden"
         id={`${type}-upload-${businessId}`}
@@ -146,6 +154,14 @@ export function ImageUploadButton({
           <Pencil className="w-4 h-4 text-brand-yellow" />
         )}
       </label>
+
+      <BusinessImageCropSheet
+        open={cropOpen}
+        onOpenChange={handleCropClose}
+        type={type}
+        imageSrc={cropImageSrc}
+        onComplete={handleCropComplete}
+      />
     </div>
   )
 }

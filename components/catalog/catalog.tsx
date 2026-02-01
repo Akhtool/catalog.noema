@@ -147,6 +147,16 @@ export function Catalog({ categories, products }: CatalogProps) {
     return (
       <div className="space-y-6">
         <SearchInput categories={categories} products={products} />
+        {categories.length === 0 ? (
+          <div className="text-center py-12 px-4 text-gray-500">
+            <p className="text-base font-medium">Категорий пока нет</p>
+            <p className="text-sm mt-1">
+              {hasAccess
+                ? "Добавьте категорию в редакторе позиции"
+                : "Категории появятся скоро"}
+            </p>
+          </div>
+        ) : (
         <div className="grid grid-cols-2 gap-4">
           {categories.map((category) => {
             const categoryProducts = products.filter(
@@ -180,6 +190,7 @@ export function Catalog({ categories, products }: CatalogProps) {
             );
           })}
         </div>
+        )}
       </div>
     );
   }
@@ -201,8 +212,23 @@ export function Catalog({ categories, products }: CatalogProps) {
       {/* Список товаров */}
       <div className="mt-2.5">
         {filteredProducts.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <p>Товары не найдены</p>
+          <div className="text-center py-12 px-4">
+            {products.length === 0 ? (
+              <div className="space-y-2 text-gray-500">
+                <p className="text-base font-medium">
+                  {hasAccess
+                    ? "В каталоге пока нет товаров"
+                    : "Товары появятся скоро"}
+                </p>
+                <p className="text-sm">
+                  {hasAccess
+                    ? "Добавьте первую позицию, нажав кнопку ниже"
+                    : ""}
+                </p>
+              </div>
+            ) : (
+              <p className="text-muted-foreground">Товары не найдены</p>
+            )}
           </div>
         ) : (
           <div

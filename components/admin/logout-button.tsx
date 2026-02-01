@@ -5,10 +5,14 @@ import { supabase } from '@/lib/supabase'
 import { logout } from '@/app/login/actions'
 import { Button } from '@/components/ui/button'
 
+interface LogoutButtonProps {
+  className?: string;
+}
+
 /**
  * Кнопка выхода из админ-панели
  */
-export function LogoutButton() {
+export function LogoutButton({ className }: LogoutButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
 
   async function handleLogout() {
@@ -45,7 +49,7 @@ export function LogoutButton() {
       variant="ghost"
       onClick={handleLogout}
       disabled={isLoading}
-      className="ml-auto"
+      className={className ?? "ml-auto"}
     >
       {isLoading ? 'Выход...' : 'Выйти'}
     </Button>

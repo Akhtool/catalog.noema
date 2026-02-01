@@ -197,29 +197,28 @@
 
 ---
 
-## 🔜 ЭТАП 8 — Media UX (УЛУЧШЕНИЕ)
+## ✅ ЭТАП 8 — Media UX (ЗАВЕРШЁН)
 
 **Цель:** удобство и защита от ошибок.
 
-- Cropper
-- Preview перед сохранением
-- Ограничения по размеру
-- Ошибки загрузки
-
-📌 Делается после базовой загрузки.
+- ✅ Cropper (изображения товаров — `ProductImageCropSheet`, react-easy-crop, 3:4)
+- ✅ Cropper для logo/cover — `BusinessImageCropSheet` (1:1 и 4:1)
+- ✅ Preview перед сохранением (во всех cropper)
+- ✅ Ограничения по размеру (5MB для business и product images)
+- ✅ Toast (sonner) вместо alert для ошибок загрузки
 
 ---
 
-## 🔜 ЭТАП 9 — UX & Stability
+## ✅ ЭТАП 9 — UX & Stability (ЗАВЕРШЁН)
 
 **Цель:** продакшн-качество.
 
-- Loading states
-- Disabled кнопки
-- Ошибки форм
-- Empty states
-- Confirm dialogs
-- Edge-cases (нет брендов / категорий)
+- ✅ Loading states (Loader2 на кнопках submit в ProductEditor, BusinessProfileEditor, LoginForm)
+- ✅ Disabled кнопки и поля при submit (ProductEditorSheet — все поля и кнопки)
+- ✅ Ошибки форм (submitError, message уже были)
+- ✅ Empty states (каталог: «Товары не найдены» vs «В каталоге пока нет товаров»; режим категорий: «Категорий пока нет»)
+- ✅ Confirm dialogs (скрытие товара — диалог «Скрыть товар из каталога?»)
+- ✅ Edge-cases (пустой products в FiltersSheet — fix Infinity/-Infinity; нет брендов/категорий — подсказки в picker)
 
 📌 Никакой новой логики.
 
@@ -278,7 +277,7 @@
 - Загрузка логотипа (1:1) и обложки (4:1) в Supabase Storage
 - Сохранение `logo_url`, `cover_url` через Server Actions
 - Preview в overlay (`business-profile-editor-sheet.tsx`) и в форме админки
-- Crop — отложен на этап 8 (Media UX)
+- Crop — реализован в этапе 8 (Media UX)
 
 **ЭТАП 4 — Brand Manager** ✅ ЗАВЕРШЁН
 - Server Actions: `getBrands`, `createBrand`, `updateBrand`, `deleteBrand`, `getProductCountByBrand`
@@ -303,9 +302,21 @@
 - Редактор позиции: список фото (1–12), загрузка, удаление, изменение порядка (кнопки вверх/вниз)
 - Первое изображение используется на карточке товара и в деталях
 
-### 🔜 Следующие этапы
+**ЭТАП 8 — Media UX** ✅ ЗАВЕРШЁН
+- Cropper для изображений товаров (`ProductImageCropSheet`, 3:4)
+- Cropper для logo/cover (`BusinessImageCropSheet`, 1:1 и 4:1)
+- Preview перед сохранением во всех cropper
+- Ограничения по размеру (5MB) для business и product images
+- Toast (sonner) вместо alert для ошибок загрузки
+- Интеграция cropper в `ImageUploadButton` и `BusinessProfileEditorSheet`
 
-- ЭТАП 8 — Media UX
-- ЭТАП 9 — UX & Stability
+**ЭТАП 9 — UX & Stability** ✅ ЗАВЕРШЁН
+- Loading states на кнопках submit (ProductEditorSheet, BusinessProfileEditorSheet, LoginForm)
+- Disabled поля и кнопки при submit (ProductEditorSheet)
+- Empty states: каталог (нет товаров / товары не найдены), режим категорий (нет категорий)
+- Confirm dialog при скрытии товара (ProductCard)
+- Edge-cases: FiltersSheet — fix при пустом products (Infinity/-Infinity)
+
+### 🔜 Следующие этапы
 - ЭТАП 10 — V3 (ПОЗЖЕ)
 

@@ -1,10 +1,11 @@
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase-server'
+import { getRedirectAfterLogin } from './actions'
 import { LoginForm } from './login-form'
 
 /**
- * Страница входа в админ-панель
- * Если пользователь уже авторизован → редирект на /admin
+ * Страница входа
+ * Если пользователь уже авторизован → редирект на страницу его бизнеса
  */
 export default async function LoginPage() {
   const supabase = await createServerClient()
@@ -12,9 +13,8 @@ export default async function LoginPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Если уже авторизован, перенаправляем в админку
   if (user) {
-    redirect('/admin')
+    redirect(await getRedirectAfterLogin())
   }
 
   return (

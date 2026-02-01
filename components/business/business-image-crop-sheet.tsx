@@ -12,30 +12,40 @@ import { Button } from "@/components/ui/button";
 import { useSheetDrag } from "@/lib/useSheetDrag";
 import { X, Loader2 } from "lucide-react";
 import { getCroppedImg } from "@/lib/getCroppedImg";
-import { toast } from "sonner";
 
-const CROP_ASPECT = 3 / 4;
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 3;
 
-interface ProductImageCropSheetProps {
+/** Соотношения сторон: logo 1:1, cover 4:1 */
+const ASPECT_MAP = { logo: 1, cover: 4 } as const;
+
+interface BusinessImageCropSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Object URL выбранного файла */
+  type: "logo" | "cover";
   imageSrc: string | null;
-  /** Вызов с обрезанным файлом; после вызова закрыть и очистить imageSrc у родителя */
   onComplete: (file: File) => void;
 }
 
 /**
- * Модалка обрезки фото перед добавлением к товару. Соотношение 3:4.
+ * Модалка обрезки логотипа (1:1) или обложки (4:1) бизнеса.
+ * Повторно использует react-easy-crop и getCroppedImg.
  */
-export function ProductImageCropSheet({
+export function BusinessImageCropSheet({
   open,
   onOpenChange,
+  type,
   imageSrc,
   onComplete,
-}: ProductImageCropSheetProps) {
+}: BusinessImageCropSheetProps) {
+  const cropAspect = type === "logo" ? ASPECT_MAP.logo : ASPECT_MAP.cover;
+  const title =
+    type === "logo" ? "Обрезка логотипа (1:1)" : "Обрезка обложки (4:1)";
+  const desc =
+    type === "logo"
+      ? "Выберите область для логотипа"
+      : "Выберите область для обложки каталога";
+
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
@@ -50,25 +60,27 @@ export function ProductImageCropSheet({
     setCroppedAreaPixels(croppedAreaPx);
   }, []);
 
-  /** При загрузке изображения задаём начальную область обрезки по центру (3:4) */
-  const onMediaLoaded = useCallback((mediaSize: MediaSize) => {
-    const { naturalWidth: W, naturalHeight: H } = mediaSize;
-    if (W <= 0 || H <= 0) return;
-    const aspect = CROP_ASPECT;
-    let x: number, y: number, width: number, height: number;
-    if (W / H >= aspect) {
-      width = Math.round(H * aspect);
-      height = H;
-      x = Math.round((W - width) / 2);
-      y = 0;
-    } else {
-      width = W;
-      height = Math.round(W / aspect);
-      x = 0;
-      y = Math.round((H - height) / 2);
-    }
-    setCroppedAreaPixels({ x, y, width, height });
-  }, []);
+  const onMediaLoaded = useCallback(
+    (mediaSize: MediaSize) => {
+      const { naturalWidth: W, naturalHeight: H } = mediaSize;
+      if (W <= 0 || H <= 0) return;
+      const asp = cropAspect;
+      let x: number, y: number, width: number, height: number;
+      if (W / H >= asp) {
+        width = Math.round(H * asp);
+        height = H;
+        x = Math.round((W - width) / 2);
+        y = 0;
+      } else {
+        width = W;
+        height = Math.round(W / asp);
+        x = 0;
+        y = Math.round((H - height) / 2);
+      }
+      setCroppedAreaPixels({ x, y, width, height });
+    },
+    [cropAspect]
+  );
 
   useEffect(() => {
     if (open) {
@@ -83,12 +95,13 @@ export function ProductImageCropSheet({
     setIsFinishing(true);
     try {
       const blob = await getCroppedImg(imageSrc, croppedAreaPixels);
-      const file = new File([blob], "image.jpg", { type: "image/jpeg" });
+      const file = new File([blob], `business-${type}.jpg`, {
+        type: "image/jpeg",
+      });
       onComplete(file);
       onOpenChange(false);
     } catch (e) {
       console.error("Crop failed:", e);
-      toast.error("Не удалось обрезать изображение");
     } finally {
       setIsFinishing(false);
     }
@@ -110,11 +123,9 @@ export function ProductImageCropSheet({
         </div>
         <div className="flex-shrink-0 px-6 pt-3 pb-3 flex items-center justify-between border-b">
           <div>
-            <SheetTitle className="text-xl font-bold">
-              Редактирование фотографии 1 из 1
-            </SheetTitle>
+            <SheetTitle className="text-xl font-bold">{title}</SheetTitle>
             <SheetDescription className="text-sm text-gray-500 mt-1">
-              Обрежьте фотографию, чтобы добавить (соотношение 3:4)
+              {desc}
             </SheetDescription>
           </div>
           <button
@@ -132,7 +143,7 @@ export function ProductImageCropSheet({
               image={imageSrc}
               crop={crop}
               zoom={zoom}
-              aspect={CROP_ASPECT}
+              aspect={cropAspect}
               minZoom={ZOOM_MIN}
               maxZoom={ZOOM_MAX}
               onCropChange={setCrop}

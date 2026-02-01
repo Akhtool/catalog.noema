@@ -62,6 +62,36 @@ export async function ensureProfileAfterAuth() {
   return { success: true }
 }
 
+const FALLBACK_REDIRECT = '/admin'
+
+/**
+ * Возвращает URL для редиректа после входа: страница бизнеса пользователя или /admin.
+ */
+export async function getRedirectAfterLogin(): Promise<string> {
+  const supabase = await createServerClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return FALLBACK_REDIRECT
+
+  const { data: businessUsers } = await supabase
+    .from('business_user')
+    .select('business_id')
+    .eq('user_id', user.id)
+    .limit(1)
+
+  if (!businessUsers?.length) return FALLBACK_REDIRECT
+
+  const { data: business } = await supabase
+    .from('business')
+    .select('slug')
+    .eq('id', businessUsers[0].business_id)
+    .single()
+
+  return business?.slug ? `/${business.slug}` : FALLBACK_REDIRECT
+}
+
 /**
  * Выход из системы
  * Очищает cookies и сессию Supabase
