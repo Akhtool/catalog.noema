@@ -5,6 +5,11 @@ import { getSlugFromSubdomain, normalizeHost } from '@/lib/host'
 /**
  * Поддомены клиентов: `{slug}.catlg.ru` → внутренний rewrite на `/${slug}` без редиректа.
  * Важно: Host должен быть сохранён на уровне прокси (nginx), иначе slug не извлечётся.
+ *
+ * Почему rewrite строкой (а не URL):
+ * В некоторых конфигурациях reverse proxy Next может видеть origin как `https://localhost:3000`,
+ * и тогда rewrite на URL превращается во "внешний" и Next пытается проксировать на этот origin,
+ * что приводит к 500/EPROTO. Относительный путь гарантирует внутренний rewrite.
  */
 export function middleware(request: NextRequest) {
   const hostname = normalizeHost(request.headers.get('host'))
@@ -13,10 +18,9 @@ export function middleware(request: NextRequest) {
   const slug = getSlugFromSubdomain(hostname)
   if (!slug) return NextResponse.next()
 
-  const url = request.nextUrl.clone()
-  url.pathname = `/${slug}${url.pathname}`
-
-  return NextResponse.rewrite(url)
+  const url = request.nextUrl
+  const destination = `/${slug}${url.pathname}${url.search}`
+  return NextResponse.rewrite(destination)
 }
 
 export const config = {
