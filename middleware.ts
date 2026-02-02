@@ -36,7 +36,15 @@ export function middleware(request: NextRequest) {
   if (!slug) return NextResponse.next()
 
   const url = request.nextUrl.clone()
-  url.pathname = `/${slug}${url.pathname}`
+  const slugPrefix = `/${slug}`
+
+  // Защита от зацикливания: после rewrite Next повторно прогоняет middleware уже на `/${slug}/*`.
+  // Если мы снова добавим `/${slug}`, получится бесконечная цепочка вида `/crusty/crusty/...`.
+  if (url.pathname === slugPrefix || url.pathname.startsWith(`${slugPrefix}/`)) {
+    return NextResponse.next()
+  }
+
+  url.pathname = `${slugPrefix}${url.pathname}`
 
   // Обеспечиваем корректный origin, чтобы rewrite не указывал на localhost/127.0.0.1.
   url.hostname = hostname
