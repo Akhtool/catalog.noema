@@ -2,25 +2,52 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { getSlugFromSubdomain, normalizeHost } from '@/lib/host'
 
+const FORWARDED_PROTO_HEADER = 'x-forwarded-proto'
+const HOST_HEADER = 'host'
+
+/**
+ * Достаёт порт из Host (например, `acme.catlg.ru:3000` -> `3000`).
+ * Нужен для dev; в проде обычно порта в Host нет.
+ */
+function getPortFromHost(rawHost: string | null): string | null {
+  if (!rawHost) return null
+  const trimmed = rawHost.trim()
+  // IPv6 host вида [::1]:3000 здесь не поддерживаем (в нашем сценарии не используется).
+  const lastColon = trimmed.lastIndexOf(':')
+  if (lastColon <= 0) return null
+  const portCandidate = trimmed.slice(lastColon + 1)
+  return /^\d+$/.test(portCandidate) ? portCandidate : null
+}
+
 /**
  * Поддомены клиентов: `{slug}.catlg.ru` → внутренний rewrite на `/${slug}` без редиректа.
  * Важно: Host должен быть сохранён на уровне прокси (nginx), иначе slug не извлечётся.
  *
- * Почему rewrite строкой (а не URL):
- * В некоторых конфигурациях reverse proxy Next может видеть origin как `https://localhost:3000`,
- * и тогда rewrite на URL превращается во "внешний" и Next пытается проксировать на этот origin,
- * что приводит к 500/EPROTO. Относительный путь гарантирует внутренний rewrite.
+ * Важно: Next.js Middleware (v15+) требует абсолютный URL для rewrite.
+ * При работе за reverse-proxy `request.nextUrl` может иметь origin `http://127.0.0.1:3000`,
+ * поэтому мы принудительно выставляем hostname/protocol из заголовков запроса.
  */
 export function middleware(request: NextRequest) {
-  const hostname = normalizeHost(request.headers.get('host'))
+  const rawHost = request.headers.get(HOST_HEADER)
+  const hostname = normalizeHost(rawHost)
   if (!hostname) return NextResponse.next()
 
   const slug = getSlugFromSubdomain(hostname)
   if (!slug) return NextResponse.next()
 
-  const url = request.nextUrl
-  const destination = `/${slug}${url.pathname}${url.search}`
-  return NextResponse.rewrite(destination)
+  const url = request.nextUrl.clone()
+  url.pathname = `/${slug}${url.pathname}`
+
+  // Обеспечиваем корректный origin, чтобы rewrite не указывал на localhost/127.0.0.1.
+  url.hostname = hostname
+  url.port = getPortFromHost(rawHost) ?? ''
+
+  const forwardedProto = request.headers.get(FORWARDED_PROTO_HEADER)?.split(',')[0]?.trim()
+  if (forwardedProto) {
+    url.protocol = `${forwardedProto.replace(':', '')}:`
+  }
+
+  return NextResponse.rewrite(url)
 }
 
 export const config = {
