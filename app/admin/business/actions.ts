@@ -197,8 +197,7 @@ export async function saveImageUrl(
     return { error: 'Ошибка сохранения URL изображения' }
   }
 
-  // Обновляем кэш страниц
-  revalidatePath('/admin/business')
+  // Обновляем кэш публичной страницы каталога
   if (businessSlug || businessData?.slug) {
     revalidatePath(`/${businessSlug ?? businessData?.slug}`)
   }
@@ -282,8 +281,7 @@ export async function updateBusiness(formData: FormData) {
     return { error: 'Ошибка сохранения данных' }
   }
 
-  // Обновляем кэш страниц
-  revalidatePath('/admin/business')
+  // Обновляем кэш публичной страницы каталога
   if (businessData?.slug) {
     revalidatePath(`/${businessData.slug}`)
   }

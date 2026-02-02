@@ -2,6 +2,7 @@
 import { supabase } from "@/lib/supabase";
 import { createServerClient } from "@/lib/supabase-server";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import Image from "next/image";
 import { ContactOrEditSection } from "@/components/business/contact-or-edit-section";
 import { Catalog } from "@/components/catalog/catalog";
@@ -14,6 +15,7 @@ import { Clock } from "lucide-react";
 import type { Metadata } from "next";
 import { BusinessProfileEditorWrapper } from "@/components/business/business-profile-editor-wrapper";
 import { BannerLogoutButton } from "@/components/business/banner-logout-button";
+import { isRootDomainHost, normalizeHost } from "@/lib/host";
 
 interface PageProps {
   params: Promise<{
@@ -27,6 +29,15 @@ interface PageProps {
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
+  const host = normalizeHost((await headers()).get("host"));
+  // Блокируем `catlg.ru/{slug}`: на корневом домене не отдаём каталоги по пути.
+  if (host && isRootDomainHost(host)) {
+    return {
+      title: "Catalog Noema",
+      description: "Каталог товаров",
+    };
+  }
+
   const { slug } = await params;
   const { data: business } = await supabase
     .from("business")

@@ -5,7 +5,7 @@ import { LoginForm } from './login-form'
 
 /**
  * Страница входа
- * Если пользователь уже авторизован → редирект на страницу его бизнеса
+ * Если пользователь уже авторизован → редирект в админ-зону
  */
 export default async function LoginPage() {
   const supabase = await createServerClient()

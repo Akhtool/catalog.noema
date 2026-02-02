@@ -1,9 +1,17 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Footer } from "@/components/footer"
+import { buildBusinessCatalogUrl } from "@/lib/host"
 
 /** Главная страница — лендинг платформы Catalog Noema. */
 export default function Home() {
+  const testSlug = "crusty"
+  const testCatalogUrl = buildBusinessCatalogUrl(testSlug, {
+    // В dev нужен http + порт dev-сервера, чтобы ссылка открывалась локально.
+    protocol: process.env.NODE_ENV === "production" ? "https" : "http",
+    port: process.env.NODE_ENV === "production" ? null : "3000",
+  })
+
   return (
     <main className="flex min-h-screen flex-col">
       {/* Hero */}
@@ -15,7 +23,7 @@ export default function Home() {
           Платформа для создания онлайн-каталогов товаров и услуг
         </p>
         <Button asChild size="lg" className="mt-8">
-          <Link href="/muscool">Открыть тестовый каталог</Link>
+          <Link href={testCatalogUrl}>Открыть тестовый каталог</Link>
         </Button>
       </section>
 

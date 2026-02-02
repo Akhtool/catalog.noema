@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import { Toaster } from "sonner"
 import "./globals.css"
-import { HeaderWrapper } from "@/components/header-wrapper"
 import { ScrollToTop } from "@/components/scroll-to-top"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -24,7 +23,6 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body className={inter.className}>
-        <HeaderWrapper />
         {children}
         <ScrollToTop />
         <Toaster richColors position="top-center" />

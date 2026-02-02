@@ -57,7 +57,7 @@ export function SignupForm() {
         await setServerSession(data.session.access_token, data.session.refresh_token)
         
         // Используем window.location для гарантированного редиректа
-        window.location.replace('/admin')
+        window.location.replace('/')
       }
     } catch {
       setError('Произошла ошибка при регистрации')

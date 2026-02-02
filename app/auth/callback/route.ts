@@ -1,10 +1,12 @@
 import { createServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
+import { buildBusinessRedirectUrl, getBusinessSlugForUser } from '@/lib/auth-redirect'
 
-const FALLBACK_REDIRECT = '/admin'
+const FALLBACK_REDIRECT = '/'
 
 /**
- * Callback для OAuth и magic link: редирект на страницу бизнеса пользователя.
+ * Callback для OAuth и magic link.
+ * После успешной авторизации возвращаемся на `/` текущего host.
  */
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
@@ -30,20 +32,17 @@ export async function GET(request: Request) {
             onConflict: 'id',
           })
 
-        const { data: businessUsers } = await supabase
-          .from('business_user')
-          .select('business_id')
-          .eq('user_id', user.id)
-          .limit(1)
-        if (businessUsers?.length) {
-          const { data: business } = await supabase
-            .from('business')
-            .select('slug')
-            .eq('id', businessUsers[0].business_id)
-            .single()
-          if (business?.slug) {
-            return NextResponse.redirect(new URL(`/${business.slug}`, request.url))
-          }
+        const businessSlug = await getBusinessSlugForUser(supabase, user.id)
+        if (businessSlug) {
+          const redirectUrl =
+            buildBusinessRedirectUrl({
+              slug: businessSlug,
+              protocol: requestUrl.protocol.replace(':', ''),
+              port: requestUrl.port || null,
+              host: requestUrl.hostname,
+            }) ?? FALLBACK_REDIRECT
+
+          return NextResponse.redirect(new URL(redirectUrl, request.url))
         }
       }
 

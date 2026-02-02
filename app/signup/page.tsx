@@ -5,7 +5,7 @@ import { SignupForm } from './signup-form'
 
 /**
  * Страница регистрации
- * Если пользователь уже авторизован → редирект на /admin
+ * Если пользователь уже авторизован → редирект на главную текущего host
  */
 export default async function SignupPage() {
   const supabase = await createServerClient()
@@ -13,9 +13,9 @@ export default async function SignupPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Если уже авторизован, перенаправляем в админку
+  // Если уже авторизован, перенаправляем на главную
   if (user) {
-    redirect('/admin')
+    redirect('/')
   }
 
   return (

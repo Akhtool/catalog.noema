@@ -1,13 +1,18 @@
 'use server'
 
 import { createServerClient } from '@/lib/supabase-server'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
+import { buildBusinessRedirectUrl, getBusinessSlugForUser } from '@/lib/auth-redirect'
+import { getRootDomain, normalizeHost } from '@/lib/host'
 
 /**
  * Устанавливает сессию на сервере через токены
  */
 export async function setServerSession(accessToken: string, refreshToken: string) {
   const cookieStore = await cookies()
+  const host = normalizeHost((await headers()).get('host'))
+  const root = getRootDomain()
+  const cookieDomain = host && (host === root || host.endsWith(`.${root}`)) ? `.${root}` : undefined
   
   // Устанавливаем cookies для сессии
   cookieStore.set('sb-access-token', accessToken, {
@@ -15,6 +20,7 @@ export async function setServerSession(accessToken: string, refreshToken: string
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
+    domain: cookieDomain,
     maxAge: 60 * 60 * 24 * 7, // 7 дней
   })
   
@@ -23,6 +29,7 @@ export async function setServerSession(accessToken: string, refreshToken: string
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
+    domain: cookieDomain,
     maxAge: 60 * 60 * 24 * 30, // 30 дней
   })
   
@@ -62,10 +69,11 @@ export async function ensureProfileAfterAuth() {
   return { success: true }
 }
 
-const FALLBACK_REDIRECT = '/admin'
+const FALLBACK_REDIRECT = '/'
 
 /**
- * Возвращает URL для редиректа после входа: страница бизнеса пользователя или /admin.
+ * Возвращает URL для редиректа после входа.
+ * Каталог доступен на поддомене: после входа возвращаемся на `/` текущего host.
  */
 export async function getRedirectAfterLogin(): Promise<string> {
   const supabase = await createServerClient()
@@ -75,21 +83,24 @@ export async function getRedirectAfterLogin(): Promise<string> {
 
   if (!user) return FALLBACK_REDIRECT
 
-  const { data: businessUsers } = await supabase
-    .from('business_user')
-    .select('business_id')
-    .eq('user_id', user.id)
-    .limit(1)
+  const slug = await getBusinessSlugForUser(supabase, user.id)
+  if (!slug) return FALLBACK_REDIRECT
 
-  if (!businessUsers?.length) return FALLBACK_REDIRECT
+  const hostRaw = (await headers()).get('host')
+  const host = normalizeHost(hostRaw) ?? ''
 
-  const { data: business } = await supabase
-    .from('business')
-    .select('slug')
-    .eq('id', businessUsers[0].business_id)
-    .single()
+  // В dev/prod достаточно: http+3000 в dev, https без порта в prod.
+  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
+  const port = process.env.NODE_ENV === 'production' ? null : '3000'
 
-  return business?.slug ? `/${business.slug}` : FALLBACK_REDIRECT
+  return (
+    buildBusinessRedirectUrl({
+      slug,
+      protocol,
+      port,
+      host,
+    }) ?? FALLBACK_REDIRECT
+  )
 }
 
 /**
