@@ -31,8 +31,29 @@ export interface Business {
   /** Доступные способы получения заказа (из Supabase delivery_types). Если пусто — считаем все три. */
   deliveryTypes: DeliveryType[];
 
+  /** Точки/филиалы для самовывоза и «В зале». Загружаются отдельно (business_location). */
+  pickupPoints?: BusinessLocation[];
+
   createdAt: string; // timestamp (ISO string)
   updatedAt: string; // timestamp (ISO string)
+}
+
+/**
+ * Филиал/точка бизнеса (самовывоз, в зале)
+ */
+export interface BusinessLocation {
+  id: string;
+  businessId: string;
+  title: string;
+  address: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  telegram: string | null;
+  orderPosition: number;
+  /** Показывать в выборе при оформлении заказа (false = скрыт, например на ремонте) */
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -111,6 +132,8 @@ export interface Cart {
   promoCode: string | null;
   deliveryType: DeliveryType | null;
   deliveryAddress: string | null;
+  /** ID выбранной точки (BusinessLocation) для pickup/dine-in */
+  selectedPointId: string | null;
 }
 
 /**
@@ -128,5 +151,8 @@ export interface Order {
   promoCode: string | null;
   deliveryType: DeliveryType | null;
   deliveryAddress: string | null;
+  /** Выбранная точка для pickup/dine-in (для текста сообщения и контакта) */
+  selectedPointId: string | null;
+  selectedPoint: BusinessLocation | null;
   createdAt: string; // timestamp (ISO string)
 }

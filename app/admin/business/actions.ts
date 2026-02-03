@@ -288,3 +288,157 @@ export async function updateBusiness(formData: FormData) {
 
   return { success: true }
 }
+
+/**
+ * Проверяет, есть ли у пользователя доступ к бизнесу (owner/admin)
+ */
+async function userHasAccessToBusinessId(
+  supabase: Awaited<ReturnType<typeof createServerClient>>,
+  userId: string,
+  businessId: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from('business_user')
+    .select('business_id')
+    .eq('business_id', businessId)
+    .eq('user_id', userId)
+    .in('role', ['owner', 'admin'])
+    .single()
+  return !!data
+}
+
+/**
+ * Создаёт филиал/точку бизнеса
+ */
+export async function createLocation(
+  businessId: string,
+  data: {
+    title: string
+    address?: string | null
+    phone?: string | null
+    whatsapp?: string | null
+    telegram?: string | null
+    orderPosition?: number
+    isActive?: boolean
+  }
+) {
+  const supabase = await createServerClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: 'Не авторизован' }
+  if (!(await userHasAccessToBusinessId(supabase, user.id, businessId))) {
+    return { error: 'Нет доступа к этому бизнесу' }
+  }
+  const title = (data.title ?? '').trim()
+  if (!title) return { error: 'Название точки обязательно' }
+
+  const { error } = await supabase.from('business_location').insert({
+    business_id: businessId,
+    title,
+    address: data.address?.trim() || null,
+    phone: data.phone?.trim() || null,
+    whatsapp: data.whatsapp?.trim() || null,
+    telegram: data.telegram?.trim() || null,
+    order_position: data.orderPosition ?? 0,
+    is_active: data.isActive !== false,
+  })
+
+  if (error) {
+    console.error('createLocation:', error)
+    return { error: 'Ошибка сохранения' }
+  }
+  const { data: b } = await supabase.from('business').select('slug').eq('id', businessId).single()
+  if (b?.slug) revalidatePath(`/${b.slug}`)
+  return { success: true }
+}
+
+/**
+ * Обновляет филиал/точку
+ */
+export async function updateLocation(
+  locationId: string,
+  data: {
+    title: string
+    address?: string | null
+    phone?: string | null
+    whatsapp?: string | null
+    telegram?: string | null
+    orderPosition?: number
+    isActive?: boolean
+  }
+) {
+  const supabase = await createServerClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: 'Не авторизован' }
+
+  const { data: loc, error: fetchError } = await supabase
+    .from('business_location')
+    .select('business_id')
+    .eq('id', locationId)
+    .single()
+  if (fetchError || !loc) return { error: 'Точка не найдена' }
+  if (!(await userHasAccessToBusinessId(supabase, user.id, loc.business_id))) {
+    return { error: 'Нет доступа' }
+  }
+
+  const title = (data.title ?? '').trim()
+  if (!title) return { error: 'Название точки обязательно' }
+
+  const updatePayload: Record<string, unknown> = {
+    title,
+    address: data.address?.trim() || null,
+    phone: data.phone?.trim() || null,
+    whatsapp: data.whatsapp?.trim() || null,
+    telegram: data.telegram?.trim() || null,
+    order_position: data.orderPosition ?? 0,
+  }
+  if (data.isActive !== undefined) {
+    updatePayload.is_active = data.isActive
+  }
+
+  const { error } = await supabase
+    .from('business_location')
+    .update(updatePayload)
+    .eq('id', locationId)
+
+  if (error) {
+    console.error('updateLocation:', error)
+    return { error: 'Ошибка сохранения' }
+  }
+  const { data: b } = await supabase.from('business').select('slug').eq('id', loc.business_id).single()
+  if (b?.slug) revalidatePath(`/${b.slug}`)
+  return { success: true }
+}
+
+/**
+ * Удаляет филиал/точку
+ */
+export async function deleteLocation(locationId: string) {
+  const supabase = await createServerClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: 'Не авторизован' }
+
+  const { data: loc, error: fetchError } = await supabase
+    .from('business_location')
+    .select('business_id')
+    .eq('id', locationId)
+    .single()
+  if (fetchError || !loc) return { error: 'Точка не найдена' }
+  if (!(await userHasAccessToBusinessId(supabase, user.id, loc.business_id))) {
+    return { error: 'Нет доступа' }
+  }
+
+  const { error } = await supabase.from('business_location').delete().eq('id', locationId)
+  if (error) {
+    console.error('deleteLocation:', error)
+    return { error: 'Ошибка удаления' }
+  }
+  const { data: b } = await supabase.from('business').select('slug').eq('id', loc.business_id).single()
+  if (b?.slug) revalidatePath(`/${b.slug}`)
+  return { success: true }
+}

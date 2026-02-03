@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { updateBusiness, saveImageUrl } from '@/app/admin/business/actions'
 import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/input'
@@ -12,13 +12,23 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
-import { Business } from '@/types'
-import { Camera, User, Settings, Image as ImageIcon, Frame, X, Phone, Loader2 } from 'lucide-react'
+import { Business, BusinessLocation } from '@/types'
+import { Camera, User, Settings, Image as ImageIcon, Frame, X, Phone, Loader2, MapPin, Plus, Pencil, Trash2, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react'
+import { createLocation, updateLocation, deleteLocation } from '@/app/admin/business/actions'
 import { useSheetDrag } from '@/lib/useSheetDrag'
 import { BusinessImageCropSheet } from './business-image-crop-sheet'
+import { Badge } from '@/components/ui/badge'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 
@@ -111,6 +121,51 @@ export function BusinessProfileEditorSheet({
   const [cropOpen, setCropOpen] = useState(false)
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null)
   const [cropType, setCropType] = useState<'logo' | 'cover'>('logo')
+  const [editingLocationId, setEditingLocationId] = useState<string | null | 'new'>(null)
+  const [locationForm, setLocationForm] = useState({
+    title: '',
+    address: '',
+    phone: '',
+    whatsapp: '',
+    telegram: '',
+    orderPosition: 0,
+    isActive: true,
+  })
+  const [locationMessage, setLocationMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [locationSubmitting, setLocationSubmitting] = useState(false)
+  const [locationToDeleteId, setLocationToDeleteId] = useState<string | null>(null)
+  const [togglingLocationId, setTogglingLocationId] = useState<string | null>(null)
+  /** Оптимистичное отображение видимости после переключения (пока не пришёл refresh) */
+  const [locationVisibilityOverride, setLocationVisibilityOverride] = useState<Record<string, boolean>>({})
+  /** Оптимистично удалённые id — скрываем из списка после успешного delete */
+  const [deletedLocationIds, setDeletedLocationIds] = useState<string[]>([])
+  /** id филиала, для которого идёт удаление — в карточке показываем loader */
+  const [deletingLocationId, setDeletingLocationId] = useState<string | null>(null)
+  /** Идёт добавление филиала — показываем карточку с loader в конце списка */
+  const [isAddingLocation, setIsAddingLocation] = useState(false)
+  /** id раскрытой карточки филиала (подробные данные) */
+  const [expandedLocationId, setExpandedLocationId] = useState<string | null>(null)
+  const previousPickupPointsLengthRef = useRef((business.pickupPoints ?? []).length)
+
+  useEffect(() => {
+    const currentLength = (business.pickupPoints ?? []).length
+    if (isAddingLocation && currentLength > previousPickupPointsLengthRef.current) {
+      setIsAddingLocation(false)
+    }
+    previousPickupPointsLengthRef.current = currentLength
+  }, [business.pickupPoints, isAddingLocation])
+
+  useEffect(() => {
+    if (!business.pickupPoints?.length) return
+    setLocationVisibilityOverride((prev) => {
+      const next = { ...prev }
+      business.pickupPoints?.forEach((p) => {
+        if (prev[p.id] !== undefined && prev[p.id] === p.isActive) delete next[p.id]
+      })
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next
+    })
+    setDeletedLocationIds((prev) => prev.filter((id) => business.pickupPoints?.some((p) => p.id === id)))
+  }, [business.pickupPoints])
 
   const { dragHandlers, sheetStyle, scrollableStyle } = useSheetDrag({
     open,
@@ -254,6 +309,131 @@ export function BusinessProfileEditorSheet({
     setCropImageSrc(null)
   }
 
+  const pickupPoints = (business.pickupPoints ?? []).filter((loc) => !deletedLocationIds.includes(loc.id))
+
+  function openAddLocation() {
+    setEditingLocationId('new')
+    setLocationForm({ title: '', address: '', phone: '', whatsapp: '', telegram: '', orderPosition: pickupPoints.length, isActive: true })
+    setLocationMessage(null)
+  }
+
+  function openEditLocation(loc: BusinessLocation, effectiveActive?: boolean) {
+    setEditingLocationId(loc.id)
+    setLocationForm({
+      title: loc.title,
+      address: loc.address ?? '',
+      phone: loc.phone ?? '',
+      whatsapp: loc.whatsapp ?? '',
+      telegram: loc.telegram ?? '',
+      orderPosition: loc.orderPosition,
+      isActive: effectiveActive ?? locationVisibilityOverride[loc.id] ?? loc.isActive,
+    })
+    setLocationMessage(null)
+  }
+
+  async function handleSaveLocation(e?: React.FormEvent) {
+    e?.preventDefault()
+    setLocationMessage(null)
+    if (!locationForm.title.trim()) {
+      setLocationMessage({ type: 'error', text: 'Название обязательно' })
+      return
+    }
+    setLocationSubmitting(true)
+    try {
+      if (editingLocationId === 'new') {
+        setEditingLocationId(null)
+        setIsAddingLocation(true)
+        const result = await createLocation(business.id, {
+          title: locationForm.title.trim(),
+          address: locationForm.address.trim() || null,
+          phone: locationForm.phone.trim() || null,
+          whatsapp: locationForm.whatsapp.trim() || null,
+          telegram: locationForm.telegram.trim() || null,
+          orderPosition: locationForm.orderPosition,
+          isActive: locationForm.isActive,
+        })
+        if ('error' in result) {
+          setLocationMessage({ type: 'error', text: result.error ?? 'Ошибка' })
+          setIsAddingLocation(false)
+          return
+        }
+        setLocationMessage({ type: 'success', text: 'Филиал добавлен' })
+        onSuccess?.()
+        setTimeout(() => setLocationMessage(null), 1500)
+      } else if (editingLocationId) {
+        const result = await updateLocation(editingLocationId, {
+          title: locationForm.title.trim(),
+          address: locationForm.address.trim() || null,
+          phone: locationForm.phone.trim() || null,
+          whatsapp: locationForm.whatsapp.trim() || null,
+          telegram: locationForm.telegram.trim() || null,
+          orderPosition: locationForm.orderPosition,
+          isActive: locationForm.isActive,
+        })
+        if ('error' in result) {
+          setLocationMessage({ type: 'error', text: result.error ?? 'Ошибка' })
+          return
+        }
+        setLocationMessage({ type: 'success', text: 'Филиал сохранён' })
+      }
+      if (editingLocationId !== 'new') {
+        setEditingLocationId(null)
+        setTimeout(() => {
+          setLocationMessage(null)
+          onSuccess?.()
+        }, 1500)
+      }
+    } finally {
+      setLocationSubmitting(false)
+    }
+  }
+
+  async function handleToggleLocationVisibility(loc: BusinessLocation) {
+    const nextActive = !loc.isActive
+    setTogglingLocationId(loc.id)
+    setLocationMessage(null)
+    try {
+      const result = await updateLocation(loc.id, {
+        title: loc.title,
+        address: loc.address ?? null,
+        phone: loc.phone ?? null,
+        whatsapp: loc.whatsapp ?? null,
+        telegram: loc.telegram ?? null,
+        orderPosition: loc.orderPosition,
+        isActive: nextActive,
+      })
+      if ('error' in result) {
+        setLocationMessage({ type: 'error', text: result.error ?? 'Ошибка' })
+        return
+      }
+      setLocationVisibilityOverride((prev) => ({ ...prev, [loc.id]: nextActive }))
+      onSuccess?.()
+    } finally {
+      setTogglingLocationId(null)
+    }
+  }
+
+  async function handleConfirmDeleteLocation() {
+    if (!locationToDeleteId) return
+    const locId = locationToDeleteId
+    setLocationToDeleteId(null)
+    setDeletingLocationId(locId)
+    setLocationMessage(null)
+    try {
+      const result = await deleteLocation(locId)
+      if ('error' in result) {
+        setLocationMessage({ type: 'error', text: result.error ?? 'Ошибка' })
+        setDeletingLocationId(null)
+        return
+      }
+      setDeletedLocationIds((prev) => (prev.includes(locId) ? prev : [...prev, locId]))
+      setEditingLocationId(null)
+      onSuccess?.()
+    } finally {
+      setDeletingLocationId(null)
+    }
+  }
+
   /**
    * Отправка формы
    */
@@ -355,14 +535,17 @@ export function BusinessProfileEditorSheet({
 
           <form onSubmit={handleSubmit} className="space-y-6">
           <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="w-full grid grid-cols-3 mb-4">
-              <TabsTrigger value="profile" className="flex-1">
+            <TabsList className="w-full grid grid-cols-4 mb-4">
+              <TabsTrigger value="profile" className="flex-1 text-xs">
                 Профиль
               </TabsTrigger>
-              <TabsTrigger value="about" className="flex-1">
+              <TabsTrigger value="about" className="flex-1 text-xs">
                 О себе
               </TabsTrigger>
-              <TabsTrigger value="settings" className="flex-1">
+              <TabsTrigger value="locations" className="flex-1 text-xs">
+                Филиалы
+              </TabsTrigger>
+              <TabsTrigger value="settings" className="flex-1 text-xs">
                 Настройки
               </TabsTrigger>
             </TabsList>
@@ -571,6 +754,251 @@ export function BusinessProfileEditorSheet({
               </div>
             </TabsContent>
 
+            {/* Вкладка "Филиалы" */}
+            <TabsContent value="locations" className="space-y-4">
+              <div className="space-y-4 rounded-lg border p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-brand-yellow" />
+                    <h3 className="text-lg font-semibold">Филиалы / точки</h3>
+                  </div>
+                  {editingLocationId === null && (
+                    <Button type="button" size="sm" onClick={openAddLocation} className="bg-brand-yellow text-black hover:bg-brand-yellow/90">
+                      <Plus className="w-4 h-4 mr-1" />
+                      Добавить
+                    </Button>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Точки самовывоза и залы для способов «Самовывоз» и «В зале». Контакты точки подставляются в заказ, если указаны.
+                </p>
+                {locationMessage && (
+                  <div
+                    className={cn(
+                      'p-3 rounded-md text-sm',
+                      locationMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+                    )}
+                  >
+                    {locationMessage.text}
+                  </div>
+                )}
+                {editingLocationId !== null && (
+                  <div className="space-y-3 p-4 bg-gray-50 rounded-lg border">
+                    <Input
+                      placeholder="Название (например, ТЦ Афимолл)"
+                      value={locationForm.title}
+                      onChange={(e) => setLocationForm((f) => ({ ...f, title: e.target.value }))}
+                      required
+                      disabled={locationSubmitting}
+                      className="bg-white"
+                    />
+                    <Input
+                      placeholder="Адрес"
+                      value={locationForm.address}
+                      onChange={(e) => setLocationForm((f) => ({ ...f, address: e.target.value }))}
+                      disabled={locationSubmitting}
+                      className="bg-white"
+                    />
+                    <div className="grid grid-cols-1 gap-2">
+                      <Input
+                        placeholder="Телефон"
+                        value={locationForm.phone}
+                        onChange={(e) => setLocationForm((f) => ({ ...f, phone: e.target.value }))}
+                        disabled={locationSubmitting}
+                        className="bg-white"
+                      />
+                      <Input
+                        placeholder="WhatsApp"
+                        value={locationForm.whatsapp}
+                        onChange={(e) => setLocationForm((f) => ({ ...f, whatsapp: e.target.value }))}
+                        disabled={locationSubmitting}
+                        className="bg-white"
+                      />
+                      <Input
+                        placeholder="Telegram"
+                        value={locationForm.telegram}
+                        onChange={(e) => setLocationForm((f) => ({ ...f, telegram: e.target.value }))}
+                        disabled={locationSubmitting}
+                        className="bg-white"
+                      />
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={locationForm.isActive}
+                        onChange={(e) => setLocationForm((f) => ({ ...f, isActive: e.target.checked }))}
+                        disabled={locationSubmitting}
+                        className="rounded border-gray-300"
+                      />
+                      <span className="text-sm font-medium">Показывать в выборе при оформлении заказа</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        onClick={() => handleSaveLocation()}
+                        disabled={locationSubmitting}
+                        className="bg-brand-yellow text-black hover:bg-brand-yellow/90"
+                      >
+                        {locationSubmitting ? 'Сохранение…' : editingLocationId === 'new' ? 'Добавить' : 'Сохранить'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setEditingLocationId(null)}
+                        disabled={locationSubmitting}
+                      >
+                        Отмена
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                <ul className="space-y-2">
+                  {pickupPoints.map((loc) => {
+                    const effectiveActive = locationVisibilityOverride[loc.id] ?? loc.isActive
+                    const isDeleting = deletingLocationId === loc.id
+                    return (
+                    <li
+                      key={loc.id}
+                      className={cn(
+                        'flex items-start justify-between gap-2 p-3 rounded-lg border bg-white min-h-[67px]',
+                        !effectiveActive && !isDeleting && 'opacity-75'
+                      )}
+                    >
+                      {isDeleting ? (
+                        <div className="flex flex-1 items-center justify-center py-4">
+                          <Loader2 className="h-6 w-6 text-gray-400 animate-spin" />
+                        </div>
+                      ) : (
+                        <>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium">{loc.title}</p>
+                              {!effectiveActive && (
+                                <Badge variant="secondary" className="text-xs">Скрыт</Badge>
+                              )}
+                            </div>
+                            {loc.address && (
+                              <p className="text-sm text-gray-600 mt-0.5">{loc.address}</p>
+                            )}
+                            {expandedLocationId === loc.id && (
+                              <div className="mt-3 pt-3 border-t border-gray-100 space-y-1.5 text-sm">
+                                {loc.phone && (
+                                  <p className="text-gray-600">
+                                    <span className="text-gray-400">Телефон:</span>{' '}
+                                    <a href={`tel:${loc.phone}`} className="text-gray-800 underline">
+                                      {loc.phone}
+                                    </a>
+                                  </p>
+                                )}
+                                {loc.whatsapp && (
+                                  <p className="text-gray-600">
+                                    <span className="text-gray-400">WhatsApp:</span>{' '}
+                                    <a
+                                      href={`https://wa.me/${loc.whatsapp.replace(/\D/g, '')}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-gray-800 underline"
+                                    >
+                                      {loc.whatsapp}
+                                    </a>
+                                  </p>
+                                )}
+                                {loc.telegram && (
+                                  <p className="text-gray-600">
+                                    <span className="text-gray-400">Telegram:</span>{' '}
+                                    <a
+                                      href={`https://t.me/${loc.telegram.replace(/^@/, '')}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-gray-800 underline"
+                                    >
+                                      {loc.telegram}
+                                    </a>
+                                  </p>
+                                )}
+                                {!loc.phone && !loc.whatsapp && !loc.telegram && (
+                                  <p className="text-gray-400 text-xs">Контакты не указаны</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex gap-1 flex-shrink-0 items-start">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedLocationId((id) => (id === loc.id ? null : loc.id))}
+                              className="p-2 rounded-lg hover:bg-gray-100"
+                              title={expandedLocationId === loc.id ? 'Свернуть' : 'Подробные данные'}
+                              aria-label={expandedLocationId === loc.id ? 'Свернуть' : 'Подробные данные'}
+                            >
+                              {expandedLocationId === loc.id ? (
+                                <ChevronUp className="w-4 h-4 text-gray-600" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 text-gray-600" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleLocationVisibility(loc)}
+                              disabled={togglingLocationId !== null}
+                              className="p-2 rounded-lg hover:bg-gray-100"
+                              title={effectiveActive ? 'Скрыть (например, на ремонте)' : 'Показать'}
+                              aria-label={effectiveActive ? 'Скрыть' : 'Показать'}
+                            >
+                              {togglingLocationId === loc.id ? (
+                                <Loader2 className="w-4 h-4 text-gray-600 animate-spin" />
+                              ) : effectiveActive ? (
+                                <EyeOff className="w-4 h-4 text-gray-600" />
+                              ) : (
+                                <Eye className="w-4 h-4 text-gray-600" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openEditLocation(loc, effectiveActive)}
+                              disabled={editingLocationId !== null}
+                              className="p-2 rounded-lg hover:bg-gray-100"
+                              aria-label="Изменить"
+                            >
+                              <Pencil className="w-4 h-4 text-gray-600" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setLocationToDeleteId(loc.id)}
+                              disabled={deletingLocationId !== null}
+                              className={cn(
+                                'p-2 rounded-lg transition-colors',
+                                deletingLocationId !== null
+                                  ? 'cursor-not-allowed bg-gray-100 opacity-50'
+                                  : 'hover:bg-red-50'
+                              )}
+                              aria-label="Удалить"
+                            >
+                              <Trash2
+                                className={cn(
+                                  'w-4 h-4',
+                                  deletingLocationId !== null ? 'text-gray-400' : 'text-red-600'
+                                )}
+                              />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </li>
+                  ); })}
+                  {isAddingLocation && (
+                    <li className="flex items-start justify-between gap-2 p-3 rounded-lg border bg-white min-h-[67px]">
+                      <div className="flex flex-1 items-center justify-center py-4">
+                        <Loader2 className="h-6 w-6 text-gray-400 animate-spin" />
+                      </div>
+                    </li>
+                  )}
+                </ul>
+                {pickupPoints.length === 0 && !isAddingLocation && editingLocationId === null && (
+                  <p className="text-sm text-muted-foreground">Нет добавленных филиалов. Нажмите «Добавить» для первой точки.</p>
+                )}
+              </div>
+            </TabsContent>
+
             {/* Вкладка "Настройки" */}
           <TabsContent value="settings" className="space-y-4">
             <div className="space-y-4 rounded-lg border p-4">
@@ -613,6 +1041,41 @@ export function BusinessProfileEditorSheet({
         imageSrc={cropImageSrc}
         onComplete={handleCropComplete}
       />
+
+      <Dialog open={locationToDeleteId !== null} onOpenChange={(open) => !open && setLocationToDeleteId(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Удалить этот филиал?</DialogTitle>
+            <DialogDescription>
+              Точка будет удалена безвозвратно. Клиенты больше не смогут выбрать её при оформлении заказа.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setLocationToDeleteId(null)}
+            >
+              Отмена
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmDeleteLocation}
+              disabled={locationSubmitting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {locationSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Удаление…
+                </>
+              ) : (
+                'Удалить'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   )
 }

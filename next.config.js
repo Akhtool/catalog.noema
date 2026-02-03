@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Разрешить dev-запросы с поддоменов каталога (например crusty.catlg.ru)
+  allowedDevOrigins: ['crusty.catlg.ru', 'catlg.ru'],
   images: {
     remotePatterns: [
       {

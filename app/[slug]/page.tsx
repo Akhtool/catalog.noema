@@ -9,7 +9,7 @@ import { Catalog } from "@/components/catalog/catalog";
 import { BusinessProvider } from "@/components/business-provider";
 import { CartBottomBar } from "@/components/cart/cart-bottom-bar";
 import { Footer } from "@/components/footer";
-import { Business, Category, Product } from "@/types";
+import { Business, BusinessLocation, Category, Product } from "@/types";
 import { parseDeliveryTypes } from "@/lib/order";
 import { Clock } from "lucide-react";
 import type { Metadata } from "next";
@@ -88,6 +88,12 @@ export default async function Page({ params }: PageProps) {
     .eq("is_active", true)
     .order("order", { ascending: true });
 
+  const { data: locations } = await supabase
+    .from("business_location")
+    .select("*")
+    .eq("business_id", business.id)
+    .order("order_position", { ascending: true });
+
   // Для админа загружаем все товары (в т.ч. скрытые) через serverClient; для остальных — только активные через anon
   const serverClient = await createServerClient();
   const { data: { user } } = await serverClient.auth.getUser();
@@ -121,6 +127,19 @@ export default async function Page({ params }: PageProps) {
     deliveryRegions: business.delivery_regions || null,
     cityDelivery: business.city_delivery || null,
     deliveryTypes: parseDeliveryTypes(business.delivery_types),
+    pickupPoints: (locations || []).map((loc) => ({
+      id: loc.id,
+      businessId: loc.business_id,
+      title: loc.title,
+      address: loc.address ?? null,
+      phone: loc.phone ?? null,
+      whatsapp: loc.whatsapp ?? null,
+      telegram: loc.telegram ?? null,
+      orderPosition: loc.order_position,
+      isActive: loc.is_active !== false,
+      createdAt: loc.created_at,
+      updatedAt: loc.updated_at,
+    })) as BusinessLocation[],
     createdAt: business.created_at,
     updatedAt: business.updated_at,
   };

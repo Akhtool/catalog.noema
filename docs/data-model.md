@@ -58,7 +58,37 @@ Business {
 - Один Business = один каталог (V1).
 - `yandex_metrika` используется для подключения аналитики на публичной странице.
 
-### 2.2 Category
+### 2.2 BusinessLocation (филиал/точка)
+
+Точка самовывоза или зал (для способов получения «Самовывоз» и «В зале»).
+
+**Назначение:** Хранение адресов и опциональных контактов по точкам одного бизнеса; выбор точки влияет на текст сообщения заказа и на контакт для связи (WhatsApp/Telegram/телефон).
+
+**Ключевые поля:** `id`, `business_id`, `title`, `address`, `phone`, `whatsapp`, `telegram`, `order_position`, `is_active`
+
+```ts
+BusinessLocation {
+  id: UUID
+  business_id: UUID           // FK -> business(id) ON DELETE CASCADE
+  title: string               // название точки (например "ТЦ Афимолл", "Ул. Пушкина")
+  address: string | null      // адрес для самовывоза/в зале
+  phone: string | null        // контакт точки (если свой)
+  whatsapp: string | null
+  telegram: string | null
+  order_position: number      // порядок отображения (default 0)
+  is_active: boolean          // показывать в выборе при оформлении (false = скрыт)
+  created_at: timestamp
+  updated_at: timestamp
+}
+```
+
+**Примечания:**
+
+- При отсутствии точек или одной точке выбор в checkout можно не показывать (подставлять единственную или контакт бизнеса).
+- Контакты точки используются для deep-link при отправке заказа; если не заданы — используются контакты Business.
+- `is_active = false`: точка не показывается в выборе при оформлении (например, на ремонте или временно закрыта).
+
+### 2.3 Category
 
 Категория товаров или услуг.
 
@@ -84,7 +114,7 @@ Category {
 - Категории принадлежат одному Business.
 - Используются для навигации и фильтрации.
 
-### 2.3 Brand
+### 2.4 Brand
 
 Бренд товаров.
 
@@ -111,7 +141,7 @@ Brand {
 - Бренды не удаляются физически, используется мягкое удаление через `is_active`.
 - Нельзя деактивировать бренд, если есть активные товары с этим брендом.
 
-### 2.4 Product
+### 2.5 Product
 
 Товар или услуга в каталоге.
 
@@ -146,7 +176,7 @@ Product {
 - Изображения хранятся в таблице `product_image`.
 - Используется в каталоге, фильтрах и корзине.
 
-### 2.5 ProductImage
+### 2.6 ProductImage
 
 Изображение товара.
 
@@ -173,7 +203,7 @@ ProductImage {
 - Первое изображение (position = 0) используется как главное фото и карточка товара.
 - Минимум одно изображение на товар.
 
-### 2.6 Profile
+### 2.7 Profile
 
 Профиль пользователя.
 
@@ -198,7 +228,7 @@ Profile {
 - Связывается с Supabase Auth через `id`.
 - Используется для управления бизнесами через `business_user`.
 
-### 2.7 BusinessUser
+### 2.8 BusinessUser
 
 Связь пользователя с бизнесом.
 
@@ -251,6 +281,9 @@ CartItem {
 Cart {
   items: CartItem[]
   comment: string | null
+  deliveryType: DeliveryType | null
+  deliveryAddress: string | null
+  selectedPointId: string | null   // UUID точки (BusinessLocation), для pickup/dine-in
 }
 
 Примечания:
@@ -264,12 +297,17 @@ Cart {
 Виртуальный заказ, формируемый при оформлении.
 Order {
   businessId: UUID
+  orderNumber: string
 
   items: CartItem[]
   totalPrice: number
   totalQuantity: number
 
   comment: string | null
+  deliveryType: DeliveryType | null
+  deliveryAddress: string | null
+  selectedPointId: string | null   // выбранная точка (для текста сообщения и контакта)
+  selectedPoint: BusinessLocation | null  // данные точки (для генерации сообщения)
   createdAt: timestamp
 }
 Примечания:
@@ -284,6 +322,7 @@ Order {
 
 ### Основные связи:
 
+- `Business 1 ──── * BusinessLocation` (business_id)
 - `Business 1 ──── * Category` (business_id)
 - `Business 1 ──── * Brand` (business_id)
 - `Business 1 ──── * Product` (business_id)
@@ -297,6 +336,7 @@ Order {
 
 ```
 Business
+  ├── BusinessLocation (1:N)   // филиалы/точки для самовывоза и «В зале»
   ├── Category (1:N)
   ├── Brand (1:N)
   ├── Product (1:N)

@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { useEffect, useState } from 'react';
-import type { CartItem, Cart, Order, Product, DeliveryType } from '@/types';
+import type { CartItem, Cart, Order, Product, DeliveryType, BusinessLocation } from '@/types';
 
 interface CartStore extends Cart {
   orderNumber: string | null; // номер заказа
@@ -22,14 +22,15 @@ interface CartStore extends Cart {
   setPromoCode: (promoCode: string | null) => void;
   setDeliveryType: (type: DeliveryType | null) => void;
   setDeliveryAddress: (address: string | null) => void;
+  setSelectedPointId: (pointId: string | null) => void;
   generateOrderNumber: () => string;
 
   // Computed values (functions)
   getTotalPrice: () => number;
   getTotalQuantity: () => number;
 
-  // Order generation
-  createOrder: (businessId: string) => Order;
+  // Order generation (pickupPoints для подстановки selectedPoint в Order)
+  createOrder: (businessId: string, pickupPoints?: BusinessLocation[]) => Order;
 }
 
 /**
@@ -46,6 +47,7 @@ interface StoredCartData {
   promoCode: string | null;
   deliveryType: DeliveryType | null;
   deliveryAddress: string | null;
+  selectedPointId: string | null;
   timestamp: number; // время последнего обновления
 }
 
@@ -94,14 +96,14 @@ const cartStorage = {
         return null;
       }
       
-      // Удаляем timestamp из данных перед возвратом, так как его нет в интерфейсе CartStore
-      // Если timestamp отсутствует (старые данные), просто возвращаем данные как есть
+      // Удаляем timestamp из данных перед возвратом; добавляем selectedPointId если нет (старые данные)
       if (data.timestamp !== undefined) {
         const { timestamp, ...stateWithoutTimestamp } = data;
-        return JSON.stringify({
-          ...parsed,
-          state: stateWithoutTimestamp,
-        });
+        const state = {
+          ...stateWithoutTimestamp,
+          selectedPointId: stateWithoutTimestamp.selectedPointId ?? null,
+        };
+        return JSON.stringify({ ...parsed, state });
       }
       
       // Если timestamp отсутствует, возвращаем данные как есть (обратная совместимость)
@@ -194,6 +196,7 @@ export const useCartStore = create<CartStore>()(
       promoCode: null,
       deliveryType: null,
       deliveryAddress: null,
+      selectedPointId: null,
       orderNumber: null,
 
   // Computed values
@@ -304,6 +307,7 @@ export const useCartStore = create<CartStore>()(
       promoCode: null,
       deliveryType: null,
       deliveryAddress: null,
+      selectedPointId: null,
       orderNumber: null,
     });
   },
@@ -328,10 +332,17 @@ export const useCartStore = create<CartStore>()(
   // Set delivery type
   setDeliveryType: (deliveryType: DeliveryType | null) => {
     set({ deliveryType });
-    // Очищаем адрес, если способ получения не доставка
     if (deliveryType !== "delivery") {
       set({ deliveryAddress: null });
     }
+    // Очищаем точку при переходе на доставку
+    if (deliveryType === "delivery") {
+      set({ selectedPointId: null });
+    }
+  },
+
+  setSelectedPointId: (selectedPointId: string | null) => {
+    set({ selectedPointId });
   },
 
   // Set delivery address
@@ -340,13 +351,16 @@ export const useCartStore = create<CartStore>()(
   },
 
   // Create Order object for message generation
-  createOrder: (businessId: string): Order => {
+  createOrder: (businessId: string, pickupPoints?: BusinessLocation[]): Order => {
     const state = get();
-    // Генерируем номер заказа, если его еще нет
     const orderNumber = state.orderNumber || generateOrderNumber();
     if (!state.orderNumber) {
       set({ orderNumber });
     }
+    const selectedPoint =
+      state.selectedPointId && pickupPoints?.length
+        ? pickupPoints.find((p) => p.id === state.selectedPointId) ?? null
+        : null;
     return {
       businessId,
       orderNumber,
@@ -357,6 +371,8 @@ export const useCartStore = create<CartStore>()(
       promoCode: state.promoCode,
       deliveryType: state.deliveryType,
       deliveryAddress: state.deliveryAddress,
+      selectedPointId: state.selectedPointId,
+      selectedPoint: selectedPoint ?? null,
       createdAt: new Date().toISOString(),
     };
   },
@@ -371,8 +387,7 @@ export const useCartStore = create<CartStore>()(
         promoCode: state.promoCode,
         deliveryType: state.deliveryType,
         deliveryAddress: state.deliveryAddress,
-        // timestamp добавляется в cartStorage.setItem, здесь не сохраняем
-        // orderNumber не сохраняем, он генерируется заново
+        selectedPointId: state.selectedPointId,
       }),
       // В Zustand v5 persist автоматически сохраняет изменения
       // Не используем skipHydration, чтобы данные восстанавливались автоматически

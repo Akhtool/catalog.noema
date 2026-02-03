@@ -66,30 +66,24 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   }
 
   const handleSelectContact = (type: "whatsapp" | "phone" | "telegram") => {
-    if (!business) {
-      return
-    }
+    if (!business) return
 
-    const order = createOrderFromCart(business.id)
+    const order = createOrderFromCart(business.id, business.pickupPoints)
     const message = generateOrderMessage(order)
+    const phone = order.selectedPoint?.phone ?? business.phone
+    const whatsapp = order.selectedPoint?.whatsapp ?? business.whatsapp
+    const telegram = order.selectedPoint?.telegram ?? business.telegram
 
-    // Открываем выбранный способ связи
-    if (type === "whatsapp" && business.whatsapp) {
-      const url = createWhatsAppLink(business.whatsapp, message)
-      window.open(url, "_blank")
-      // Очищаем корзину после отправки заказа
+    if (type === "whatsapp" && whatsapp) {
+      window.open(createWhatsAppLink(whatsapp, message), "_blank")
       clearCart()
       onOpenChange(false)
-    } else if (type === "telegram" && business.telegram) {
-      const url = createTelegramLink(business.telegram, message)
-      window.open(url, "_blank")
-      // Очищаем корзину после отправки заказа
+    } else if (type === "telegram" && telegram) {
+      window.open(createTelegramLink(telegram, message), "_blank")
       clearCart()
       onOpenChange(false)
-    } else if (type === "phone" && business.phone) {
-      const url = createPhoneLink(business.phone)
-      window.open(url, "_self")
-      // Очищаем корзину после звонка
+    } else if (type === "phone" && phone) {
+      window.open(createPhoneLink(phone), "_self")
       clearCart()
       onOpenChange(false)
     }
