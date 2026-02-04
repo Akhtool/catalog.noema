@@ -102,29 +102,30 @@ export function ProductImageCropSheet({
         className="w-full min-h-[85vh] max-h-[95vh] rounded-t-3xl flex flex-col p-0 bg-white border-t-0 !bottom-0 data-[state=open]:duration-500 data-[state=closed]:duration-500"
         style={sheetStyle}
       >
-        <div
-          {...dragHandlers}
-          className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none"
-        >
-          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
-        </div>
-        <div className="flex-shrink-0 px-6 pt-3 pb-3 flex items-center justify-between border-b">
-          <div>
-            <SheetTitle className="text-xl font-bold">
-              Редактирование фотографии 1 из 1
-            </SheetTitle>
-            <SheetDescription className="text-sm text-gray-500 mt-1">
-              Обрежьте фотографию, чтобы добавить (соотношение 3:4)
-            </SheetDescription>
+        <header className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-gray-100 flex-shrink-0">
+          <div className="w-8 flex-shrink-0" aria-hidden />
+          <div
+            {...dragHandlers}
+            className="flex-1 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none min-w-0 py-0.5"
+          >
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
           </div>
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors"
+            className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0"
             aria-label="Закрыть"
           >
             <X className="h-5 w-5" />
           </button>
+        </header>
+        <div className="flex-shrink-0 px-6 pt-4 pb-3 border-b">
+          <SheetTitle className="text-xl font-bold">
+            Редактирование фотографии 1 из 1
+          </SheetTitle>
+          <SheetDescription className="text-sm text-gray-500 mt-1">
+            Обрежьте фотографию, чтобы добавить (соотношение 3:4)
+          </SheetDescription>
         </div>
         <div className="flex-1 min-h-0 relative" style={scrollableStyle}>
           {imageSrc && (

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import {
   Sheet,
   SheetContent,
@@ -60,8 +60,14 @@ export function CheckoutDialog({
     : null
   const contactSource = selectedPoint ?? business
 
+  const prevOpenRef = useRef(false)
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      prevOpenRef.current = false
+      return
+    }
+    const justOpened = !prevOpenRef.current
+    prevOpenRef.current = true
     if (deliveryAddressStore) setDeliveryAddress(deliveryAddressStore)
     const allowed = business.deliveryTypes
     const currentInvalid = deliveryType && !allowed.includes(deliveryType)
@@ -73,6 +79,7 @@ export function CheckoutDialog({
       setStep("delivery")
       return
     }
+    if (!justOpened) return
     if (deliveryType === "delivery") {
       if (deliveryAddressStore) setStep("contact")
       else setStep("delivery")
@@ -153,14 +160,17 @@ export function CheckoutDialog({
 
   const availableOptions = availableContacts.filter((c) => c.available)
 
-  // Сбрасываем состояние при закрытии
+  // Сбрасываем состояние при закрытии, чтобы при следующем открытии показывать первый шаг
   const handleOpenChange = useCallback((open: boolean) => {
     if (!open) {
       setStep("delivery")
       setDeliveryAddress("")
+      setDeliveryType(null)
+      setDeliveryAddressStore(null)
+      setSelectedPointId(null)
     }
     onOpenChange(open)
-  }, [onOpenChange])
+  }, [onOpenChange, setDeliveryType, setDeliveryAddressStore, setSelectedPointId])
 
   // Используем хук для перетаскивания (должен быть вызван до условных возвратов)
   const { dragHandlers, sheetStyle, scrollableStyle } = useSheetDrag({
@@ -192,13 +202,15 @@ export function CheckoutDialog({
     }
   }
 
+  const handleClose = () => {
+    handleOpenChange(false)
+  }
+
   const handleBack = () => {
     if (step === "contact") {
       setStep(needsPointStep ? "point" : "delivery")
     } else if (step === "point") {
       setStep("delivery")
-    } else {
-      onOpenChange(false)
     }
   }
 
@@ -219,34 +231,46 @@ export function CheckoutDialog({
         showCloseButton={false}
         style={sheetStyle}
       >
-        {/* Индикатор свайпа */}
-        <div
-          {...dragHandlers}
-          className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none"
-        >
-          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
-        </div>
-
-        {/* Заголовок с кнопкой закрытия */}
-        <div className="px-6 pt-3 pb-4">
-          <div className="flex items-start justify-between mb-2">
-            <SheetTitle className="text-xl font-bold">
-              {step === "delivery"
-                ? "Способ получения заказа"
-                : step === "point"
-                  ? "Выберите филиал"
-                  : "Выберите способ связи"}
-            </SheetTitle>
-            <button
-              onClick={handleBack}
-              className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors"
-              aria-label={
-                step === "delivery" ? "Закрыть" : "Назад"
-              }
-            >
-              <X className="h-5 w-5" />
-            </button>
+        {/* Шапка: полоска свайпа и кнопки в одной строке у верхнего края */}
+        <header className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-gray-100">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              if (step === "delivery") handleClose()
+              else handleBack()
+            }}
+            className="relative z-10 rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0 touch-manipulation"
+            aria-label={step === "delivery" ? "Закрыть" : "Назад"}
+          >
+            <ChevronRight className="h-5 w-5 rotate-180" />
+          </button>
+          <div
+            {...dragHandlers}
+            className="flex-1 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none min-w-0 py-0.5"
+          >
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
           </div>
+          <button
+            onClick={handleClose}
+            type="button"
+            className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0"
+            aria-label="Закрыть"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </header>
+
+        {/* Заголовок и описание */}
+        <div className="px-6 pt-4 pb-4">
+          <SheetTitle className="text-xl font-bold">
+            {step === "delivery"
+              ? "Способ получения заказа"
+              : step === "point"
+                ? "Выберите филиал"
+                : "Выберите способ связи"}
+          </SheetTitle>
           <SheetDescription className="text-sm text-gray-600 mt-2">
             {step === "delivery"
               ? "Выберите, как вы хотите получить заказ"

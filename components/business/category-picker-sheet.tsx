@@ -189,28 +189,29 @@ export function CategoryPickerSheet({
         className="w-full max-h-[95vh] rounded-t-3xl flex flex-col p-0 bg-white border-t-0 !bottom-0 data-[state=open]:duration-500 data-[state=closed]:duration-500"
         style={sheetStyle}
       >
-        <div
-          {...dragHandlers}
-          className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none"
-        >
-          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
-        </div>
-
-        <div className="px-6 pt-3 pb-3 border-b">
-          <div className="flex items-center justify-between mb-2">
-            <SheetTitle className="text-xl font-bold">
-              Выбор категории
-            </SheetTitle>
-            <button
-              type="button"
-              onClick={handleClose}
-              className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors"
-              aria-label="Закрыть"
-            >
-              <X className="h-5 w-5" />
-            </button>
+        <header className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-gray-100">
+          <div className="w-8 flex-shrink-0" aria-hidden />
+          <div
+            {...dragHandlers}
+            className="flex-1 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none min-w-0 py-0.5"
+          >
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
           </div>
-          <SheetDescription className="text-sm text-gray-500">
+          <button
+            type="button"
+            onClick={handleClose}
+            className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0"
+            aria-label="Закрыть"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </header>
+
+        <div className="px-6 pt-4 pb-3 border-b">
+          <SheetTitle className="text-xl font-bold">
+            Выбор категории
+          </SheetTitle>
+          <SheetDescription className="text-sm text-gray-500 mt-2">
             Добавьте категорию или выберите из списка. Категории отображаются в
             каталоге.
           </SheetDescription>
@@ -391,28 +392,29 @@ export function CategoryPickerSheet({
         className="w-full max-h-[95vh] rounded-t-3xl flex flex-col p-0 bg-white border-t-0 !bottom-0 data-[state=open]:duration-500 data-[state=closed]:duration-500"
         style={deleteSheetStyle}
       >
-        <div
-          {...deleteDragHandlers}
-          className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none"
-        >
-          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
-        </div>
-
-        <div className="px-6 pt-3 pb-3 border-b">
-          <div className="flex items-center justify-between mb-2">
-            <SheetTitle className="text-xl font-bold">
-              Удалить эту категорию?
-            </SheetTitle>
-            <button
-              type="button"
-              onClick={() => setCategoryToDelete(null)}
-              className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors"
-              aria-label="Закрыть"
-            >
-              <X className="h-5 w-5" />
-            </button>
+        <header className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-gray-100">
+          <div className="w-8 flex-shrink-0" aria-hidden />
+          <div
+            {...deleteDragHandlers}
+            className="flex-1 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none min-w-0 py-0.5"
+          >
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
           </div>
-          <SheetDescription className="text-sm text-gray-500">
+          <button
+            type="button"
+            onClick={() => setCategoryToDelete(null)}
+            className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0"
+            aria-label="Закрыть"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </header>
+
+        <div className="px-6 pt-4 pb-3 border-b">
+          <SheetTitle className="text-xl font-bold">
+            Удалить эту категорию?
+          </SheetTitle>
+          <SheetDescription className="text-sm text-gray-500 mt-2">
             Все данные удаляться безвозвратно
           </SheetDescription>
         </div>

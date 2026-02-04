@@ -98,26 +98,28 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
         showCloseButton={false}
         style={sheetStyle}
       >
-        {/* Индикатор свайпа с обработчиком перетаскивания */}
-        <div
-          {...dragHandlers}
-          className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none"
-        >
-          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
-        </div>
-
-        {/* Заголовок с кнопкой закрытия */}
-        <div className="px-6 pt-3 pb-3 border-b">
-          <div className="flex items-center justify-between mb-2">
-            <SheetTitle className="text-xl font-bold">Корзина</SheetTitle>
-            <button
-              onClick={() => onOpenChange(false)}
-              className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors"
-              aria-label="Закрыть корзину"
-            >
-              <X className="h-5 w-5" />
-            </button>
+        {/* Шапка: полоска свайпа и крестик в одной строке у верхнего края */}
+        <header className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-gray-100">
+          <div className="w-8 flex-shrink-0" aria-hidden />
+          <div
+            {...dragHandlers}
+            className="flex-1 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none min-w-0 py-0.5"
+          >
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
           </div>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0"
+            aria-label="Закрыть корзину"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </header>
+
+        {/* Заголовок */}
+        <div className="px-6 pt-4 pb-3 border-b">
+          <SheetTitle className="text-xl font-bold">Корзина</SheetTitle>
           {orderNumber && (
             <div className="text-xs text-gray-600 mb-2 font-medium">
               Номер заказа: {orderNumber}

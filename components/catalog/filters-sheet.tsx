@@ -86,26 +86,28 @@ export function FiltersSheet({
         showCloseButton={false}
         style={sheetStyle}
       >
-        {/* Индикатор свайпа */}
-        <div
-          {...dragHandlers}
-          className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none"
-        >
-          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
-        </div>
-
-        {/* Заголовок с кнопкой закрытия */}
-        <div className="px-6 pt-3 pb-4 border-b">
-          <div className="flex items-center justify-between mb-2">
-            <SheetTitle className="text-xl font-bold">Фильтры</SheetTitle>
-            <button
-              onClick={() => onOpenChange(false)}
-              className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors"
-              aria-label="Закрыть фильтры"
-            >
-              <X className="h-5 w-5" />
-            </button>
+        {/* Шапка: полоска свайпа и крестик в одной строке у верхнего края */}
+        <header className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-gray-100">
+          <div className="w-8 flex-shrink-0" aria-hidden />
+          <div
+            {...dragHandlers}
+            className="flex-1 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none min-w-0 py-0.5"
+          >
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
           </div>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0"
+            aria-label="Закрыть фильтры"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </header>
+
+        {/* Заголовок */}
+        <div className="px-6 pt-4 pb-4 border-b">
+          <SheetTitle className="text-xl font-bold">Фильтры</SheetTitle>
         </div>
 
         {/* Содержимое фильтров */}
