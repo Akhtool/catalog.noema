@@ -123,9 +123,8 @@ export function ProductCard({
           className={`bg-card-white rounded-[1.25rem] p-4 shadow-soft relative group flex gap-4 border transition-all ${
             isHidden
               ? "border-gray-200 bg-gray-100 cursor-default"
-              : "border-transparent hover:border-brand-yellow/30 cursor-pointer"
+              : "border-transparent hover:border-brand-yellow/30"
           }`}
-          onClick={handleCardClick}
         >
           {actionInProgress && (
             <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[1.25rem] bg-white/80" onClick={(e) => e.stopPropagation()}>
@@ -169,7 +168,14 @@ export function ProductCard({
             </div>
           )}
           {product.images && product.images.length > 0 && (
-            <div className="relative w-24 h-24 flex-shrink-0 rounded-md overflow-hidden">
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={handleCardClick}
+              onKeyDown={(e) => e.key === "Enter" && handleCardClick()}
+              className="relative w-24 h-24 flex-shrink-0 rounded-md overflow-hidden cursor-pointer"
+              aria-label={`Подробнее о ${product.name}`}
+            >
               <Image
                 src={product.images[0]}
                 alt={product.name}
@@ -181,12 +187,21 @@ export function ProductCard({
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold mb-1 truncate">{product.name}</h3>
-            {product.description && (
-              <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                {product.description}
-              </p>
-            )}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={handleCardClick}
+              onKeyDown={(e) => e.key === "Enter" && handleCardClick()}
+              className="cursor-pointer outline-none"
+              aria-label={`Подробнее о ${product.name}`}
+            >
+              <h3 className="font-semibold mb-1 truncate">{product.name}</h3>
+              {product.description && (
+                <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                  {product.description}
+                </p>
+              )}
+            </div>
             <div
               className={`flex items-center ${
                 quantity > 0 ? "justify-end" : "justify-between"
@@ -285,9 +300,8 @@ export function ProductCard({
         className={`bg-card-white rounded-[1.25rem] p-4 shadow-soft relative group flex flex-col justify-between h-full border transition-all ${
           isHidden
             ? "border-gray-200 bg-gray-100 cursor-default"
-            : "border-transparent hover:border-brand-yellow/30 cursor-pointer"
+            : "border-transparent hover:border-brand-yellow/30"
         }`}
-        onClick={handleCardClick}
       >
         {actionInProgress && (
           <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[1.25rem] bg-white/80" onClick={(e) => e.stopPropagation()}>
@@ -339,8 +353,15 @@ export function ProductCard({
           </div>
         )}
 
-        {/* Изображение продукта */}
-        <div className="relative h-36 w-full flex items-center justify-center mb-4 mt-2">
+        {/* Изображение продукта — клик открывает детали */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={handleCardClick}
+          onKeyDown={(e) => e.key === "Enter" && handleCardClick()}
+          className="relative h-36 w-full flex items-center justify-center mb-4 mt-2 cursor-pointer outline-none"
+          aria-label={`Подробнее о ${product.name}`}
+        >
           {product.images && product.images.length > 0 && (
             <Image
               src={product.images[0]}
@@ -354,9 +375,18 @@ export function ProductCard({
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-sm font-bold text-gray-800 leading-snug line-clamp-2">
-            {product.name}
-          </h3>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={handleCardClick}
+            onKeyDown={(e) => e.key === "Enter" && handleCardClick()}
+            className="cursor-pointer outline-none"
+            aria-label={`Подробнее о ${product.name}`}
+          >
+            <h3 className="text-sm font-bold text-gray-800 leading-snug line-clamp-2">
+              {product.name}
+            </h3>
+          </div>
           <div
             className={`flex items-center ${
               quantity > 0 ? "justify-center" : "justify-between"
