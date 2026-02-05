@@ -431,7 +431,7 @@ export default function SlugsPage() {
                   onChange={(e) =>
                     setCategoryForm({ ...categoryForm, business_id: e.target.value })
                   }
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-[16px]"
                   required
                   disabled={submitting}
                 >
@@ -511,7 +511,7 @@ export default function SlugsPage() {
                   onChange={(e) => {
                     setProductForm({ ...productForm, business_id: e.target.value, category_id: '' })
                   }}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-[16px]"
                   required
                   disabled={submitting}
                 >
@@ -530,7 +530,7 @@ export default function SlugsPage() {
                   onChange={(e) =>
                     setProductForm({ ...productForm, category_id: e.target.value })
                   }
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-[16px]"
                   required
                   disabled={submitting || !productForm.business_id}
                 >

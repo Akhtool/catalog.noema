@@ -331,7 +331,7 @@ export function CategoryPickerSheet({
                                     setEditingName("");
                                   }
                                 }}
-                                className="flex-1 border-0 border-b rounded-none bg-white h-8 text-sm"
+                                className="flex-1 border-0 border-b rounded-none bg-white h-8 text-[16px]"
                                 autoFocus
                               />
                               <Button
