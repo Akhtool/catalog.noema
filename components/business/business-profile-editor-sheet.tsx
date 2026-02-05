@@ -67,6 +67,16 @@ interface BusinessProfileEditorSheetProps {
   onSuccess?: () => void
 }
 
+import {
+  validatePhone as validateContactPhone,
+  validateTelegram as validateContactTelegram,
+  validateWhatsapp as validateContactWhatsapp,
+  getContactErrorMessage,
+  normalizePhone as normalizeContactPhone,
+  normalizeTelegram as normalizeContactTelegram,
+  normalizeWhatsapp as normalizeContactWhatsapp,
+} from '@/lib/contacts'
+
 interface FormErrors {
   name?: string
   phone?: string
@@ -74,29 +84,10 @@ interface FormErrors {
   telegram?: string
 }
 
-/**
- * Валидация телефона
- */
-function validatePhone(value: string | null): string | undefined {
-  if (!value || value.trim() === '') return undefined
-  const phoneRegex = /^\+?[1-9]\d{1,14}$/
-  const cleaned = value.replace(/[\s\-()]/g, '')
-  if (!phoneRegex.test(cleaned)) {
-    return 'Некорректный формат телефона'
-  }
-  return undefined
-}
-
-/**
- * Валидация Telegram
- */
-function validateTelegram(value: string | null): string | undefined {
-  if (!value || value.trim() === '') return undefined
-  const telegramRegex = /^@?[a-zA-Z0-9_]{5,32}$/
-  if (!telegramRegex.test(value.trim())) {
-    return 'Некорректный формат Telegram'
-  }
-  return undefined
+interface LocationFormErrors {
+  phone?: string
+  whatsapp?: string
+  telegram?: string
 }
 
 /**
@@ -145,6 +136,8 @@ export function BusinessProfileEditorSheet({
   const [isAddingLocation, setIsAddingLocation] = useState(false)
   /** id раскрытой карточки филиала (подробные данные) */
   const [expandedLocationId, setExpandedLocationId] = useState<string | null>(null)
+  /** Ошибки валидации контактов в форме филиала */
+  const [locationErrors, setLocationErrors] = useState<LocationFormErrors>({})
   const previousPickupPointsLengthRef = useRef((business.pickupPoints ?? []).length)
 
   useEffect(() => {
@@ -173,28 +166,25 @@ export function BusinessProfileEditorSheet({
   })
 
   /**
-   * Валидация формы
+   * Валидация формы (контакты через lib/contacts)
    */
   function validateForm(formData: FormData): boolean {
     const newErrors: FormErrors = {}
-    
+
     const name = formData.get('name') as string
     if (!name || name.trim() === '') {
       newErrors.name = 'Название бизнеса обязательно'
     }
-    
-    const phone = formData.get('phone') as string
-    const phoneError = validatePhone(phone)
-    if (phoneError) newErrors.phone = phoneError
-    
-    const whatsapp = formData.get('whatsapp') as string
-    const whatsappError = validatePhone(whatsapp)
-    if (whatsappError) newErrors.whatsapp = whatsappError
-    
-    const telegram = formData.get('telegram') as string
-    const telegramError = validateTelegram(telegram)
-    if (telegramError) newErrors.telegram = telegramError
-    
+
+    const phoneRes = validateContactPhone(formData.get('phone') as string)
+    if (!phoneRes.isValid && phoneRes.errorCode) newErrors.phone = getContactErrorMessage(phoneRes.errorCode)
+
+    const whatsappRes = validateContactWhatsapp(formData.get('whatsapp') as string)
+    if (!whatsappRes.isValid && whatsappRes.errorCode) newErrors.whatsapp = getContactErrorMessage(whatsappRes.errorCode)
+
+    const telegramRes = validateContactTelegram(formData.get('telegram') as string)
+    if (!telegramRes.isValid && telegramRes.errorCode) newErrors.telegram = getContactErrorMessage(telegramRes.errorCode)
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -315,6 +305,7 @@ export function BusinessProfileEditorSheet({
     setEditingLocationId('new')
     setLocationForm({ title: '', address: '', phone: '', whatsapp: '', telegram: '', orderPosition: pickupPoints.length, isActive: true })
     setLocationMessage(null)
+    setLocationErrors({})
   }
 
   function openEditLocation(loc: BusinessLocation, effectiveActive?: boolean) {
@@ -329,15 +320,32 @@ export function BusinessProfileEditorSheet({
       isActive: effectiveActive ?? locationVisibilityOverride[loc.id] ?? loc.isActive,
     })
     setLocationMessage(null)
+    setLocationErrors({})
   }
 
   async function handleSaveLocation(e?: React.FormEvent) {
     e?.preventDefault()
     setLocationMessage(null)
+    setLocationErrors({})
     if (!locationForm.title.trim()) {
       setLocationMessage({ type: 'error', text: 'Название обязательно' })
       return
     }
+    const phoneRes = validateContactPhone(locationForm.phone)
+    const whatsappRes = validateContactWhatsapp(locationForm.whatsapp)
+    const telegramRes = validateContactTelegram(locationForm.telegram)
+    const err: LocationFormErrors = {}
+    if (!phoneRes.isValid && phoneRes.errorCode) err.phone = getContactErrorMessage(phoneRes.errorCode)
+    if (!whatsappRes.isValid && whatsappRes.errorCode) err.whatsapp = getContactErrorMessage(whatsappRes.errorCode)
+    if (!telegramRes.isValid && telegramRes.errorCode) err.telegram = getContactErrorMessage(telegramRes.errorCode)
+    if (Object.keys(err).length > 0) {
+      setLocationErrors(err)
+      setLocationMessage({ type: 'error', text: 'Проверьте формат контактов' })
+      return
+    }
+    const phoneNorm = normalizeContactPhone(locationForm.phone).normalized
+    const whatsappNorm = normalizeContactWhatsapp(locationForm.whatsapp).normalized
+    const telegramNorm = normalizeContactTelegram(locationForm.telegram).normalized
     setLocationSubmitting(true)
     try {
       if (editingLocationId === 'new') {
@@ -346,9 +354,9 @@ export function BusinessProfileEditorSheet({
         const result = await createLocation(business.id, {
           title: locationForm.title.trim(),
           address: locationForm.address.trim() || null,
-          phone: locationForm.phone.trim() || null,
-          whatsapp: locationForm.whatsapp.trim() || null,
-          telegram: locationForm.telegram.trim() || null,
+          phone: phoneNorm || null,
+          whatsapp: whatsappNorm || null,
+          telegram: telegramNorm || null,
           orderPosition: locationForm.orderPosition,
           isActive: locationForm.isActive,
         })
@@ -364,9 +372,9 @@ export function BusinessProfileEditorSheet({
         const result = await updateLocation(editingLocationId, {
           title: locationForm.title.trim(),
           address: locationForm.address.trim() || null,
-          phone: locationForm.phone.trim() || null,
-          whatsapp: locationForm.whatsapp.trim() || null,
-          telegram: locationForm.telegram.trim() || null,
+          phone: phoneNorm || null,
+          whatsapp: whatsappNorm || null,
+          telegram: telegramNorm || null,
           orderPosition: locationForm.orderPosition,
           isActive: locationForm.isActive,
         })
@@ -456,9 +464,16 @@ export function BusinessProfileEditorSheet({
       setMessage({ type: 'error', text: 'Пожалуйста, исправьте ошибки в форме' })
       return
     }
-    
+
+    const phoneNorm = normalizeContactPhone(formData.get('phone') as string)
+    const whatsappNorm = normalizeContactWhatsapp(formData.get('whatsapp') as string)
+    const telegramNorm = normalizeContactTelegram(formData.get('telegram') as string)
+    formData.set('phone', phoneNorm.normalized)
+    formData.set('whatsapp', whatsappNorm.normalized)
+    formData.set('telegram', telegramNorm.normalized)
+
     setIsSubmitting(true)
-    
+
     try {
       const result = await updateBusiness(formData)
       
@@ -701,55 +716,67 @@ export function BusinessProfileEditorSheet({
                   <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
                     <Phone className="w-4 h-4 text-gray-600" />
                   </div>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    defaultValue={business.phone || ''}
-                    placeholder="+7 (999) 123-45-67"
-                    disabled={isSubmitting}
-                    className={cn('flex-1', errors.phone && 'border-red-500')}
-                  />
+                  <div className="flex-1 space-y-1">
+                    <Input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      defaultValue={business.phone || ''}
+                      placeholder="+7 (999) 123-45-67"
+                      disabled={isSubmitting}
+                      className={cn(errors.phone && 'border-red-500')}
+                    />
+                    {errors.phone ? (
+                      <p className="text-sm text-red-600">{errors.phone}</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Например: +7 999 123-45-67</p>
+                    )}
+                  </div>
                 </div>
-                {errors.phone && (
-                  <p className="text-sm text-red-600 ml-10">{errors.phone}</p>
-                )}
 
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
                     <WhatsAppIcon className="w-4 h-4 text-[#25D366]" />
                   </div>
-                  <Input
-                    id="whatsapp"
-                    name="whatsapp"
-                    type="tel"
-                    defaultValue={business.whatsapp || ''}
-                    placeholder="+7 (999) 123-45-67"
-                    disabled={isSubmitting}
-                    className={cn('flex-1', errors.whatsapp && 'border-red-500')}
-                  />
+                  <div className="flex-1 space-y-1">
+                    <Input
+                      id="whatsapp"
+                      name="whatsapp"
+                      type="tel"
+                      defaultValue={business.whatsapp || ''}
+                      placeholder="+7 (999) 123-45-67 или wa.me/79991234567"
+                      disabled={isSubmitting}
+                      className={cn(errors.whatsapp && 'border-red-500')}
+                    />
+                    {errors.whatsapp ? (
+                      <p className="text-sm text-red-600">{errors.whatsapp}</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Например: wa.me/79991234567 или +7 999 123-45-67</p>
+                    )}
+                  </div>
                 </div>
-                {errors.whatsapp && (
-                  <p className="text-sm text-red-600 ml-10">{errors.whatsapp}</p>
-                )}
 
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
                     <TelegramIcon className="w-4 h-4 text-[#0088cc]" />
                   </div>
-                  <Input
-                    id="telegram"
-                    name="telegram"
-                    type="text"
-                    defaultValue={business.telegram || ''}
-                    placeholder="@username"
-                    disabled={isSubmitting}
-                    className={cn('flex-1', errors.telegram && 'border-red-500')}
-                  />
+                  <div className="flex-1 space-y-1">
+                    <Input
+                      id="telegram"
+                      name="telegram"
+                      type="text"
+                      defaultValue={business.telegram || ''}
+                      placeholder="@username или t.me/username"
+                      disabled={isSubmitting}
+                      className={cn(errors.telegram && 'border-red-500')}
+                    />
+                    {errors.telegram ? (
+                      <p className="text-sm text-red-600">{errors.telegram}</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Например: @username (латиница, 5–32 символа)</p>
+                    )}
+                  </div>
                 </div>
-                {errors.telegram && (
-                  <p className="text-sm text-red-600 ml-10">{errors.telegram}</p>
-                )}
               </div>
             </div>
               </div>
@@ -800,28 +827,43 @@ export function BusinessProfileEditorSheet({
                       disabled={locationSubmitting}
                       className="bg-white"
                     />
-                    <div className="grid grid-cols-1 gap-2">
-                      <Input
-                        placeholder="Телефон"
-                        value={locationForm.phone}
-                        onChange={(e) => setLocationForm((f) => ({ ...f, phone: e.target.value }))}
-                        disabled={locationSubmitting}
-                        className="bg-white"
-                      />
-                      <Input
-                        placeholder="WhatsApp"
-                        value={locationForm.whatsapp}
-                        onChange={(e) => setLocationForm((f) => ({ ...f, whatsapp: e.target.value }))}
-                        disabled={locationSubmitting}
-                        className="bg-white"
-                      />
-                      <Input
-                        placeholder="Telegram"
-                        value={locationForm.telegram}
-                        onChange={(e) => setLocationForm((f) => ({ ...f, telegram: e.target.value }))}
-                        disabled={locationSubmitting}
-                        className="bg-white"
-                      />
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="space-y-1">
+                        <Input
+                          placeholder="Телефон, например +7 999 123-45-67"
+                          value={locationForm.phone}
+                          onChange={(e) => setLocationForm((f) => ({ ...f, phone: e.target.value }))}
+                          disabled={locationSubmitting}
+                          className={cn('bg-white', locationErrors.phone && 'border-red-500')}
+                        />
+                        {locationErrors.phone && (
+                          <p className="text-sm text-red-600">{locationErrors.phone}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <Input
+                          placeholder="WhatsApp: wa.me/79991234567 или +7 999 123-45-67"
+                          value={locationForm.whatsapp}
+                          onChange={(e) => setLocationForm((f) => ({ ...f, whatsapp: e.target.value }))}
+                          disabled={locationSubmitting}
+                          className={cn('bg-white', locationErrors.whatsapp && 'border-red-500')}
+                        />
+                        {locationErrors.whatsapp && (
+                          <p className="text-sm text-red-600">{locationErrors.whatsapp}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <Input
+                          placeholder="Telegram: @username или t.me/username"
+                          value={locationForm.telegram}
+                          onChange={(e) => setLocationForm((f) => ({ ...f, telegram: e.target.value }))}
+                          disabled={locationSubmitting}
+                          className={cn('bg-white', locationErrors.telegram && 'border-red-500')}
+                        />
+                        {locationErrors.telegram && (
+                          <p className="text-sm text-red-600">{locationErrors.telegram}</p>
+                        )}
+                      </div>
                     </div>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
