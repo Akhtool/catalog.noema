@@ -172,11 +172,10 @@ export function CheckoutDialog({
     onOpenChange(open)
   }, [onOpenChange, setDeliveryType, setDeliveryAddressStore, setSelectedPointId])
 
-  const scrollRef = useRef<HTMLDivElement>(null)
+  // Используем хук для перетаскивания (должен быть вызван до условных возвратов)
   const { dragHandlers, sheetStyle, scrollableStyle } = useSheetDrag({
     open,
     onOpenChange: handleOpenChange,
-    scrollRef,
   })
 
   if (availableOptions.length === 0) {
@@ -231,7 +230,6 @@ export function CheckoutDialog({
         className="w-full rounded-t-3xl flex flex-col p-0 bg-white border-t-0 !bottom-0 data-[state=open]:duration-500 data-[state=closed]:duration-500"
         showCloseButton={false}
         style={sheetStyle}
-        {...dragHandlers}
       >
         {/* Шапка: полоска свайпа и кнопки в одной строке у верхнего края */}
         <header className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-gray-100">
@@ -248,8 +246,11 @@ export function CheckoutDialog({
           >
             <ChevronRight className="h-5 w-5 rotate-180" />
           </button>
-          <div className="flex-1 flex justify-center touch-none select-none min-w-0 py-0.5 pointer-events-none">
-            <div className="w-12 h-1.5 bg-gray-300 rounded-full" aria-hidden />
+          <div
+            {...dragHandlers}
+            className="flex-1 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none min-w-0 py-0.5"
+          >
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
           </div>
           <button
             onClick={handleClose}
@@ -281,7 +282,6 @@ export function CheckoutDialog({
 
         {/* Контент в зависимости от шага */}
         <div
-          ref={scrollRef}
           className="px-6 pb-6 space-y-4 overflow-y-auto flex-1"
           style={scrollableStyle}
         >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Product } from "@/types";
@@ -149,11 +149,10 @@ export function ProductDetailCard({
   const weightAndPortions =
     weight && portions ? `${weight} / ${portions}` : weight || portions || null;
 
-  const scrollRef = useRef<HTMLDivElement>(null);
+  // Используем хук для перетаскивания
   const { dragHandlers, sheetStyle, scrollableStyle } = useSheetDrag({
     open,
     onOpenChange,
-    scrollRef,
   });
 
   return (
@@ -164,7 +163,6 @@ export function ProductDetailCard({
         className="h-[90vh] max-h-[90vh] rounded-t-[2rem] p-0 flex flex-col overflow-hidden border-0"
         showCloseButton={false}
         style={sheetStyle}
-        {...dragHandlers}
       >
         {/* Скрытый заголовок для доступности */}
         <SheetTitle className="sr-only">{product.name}</SheetTitle>
@@ -172,8 +170,11 @@ export function ProductDetailCard({
         {/* Шапка: полоска свайпа и крестик — как в остальных sheet */}
         <header className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-gray-100 flex-shrink-0">
           <div className="w-8 flex-shrink-0" aria-hidden />
-          <div className="flex-1 flex justify-center touch-none select-none min-w-0 py-0.5 pointer-events-none">
-            <div className="w-12 h-1.5 bg-gray-300 rounded-full" aria-hidden />
+          <div
+            {...dragHandlers}
+            className="flex-1 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none min-w-0 py-0.5"
+          >
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
           </div>
           <button
             type="button"
@@ -186,7 +187,7 @@ export function ProductDetailCard({
         </header>
 
         {/* Контент с прокруткой */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto" style={scrollableStyle}>
+        <div className="flex-1 overflow-y-auto" style={scrollableStyle}>
           {/* Секция изображения продукта */}
           {images.length > 0 && !imageLoadError ? (
             <div className="w-full min-h-[320px] flex items-center justify-center gap-2 bg-gray-50 px-4">
