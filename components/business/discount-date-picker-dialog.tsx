@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DayPicker } from "react-day-picker";
 import type { DateRange } from "react-day-picker";
 import { ru } from "date-fns/locale";
@@ -57,9 +57,11 @@ export function DiscountDatePickerDialog({
     initialRange
   );
 
+  const scrollRef = useRef<HTMLDivElement>(null);
   const { dragHandlers, sheetStyle, scrollableStyle } = useSheetDrag({
     open,
     onOpenChange,
+    scrollRef,
   });
 
   useEffect(() => {
@@ -96,12 +98,10 @@ export function DiscountDatePickerDialog({
         showCloseButton={false}
         className="w-full max-h-[95vh] rounded-t-3xl flex flex-col p-0 bg-white border-t-0 !bottom-0 data-[state=open]:duration-500 data-[state=closed]:duration-500"
         style={sheetStyle}
+        {...dragHandlers}
       >
-        <div
-          {...dragHandlers}
-          className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none"
-        >
-          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+        <div className="w-full pt-3 pb-2 flex justify-center touch-none select-none pointer-events-none">
+          <div className="w-12 h-1.5 bg-gray-300 rounded-full" aria-hidden />
         </div>
 
         <div className="px-6 pt-3 pb-3 border-b">
@@ -124,6 +124,7 @@ export function DiscountDatePickerDialog({
         </div>
 
         <div
+          ref={scrollRef}
           className="flex-1 overflow-y-auto px-6 py-4"
           style={scrollableStyle}
         >

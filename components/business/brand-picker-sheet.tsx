@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,9 +57,11 @@ export function BrandPickerSheet({
   /** id бренда, для которого идёт загрузка перед открытием модалки удаления */
   const [deletingBrandId, setDeletingBrandId] = useState<string | null>(null);
 
+  const scrollRef = useRef<HTMLDivElement>(null);
   const { dragHandlers, sheetStyle, scrollableStyle } = useSheetDrag({
     open,
     onOpenChange,
+    scrollRef,
   });
 
   const isDeleteSheetOpen = !!brandToDelete;
@@ -194,14 +196,12 @@ export function BrandPickerSheet({
           showCloseButton={false}
           className="w-full max-h-[95vh] rounded-t-3xl flex flex-col p-0 bg-white border-t-0 !bottom-0 data-[state=open]:duration-500 data-[state=closed]:duration-500"
           style={sheetStyle}
+          {...dragHandlers}
         >
           <header className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-gray-100">
             <div className="w-8 flex-shrink-0" aria-hidden />
-            <div
-              {...dragHandlers}
-              className="flex-1 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none min-w-0 py-0.5"
-            >
-              <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+            <div className="flex-1 flex justify-center touch-none select-none min-w-0 py-0.5 pointer-events-none">
+              <div className="w-12 h-1.5 bg-gray-300 rounded-full" aria-hidden />
             </div>
             <button
               type="button"
@@ -224,6 +224,7 @@ export function BrandPickerSheet({
           </div>
 
           <div
+            ref={scrollRef}
             className="flex-1 overflow-y-auto px-6 py-4"
             style={scrollableStyle}
           >
@@ -414,14 +415,12 @@ export function BrandPickerSheet({
           showCloseButton={false}
           className="w-full max-h-[95vh] rounded-t-3xl flex flex-col p-0 bg-white border-t-0 !bottom-0 data-[state=open]:duration-500 data-[state=closed]:duration-500"
           style={deleteSheetStyle}
+          {...deleteDragHandlers}
         >
           <header className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-gray-100">
             <div className="w-8 flex-shrink-0" aria-hidden />
-            <div
-              {...deleteDragHandlers}
-              className="flex-1 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none min-w-0 py-0.5"
-            >
-              <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+            <div className="flex-1 flex justify-center touch-none select-none min-w-0 py-0.5 pointer-events-none">
+              <div className="w-12 h-1.5 bg-gray-300 rounded-full" aria-hidden />
             </div>
             <button
               type="button"
