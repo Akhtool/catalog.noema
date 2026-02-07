@@ -568,22 +568,23 @@ export function BusinessProfileEditorSheet({
           </SheetDescription>
         </div>
 
-        {/* Прокручиваемая область с контентом */}
-        <div className="flex-1 overflow-y-auto px-6 py-4" style={scrollableStyle}>
-          {message && (
-            <div
-              className={cn(
-                'mb-4 p-4 rounded-md border',
-                message.type === 'success'
-                  ? 'bg-green-50 border-green-200 text-green-800'
-                  : 'bg-red-50 border-red-200 text-red-800'
-              )}
-            >
-              <p className="text-sm font-medium">{message.text}</p>
-            </div>
-          )}
+        {/* Форма: прокручиваемая область + панель сохранения у нижнего края */}
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4" style={scrollableStyle}>
+            {message && (
+              <div
+                className={cn(
+                  'mb-4 p-4 rounded-md border',
+                  message.type === 'success'
+                    ? 'bg-green-50 border-green-200 text-green-800'
+                    : 'bg-red-50 border-red-200 text-red-800'
+                )}
+              >
+                <p className="text-sm font-medium">{message.text}</p>
+              </div>
+            )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-6">
           <Tabs defaultValue="profile" className="w-full">
             <TabsList className="w-full grid grid-cols-4 mb-4">
               <TabsTrigger value="profile" className="flex-1 text-xs">
@@ -1145,26 +1146,28 @@ export function BusinessProfileEditorSheet({
           </TabsContent>
             </div>
         </Tabs>
+            </div>
+          </div>
 
-        {/* Кнопка сохранения - всегда видна внизу */}
-        <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t -mx-6 px-6">
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-brand-yellow text-black hover:bg-brand-yellow/90 font-semibold"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Сохранение…
-              </>
-            ) : (
-              'СОХРАНИТЬ ИЗМЕНЕНИЯ'
-            )}
-          </Button>
-        </div>
+          {/* Кнопка сохранения — прижата к нижнему краю шита */}
+          <div className="flex-shrink-0 z-10 bg-background pt-4 pb-2 border-t px-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.08)]">
+            <Button
+              type="submit"
+              size="lg"
+              disabled={isSubmitting}
+              className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-black font-normal text-base py-6 rounded-lg"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Сохранение…
+                </>
+              ) : (
+                'Сохранить изменения'
+              )}
+            </Button>
+          </div>
         </form>
-        </div>
       </SheetContent>
       <BusinessImageCropSheet
         open={cropOpen}

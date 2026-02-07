@@ -362,7 +362,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
             {/* Кнопка оформления заказа */}
             <Button
               size="lg"
-              className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-black font-bold text-base py-6 rounded-lg"
+              className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-black font-normal text-base py-6 rounded-lg"
               onClick={handleCheckout}
               disabled={!business}
             >
