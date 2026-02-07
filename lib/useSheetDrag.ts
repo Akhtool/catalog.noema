@@ -77,6 +77,13 @@ export function useSheetDrag({
         dragEngagedRef.current = true;
       }
 
+      // ВАЖНО (iOS): не блокируем скролл всегда — только когда реально тащим sheet.
+      // Для этого слушатель должен быть passive:false (см. touchEventOptions ниже).
+      const e = eventData.event as unknown as { preventDefault?: () => void; cancelable?: boolean };
+      if (e?.cancelable && typeof e.preventDefault === "function") {
+        e.preventDefault();
+      }
+
       setIsDragging(true);
       setDragY(eventData.deltaY);
     },
@@ -98,7 +105,8 @@ export function useSheetDrag({
     },
     trackMouse: true,
     trackTouch: true,
-    preventScrollOnSwipe: true,
+    preventScrollOnSwipe: false,
+    touchEventOptions: { passive: false },
   });
 
   const mergedRef = useCallback(
