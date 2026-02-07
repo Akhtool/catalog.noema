@@ -104,7 +104,10 @@ export function DiscountDatePickerDialog({
           <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
         </div>
 
-        <div className="px-6 pt-3 pb-3 border-b">
+        <div
+          {...dragHandlers}
+          className="px-6 pt-3 pb-3 border-b cursor-grab active:cursor-grabbing touch-none select-none"
+        >
           <div className="flex items-center justify-between mb-2">
             <SheetTitle className="text-xl font-bold">
               Период скидки (от — до)

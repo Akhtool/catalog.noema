@@ -213,7 +213,10 @@ export function BrandPickerSheet({
             </button>
           </header>
 
-          <div className="px-6 pt-4 pb-3 border-b">
+          <div
+            {...dragHandlers}
+            className="px-6 pt-4 pb-3 border-b cursor-grab active:cursor-grabbing touch-none select-none"
+          >
             <SheetTitle className="text-xl font-bold">
               Выбор бренда
             </SheetTitle>
@@ -433,7 +436,10 @@ export function BrandPickerSheet({
             </button>
           </header>
 
-          <div className="px-6 pt-4 pb-3 border-b">
+          <div
+            {...deleteDragHandlers}
+            className="px-6 pt-4 pb-3 border-b cursor-grab active:cursor-grabbing touch-none select-none"
+          >
             <SheetTitle className="text-xl font-bold">
               Удалить этот бренд?
             </SheetTitle>

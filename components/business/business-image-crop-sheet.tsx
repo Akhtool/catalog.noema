@@ -132,7 +132,10 @@ export function BusinessImageCropSheet({
             <X className="h-5 w-5" />
           </button>
         </header>
-        <div className="flex-shrink-0 px-6 pt-4 pb-3 border-b">
+        <div
+          {...dragHandlers}
+          className="flex-shrink-0 px-6 pt-4 pb-3 border-b cursor-grab active:cursor-grabbing touch-none select-none"
+        >
           <SheetTitle className="text-xl font-bold">{title}</SheetTitle>
           <SheetDescription className="text-sm text-gray-500 mt-1">
             {desc}

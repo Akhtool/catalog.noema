@@ -262,8 +262,11 @@ export function CheckoutDialog({
           </button>
         </header>
 
-        {/* Заголовок и описание */}
-        <div className="px-6 pt-4 pb-4">
+        {/* Заголовок и описание — свайп вниз тоже закрывает */}
+        <div
+          {...dragHandlers}
+          className="px-6 pt-4 pb-4 cursor-grab active:cursor-grabbing touch-none select-none"
+        >
           <SheetTitle className="text-xl font-bold">
             {step === "delivery"
               ? "Способ получения заказа"

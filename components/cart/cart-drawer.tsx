@@ -117,8 +117,11 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
           </button>
         </header>
 
-        {/* Заголовок */}
-        <div className="px-6 pt-4 pb-3 border-b">
+        {/* Заголовок — свайп вниз тоже закрывает */}
+        <div
+          {...dragHandlers}
+          className="px-6 pt-4 pb-3 border-b cursor-grab active:cursor-grabbing touch-none select-none"
+        >
           <SheetTitle className="text-xl font-bold">Корзина</SheetTitle>
           {orderNumber && (
             <div className="text-xs text-gray-600 mb-2 font-medium">

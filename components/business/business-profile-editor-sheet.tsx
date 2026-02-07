@@ -526,8 +526,11 @@ export function BusinessProfileEditorSheet({
           </button>
         </header>
 
-        {/* Заголовок */}
-        <div className="px-6 pt-4 pb-3 border-b">
+        {/* Заголовок — свайп вниз тоже закрывает */}
+        <div
+          {...dragHandlers}
+          className="px-6 pt-4 pb-3 border-b cursor-grab active:cursor-grabbing touch-none select-none"
+        >
           <SheetTitle className="text-xl font-bold">Редактор профиля</SheetTitle>
           <SheetDescription className="text-sm text-gray-500 mt-2">
             Логотип и данные отображаются на странице каталога

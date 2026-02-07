@@ -576,7 +576,10 @@ export function ProductEditorSheet({
           </button>
         </header>
 
-        <div className="px-6 pt-4 pb-3 border-b">
+        <div
+          {...dragHandlers}
+          className="px-6 pt-4 pb-3 border-b cursor-grab active:cursor-grabbing touch-none select-none"
+        >
           <SheetTitle className="text-xl font-bold">Редактор позиции</SheetTitle>
           <SheetDescription className="text-sm text-gray-500 mt-2">
             {productId

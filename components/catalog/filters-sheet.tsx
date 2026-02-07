@@ -105,8 +105,11 @@ export function FiltersSheet({
           </button>
         </header>
 
-        {/* Заголовок */}
-        <div className="px-6 pt-4 pb-4 border-b">
+        {/* Заголовок — свайп вниз тоже закрывает */}
+        <div
+          {...dragHandlers}
+          className="px-6 pt-4 pb-4 border-b cursor-grab active:cursor-grabbing touch-none select-none"
+        >
           <SheetTitle className="text-xl font-bold">Фильтры</SheetTitle>
         </div>
 
