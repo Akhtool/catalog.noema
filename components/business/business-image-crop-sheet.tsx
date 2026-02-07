@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { toast } from "sonner";
 import Cropper, { type Area, type MediaSize } from "react-easy-crop";
 import {
   Sheet,
@@ -102,6 +103,7 @@ export function BusinessImageCropSheet({
       onOpenChange(false);
     } catch (e) {
       console.error("Crop failed:", e);
+      toast.error("Не удалось обрезать изображение");
     } finally {
       setIsFinishing(false);
     }

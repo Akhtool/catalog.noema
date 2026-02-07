@@ -249,7 +249,7 @@ export async function getProductCountByCategory(
 
   if (error) {
     console.error("getProductCountByCategory error:", error);
-    return { error: error.message || "Ошибка загрузки" };
+    return { error: "Ошибка загрузки" };
   }
 
   return { count: products?.length ?? 0 };

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -20,6 +21,7 @@ import {
   createTelegramLink,
   createPhoneLink,
   resolveWhatsappForOrder,
+  getOrderContactLink,
 } from "@/lib/order"
 import { useSheetDrag } from "@/lib/useSheetDrag"
 
@@ -144,6 +146,13 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   const handleCheckout = () => {
     if (!business) return
     if (!orderNumber) generateOrderNumber()
+    const order = createOrderFromCart(business.id, business.pickupPoints)
+    try {
+      getOrderContactLink(business, order)
+    } catch {
+      toast.error("У бизнеса нет контактов для связи")
+      return
+    }
     setIsCheckoutOpen(true)
   }
 

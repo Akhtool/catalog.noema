@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -79,6 +80,7 @@ export function BrandPickerSheet({
     setLoading(false);
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
     const sorted =
@@ -105,6 +107,7 @@ export function BrandPickerSheet({
     setAddBrandInProgress(false);
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
     setNewBrandName("");
@@ -130,6 +133,7 @@ export function BrandPickerSheet({
     );
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
     setEditingBrandId(null);
@@ -145,6 +149,7 @@ export function BrandPickerSheet({
     setDeletingBrandId(null);
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
     setRelatedProductCount(result.count ?? 0);
@@ -165,6 +170,7 @@ export function BrandPickerSheet({
     setBrandToDelete(null);
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
     await fetchBrands();

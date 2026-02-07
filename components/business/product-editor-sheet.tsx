@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -468,6 +469,7 @@ export function ProductEditorSheet({
     if (result.error) {
       setSubmitInProgress(false);
       setSubmitError(result.error);
+      toast.error(result.error);
       return;
     }
     if (result.data?.id) currentProductId = result.data.id;
@@ -481,6 +483,7 @@ export function ProductEditorSheet({
         const up = await uploadProductImage(currentProductId, formData, business.slug);
         if (up.error) {
           setSubmitError(up.error);
+          toast.error(up.error);
           setSubmitInProgress(false);
           return;
         }
@@ -490,6 +493,7 @@ export function ProductEditorSheet({
         const reorderRes = await reorderProductImages(currentProductId, newOrderedIds, business.slug);
         if (reorderRes.error) {
           setSubmitError(reorderRes.error);
+          toast.error(reorderRes.error);
           setSubmitInProgress(false);
           return;
         }
@@ -506,6 +510,7 @@ export function ProductEditorSheet({
         const up = await uploadProductImage(currentProductId, formData, business.slug);
         if (up.error) {
           setSubmitError(up.error);
+          toast.error(up.error);
           setSubmitInProgress(false);
           return;
         }
@@ -520,6 +525,7 @@ export function ProductEditorSheet({
         const delRes = await deleteProductImage(id, business.slug);
         if (delRes.error) {
           setSubmitError(delRes.error);
+          toast.error(delRes.error);
           setSubmitInProgress(false);
           return;
         }
@@ -534,6 +540,7 @@ export function ProductEditorSheet({
           const reorderRes = await reorderProductImages(currentProductId, finalOrder, business.slug);
           if (reorderRes.error) {
             setSubmitError(reorderRes.error);
+            toast.error(reorderRes.error);
           }
         }
       }
@@ -545,6 +552,7 @@ export function ProductEditorSheet({
       setPendingMainImageId(null);
     }
     setSubmitInProgress(false);
+    toast.success(productId ? "Изменения сохранены" : "Товар добавлен");
     router.refresh();
     onOpenChange(false);
   }

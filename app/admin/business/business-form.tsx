@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { toast } from 'sonner'
 import { updateBusiness, saveImageUrl } from './actions'
 import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/input'
@@ -194,7 +195,9 @@ export function BusinessForm({ business }: BusinessFormProps) {
       setTimeout(() => setMessage(null), 3000)
     } catch (error) {
       console.error('Ошибка загрузки логотипа:', error)
-      setMessage({ type: 'error', text: 'Ошибка загрузки логотипа' })
+      const text = 'Ошибка загрузки логотипа'
+      setMessage({ type: 'error', text })
+      toast.error(text)
     } finally {
       setIsUploadingLogo(false)
     }
@@ -277,7 +280,9 @@ export function BusinessForm({ business }: BusinessFormProps) {
       setTimeout(() => setMessage(null), 3000)
     } catch (error) {
       console.error('Ошибка загрузки обложки:', error)
-      setMessage({ type: 'error', text: 'Ошибка загрузки обложки' })
+      const text = 'Ошибка загрузки обложки'
+      setMessage({ type: 'error', text })
+      toast.error(text)
     } finally {
       setIsUploadingCover(false)
     }
@@ -309,17 +314,17 @@ export function BusinessForm({ business }: BusinessFormProps) {
       const result = await updateBusiness(formData)
       
       if ('error' in result) {
-        setMessage({ type: 'error', text: result.error ?? 'Неизвестная ошибка' })
+        const text = result.error ?? 'Неизвестная ошибка'
+        setMessage({ type: 'error', text })
+        toast.error(text)
       } else {
         setMessage({ type: 'success', text: 'Данные успешно сохранены' })
-        // Очищаем сообщение через 3 секунды
         setTimeout(() => setMessage(null), 3000)
       }
     } catch {
-      setMessage({ 
-        type: 'error', 
-        text: 'Произошла ошибка при сохранении. Попробуйте ещё раз.' 
-      })
+      const text = 'Произошла ошибка при сохранении. Попробуйте ещё раз.'
+      setMessage({ type: 'error', text })
+      toast.error(text)
     } finally {
       setIsSubmitting(false)
     }

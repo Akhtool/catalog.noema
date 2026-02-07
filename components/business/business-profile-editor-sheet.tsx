@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { toast } from 'sonner'
 import { updateBusiness, saveImageUrl } from '@/app/admin/business/actions'
 import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/input'
@@ -293,7 +294,9 @@ export function BusinessProfileEditorSheet({
       setTimeout(() => setMessage(null), 3000)
     } catch (error) {
       console.error(`Ошибка загрузки ${type}:`, error)
-      setMessage({ type: 'error', text: `Ошибка загрузки ${type === 'logo' ? 'логотипа' : 'обложки'}` })
+      const text = `Ошибка загрузки ${type === 'logo' ? 'логотипа' : 'обложки'}`
+      setMessage({ type: 'error', text })
+      toast.error(text)
     } finally {
       if (type === 'logo') setIsUploadingLogo(false)
       else setIsUploadingCover(false)
@@ -370,11 +373,14 @@ export function BusinessProfileEditorSheet({
           isActive: locationForm.isActive,
         })
         if ('error' in result) {
-          setLocationMessage({ type: 'error', text: result.error ?? 'Ошибка' })
+          const text = result.error ?? 'Ошибка'
+          setLocationMessage({ type: 'error', text })
+          toast.error(text)
           setIsAddingLocation(false)
           return
         }
         setLocationMessage({ type: 'success', text: 'Филиал добавлен' })
+        toast.success('Филиал добавлен')
         onSuccess?.()
         setTimeout(() => setLocationMessage(null), 1500)
       } else if (editingLocationId) {
@@ -388,10 +394,13 @@ export function BusinessProfileEditorSheet({
           isActive: locationForm.isActive,
         })
         if ('error' in result) {
-          setLocationMessage({ type: 'error', text: result.error ?? 'Ошибка' })
+          const text = result.error ?? 'Ошибка'
+          setLocationMessage({ type: 'error', text })
+          toast.error(text)
           return
         }
         setLocationMessage({ type: 'success', text: 'Филиал сохранён' })
+        toast.success('Филиал сохранён')
       }
       if (editingLocationId !== 'new') {
         setEditingLocationId(null)
@@ -420,10 +429,13 @@ export function BusinessProfileEditorSheet({
         isActive: nextActive,
       })
       if ('error' in result) {
-        setLocationMessage({ type: 'error', text: result.error ?? 'Ошибка' })
+        const text = result.error ?? 'Ошибка'
+        setLocationMessage({ type: 'error', text })
+        toast.error(text)
         return
       }
       setLocationVisibilityOverride((prev) => ({ ...prev, [loc.id]: nextActive }))
+      toast.success(nextActive ? 'Филиал отображается' : 'Филиал скрыт')
       onSuccess?.()
     } finally {
       setTogglingLocationId(null)
@@ -439,12 +451,15 @@ export function BusinessProfileEditorSheet({
     try {
       const result = await deleteLocation(locId)
       if ('error' in result) {
-        setLocationMessage({ type: 'error', text: result.error ?? 'Ошибка' })
+        const text = result.error ?? 'Ошибка'
+        setLocationMessage({ type: 'error', text })
+        toast.error(text)
         setDeletingLocationId(null)
         return
       }
       setDeletedLocationIds((prev) => (prev.includes(locId) ? prev : [...prev, locId]))
       setEditingLocationId(null)
+      toast.success('Филиал удалён')
       onSuccess?.()
     } finally {
       setDeletingLocationId(null)
@@ -493,7 +508,9 @@ export function BusinessProfileEditorSheet({
       const result = await updateBusiness(formData)
       
       if ('error' in result) {
-        setMessage({ type: 'error', text: result.error ?? 'Неизвестная ошибка' })
+        const text = result.error ?? 'Неизвестная ошибка'
+        setMessage({ type: 'error', text })
+        toast.error(text)
       } else {
         setMessage({ type: 'success', text: 'Данные успешно сохранены' })
         setTimeout(() => {
@@ -505,10 +522,9 @@ export function BusinessProfileEditorSheet({
         }, 1500)
       }
     } catch {
-      setMessage({ 
-        type: 'error', 
-        text: 'Произошла ошибка при сохранении. Попробуйте ещё раз.' 
-      })
+      const text = 'Произошла ошибка при сохранении. Попробуйте ещё раз.'
+      setMessage({ type: 'error', text })
+      toast.error(text)
     } finally {
       setIsSubmitting(false)
     }

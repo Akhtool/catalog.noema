@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -82,6 +83,7 @@ export function CategoryPickerSheet({
     setLoading(false);
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
     setCategories(result.data ?? []);
@@ -104,6 +106,7 @@ export function CategoryPickerSheet({
     setAddCategoryInProgress(false);
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
     setNewCategoryName("");
@@ -129,6 +132,7 @@ export function CategoryPickerSheet({
     );
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
     setEditingCategoryId(null);
@@ -144,6 +148,7 @@ export function CategoryPickerSheet({
     setDeletingCategoryId(null);
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
     setRelatedProductCount(result.count ?? 0);
@@ -164,6 +169,7 @@ export function CategoryPickerSheet({
     setCategoryToDelete(null);
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
     await fetchCategories();

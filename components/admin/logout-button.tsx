@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { logout } from '@/app/login/actions'
 import { Button } from '@/components/ui/button'
@@ -39,7 +40,7 @@ export function LogoutButton({ className }: LogoutButtonProps) {
       window.location.href = '/login'
     } catch (error) {
       console.error('Ошибка при выходе:', error)
-      // Всё равно делаем редирект
+      toast.error('Ошибка при выходе')
       window.location.href = '/login'
     }
   }

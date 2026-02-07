@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { toast } from "sonner";
 import { Product } from "@/types";
 import { useCartStore } from "@/store/cart";
 import { Plus, Minus, Pencil, EyeOff, Loader2 } from "lucide-react";
@@ -97,6 +98,9 @@ export function ProductCard({
     setActionInProgress(true);
     try {
       await Promise.resolve(onHide());
+      toast.success("Товар скрыт из каталога");
+    } catch {
+      toast.error("Не удалось скрыть товар");
     } finally {
       setActionInProgress(false);
     }
@@ -108,6 +112,9 @@ export function ProductCard({
     setActionInProgress(true);
     try {
       await Promise.resolve(onRestore());
+      toast.success("Товар снова отображается в каталоге");
+    } catch {
+      toast.error("Не удалось вернуть товар в каталог");
     } finally {
       setActionInProgress(false);
     }

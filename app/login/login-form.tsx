@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { toast } from 'sonner'
+import { getAuthErrorMessage } from '@/lib/auth-errors'
 import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Loader2, Mail, Lock, Link2 } from 'lucide-react'
+import { Loader2, Mail, Lock, Link2, Eye, EyeOff } from 'lucide-react'
 
 // Временно скрыты magic link и регистрация (переключить на true для включения)
 const SHOW_MAGIC_LINK = false
@@ -22,6 +24,7 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null)
   const [isMagicLink, setIsMagicLink] = useState(false)
   const [magicLinkSent, setMagicLinkSent] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   async function handleEmailPassword(e: React.FormEvent) {
     e.preventDefault()
@@ -35,7 +38,9 @@ export function LoginForm() {
       })
 
       if (signInError) {
-        setError(signInError.message)
+        const msg = getAuthErrorMessage(signInError.message)
+        setError(msg)
+        toast.error(msg)
         setIsLoading(false)
         return
       }
@@ -45,17 +50,22 @@ export function LoginForm() {
         const { setServerSession, getRedirectAfterLogin } = await import('./actions')
         await setServerSession(data.session.access_token, data.session.refresh_token)
         const redirectTo = await getRedirectAfterLogin()
-        window.location.replace(redirectTo)
+        toast.success('Вход выполнен')
+        setTimeout(() => window.location.replace(redirectTo), 600)
         return
       }
       
       // Если нет сессии, показываем ошибку
       if (data.user && !data.session) {
-        setError('Сессия не создана. Попробуйте ещё раз.')
+        const msg = 'Сессия не создана. Попробуйте ещё раз.'
+        setError(msg)
+        toast.error(msg)
         setIsLoading(false)
       }
     } catch {
-      setError('Произошла ошибка при входе')
+      const msg = 'Произошла ошибка при входе'
+      setError(msg)
+      toast.error(msg)
       setIsLoading(false)
     }
   }
@@ -74,7 +84,9 @@ export function LoginForm() {
       })
 
       if (signInError) {
-        setError(signInError.message)
+        const msg = getAuthErrorMessage(signInError.message)
+        setError(msg)
+        toast.error(msg)
         setIsLoading(false)
         return
       }
@@ -82,7 +94,9 @@ export function LoginForm() {
       setMagicLinkSent(true)
       setIsLoading(false)
     } catch {
-      setError('Произошла ошибка при отправке ссылки')
+      const msg = 'Произошла ошибка при отправке ссылки'
+      setError(msg)
+      toast.error(msg)
       setIsLoading(false)
     }
   }
@@ -221,14 +235,23 @@ export function LoginForm() {
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#999]" />
               <Input
                 id="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="......"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
-                className={inputClass}
+                className={`${inputClass} pr-10`}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#999] hover:text-[#666] focus:outline-none"
+                tabIndex={-1}
+                aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
           </div>
 
