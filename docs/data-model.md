@@ -150,7 +150,7 @@ Brand {
 
 **Назначение:** Основная сущность каталога, содержит информацию о товаре.
 
-**Ключевые поля:** `id`, `business_id`, `category_id`, `brand_id`, `name`, `subtitle`, `price`, `in_stock`, `is_active`
+**Ключевые поля:** `id`, `business_id`, `category_id`, `brand_id`, `name`, `subtitle`, `price`, `in_stock`, `is_active`, `order`
 
 ```ts
 Product {
@@ -166,6 +166,7 @@ Product {
 
   in_stock: boolean
   is_active: boolean
+  order: number             // порядок отображения в каталоге (настраивается админом)
 
   createdAt: timestamp
   updatedAt: timestamp
@@ -176,6 +177,7 @@ Product {
 
 - Product всегда принадлежит Business и Category.
 - `brand_id` опционален, ссылается на Brand.
+- `order` задаётся админом; при создании товара присваивается max(order)+1 в рамках бизнеса.
 - Изображения хранятся в таблице `product_image`.
 - Используется в каталоге, фильтрах и корзине.
 

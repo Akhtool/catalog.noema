@@ -150,12 +150,21 @@ export function ProductCard({
           }`}
         >
           {actionInProgress && (
-            <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[1.25rem] bg-white/80" onClick={(e) => e.stopPropagation()}>
-              <Loader2 className="h-8 w-8 text-gray-600 animate-spin" aria-hidden />
+            <div
+              className="absolute inset-0 z-30 flex items-center justify-center rounded-[1.25rem] bg-white/80"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Loader2
+                className="h-8 w-8 text-gray-600 animate-spin"
+                aria-hidden
+              />
             </div>
           )}
           {isHidden && onRestore && !actionInProgress && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[1.25rem] bg-gray-200/50" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center rounded-[1.25rem] bg-gray-200/50"
+              onClick={(e) => e.stopPropagation()}
+            >
               <button
                 type="button"
                 onClick={handleRestore}
@@ -166,7 +175,10 @@ export function ProductCard({
             </div>
           )}
           {showAdminActions && (onEdit || onHide) && !isHidden && (
-            <div className="absolute top-2 right-2 z-20 flex gap-1" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="absolute top-2 right-2 z-20 flex gap-1"
+              onClick={(e) => e.stopPropagation()}
+            >
               {onEdit && (
                 <button
                   type="button"
@@ -327,12 +339,21 @@ export function ProductCard({
         }`}
       >
         {actionInProgress && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[1.25rem] bg-white/80" onClick={(e) => e.stopPropagation()}>
-            <Loader2 className="h-8 w-8 text-gray-600 animate-spin" aria-hidden />
+          <div
+            className="absolute inset-0 z-30 flex items-center justify-center rounded-[1.25rem] bg-white/80"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Loader2
+              className="h-8 w-8 text-gray-600 animate-spin"
+              aria-hidden
+            />
           </div>
         )}
         {isHidden && onRestore && !actionInProgress && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[1.25rem] bg-gray-200/50" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="absolute inset-0 z-10 flex items-center justify-center rounded-[1.25rem] bg-gray-200/50"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
               onClick={handleRestore}
@@ -342,31 +363,37 @@ export function ProductCard({
             </button>
           </div>
         )}
-        {showAdminActions && (onEdit || onHide) && !isHidden && !actionInProgress && (
-          <div className="absolute top-2 right-2 z-20 flex gap-1" onClick={(e) => e.stopPropagation()}>
-            {onEdit && (
-              <button
-                type="button"
-                onClick={onEdit}
-                className="p-1.5 rounded-full bg-white/90 shadow border border-gray-200 hover:bg-gray-50"
-                aria-label="Редактировать"
-              >
-                <Pencil className="h-4 w-4 text-gray-600" />
-              </button>
-            )}
-            {onHide && (
-              <button
-                type="button"
-                onClick={handleHideClick}
-                disabled={actionInProgress}
-                className="p-1.5 rounded-full bg-white/90 shadow border border-gray-200 hover:bg-gray-50 disabled:opacity-70"
-                aria-label="Скрыть из каталога"
-              >
-                <EyeOff className="h-4 w-4 text-gray-600" />
-              </button>
-            )}
-          </div>
-        )}
+        {showAdminActions &&
+          (onEdit || onHide) &&
+          !isHidden &&
+          !actionInProgress && (
+            <div
+              className="absolute top-2 right-2 z-20 flex gap-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {onEdit && (
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  className="p-1.5 rounded-full bg-white/90 shadow border border-gray-200 hover:bg-gray-50"
+                  aria-label="Редактировать"
+                >
+                  <Pencil className="h-4 w-4 text-gray-600" />
+                </button>
+              )}
+              {onHide && (
+                <button
+                  type="button"
+                  onClick={handleHideClick}
+                  disabled={actionInProgress}
+                  className="p-1.5 rounded-full bg-white/90 shadow border border-gray-200 hover:bg-gray-50 disabled:opacity-70"
+                  aria-label="Скрыть из каталога"
+                >
+                  <EyeOff className="h-4 w-4 text-gray-600" />
+                </button>
+              )}
+            </div>
+          )}
         {/* Вес/объем в левом верхнем углу */}
         {weight && (
           <div className="absolute top-3 left-3 bg-gray-100 px-2 py-1 rounded-md z-10">
@@ -403,7 +430,7 @@ export function ProductCard({
             tabIndex={0}
             onClick={handleCardClick}
             onKeyDown={(e) => e.key === "Enter" && handleCardClick()}
-            className="cursor-pointer outline-none"
+            className="cursor-pointer outline-none min-h-[2.5rem] flex items-start"
             aria-label={`Подробнее о ${product.name}`}
           >
             <h3 className="text-sm font-bold text-gray-800 leading-snug line-clamp-2">

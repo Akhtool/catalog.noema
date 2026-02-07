@@ -190,6 +190,15 @@ export async function createProduct(
     return { error: "Укажите корректную цену" };
   }
 
+  const { data: maxOrderRow } = await supabase
+    .from("product")
+    .select("order")
+    .eq("business_id", businessId)
+    .order("order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextOrder = (maxOrderRow?.order ?? -1) + 1;
+
   const { data: row, error } = await supabase
     .from("product")
     .insert({
@@ -202,6 +211,7 @@ export async function createProduct(
       price,
       in_stock: payload.inStock ?? true,
       is_active: payload.isActive ?? false,
+      order: nextOrder,
     })
     .select("id")
     .single();
@@ -384,6 +394,43 @@ export async function restoreProduct(
   if (updateError) {
     console.error("restoreProduct error:", updateError);
     return { error: "Ошибка восстановления товара" };
+  }
+
+  revalidatePath("/admin/business");
+  if (businessSlug) revalidatePath(`/${businessSlug}`);
+
+  return {};
+}
+
+/**
+ * Меняет порядок товаров в каталоге по переданному списку id (индекс = order).
+ */
+export async function reorderProducts(
+  businessId: string,
+  orderedProductIds: string[],
+  businessSlug?: string
+): Promise<{ error?: string }> {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Не авторизован" };
+  }
+
+  const hasAccess = await ensureBusinessAccess(supabase, user.id, businessId);
+  if (!hasAccess) {
+    return { error: "Нет доступа к этому бизнесу" };
+  }
+
+  const { error } = await supabase.rpc("reorder_products", {
+    p_business_id: businessId,
+    p_ordered_ids: orderedProductIds,
+  });
+  if (error) {
+    console.error("reorderProducts error:", error);
+    return { error: "Ошибка изменения порядка товаров" };
   }
 
   revalidatePath("/admin/business");

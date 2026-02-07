@@ -108,9 +108,21 @@ export default async function Page({ params }: PageProps) {
     isAdmin = !!(bu && (bu.role === "owner" || bu.role === "admin"));
   }
   const productSelect = "*, product_image(url, position), brand(name)";
+  const productOrder = { ascending: true as const };
   const { data: products } = isAdmin
-    ? await serverClient.from("product").select(productSelect).eq("business_id", business.id)
-    : await supabase.from("product").select(productSelect).eq("business_id", business.id).eq("is_active", true);
+    ? await serverClient
+        .from("product")
+        .select(productSelect)
+        .eq("business_id", business.id)
+        .order("order", productOrder)
+        .order("id", productOrder)
+    : await supabase
+        .from("product")
+        .select(productSelect)
+        .eq("business_id", business.id)
+        .eq("is_active", true)
+        .order("order", productOrder)
+        .order("id", productOrder);
 
   // Преобразуем данные из snake_case в camelCase для типизации
   const businessTyped: Business = {
@@ -175,6 +187,7 @@ export default async function Page({ params }: PageProps) {
       brand: (prod.brand as { name: string } | null)?.name ?? null,
       inStock: prod.in_stock,
       isActive: prod.is_active,
+      order: typeof (prod as { order?: number }).order === "number" ? (prod as { order: number }).order : 0,
       createdAt: prod.created_at,
       updatedAt: prod.updated_at,
     };

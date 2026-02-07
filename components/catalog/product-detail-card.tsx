@@ -51,8 +51,10 @@ export function ProductDetailCard({
   open,
   onOpenChange,
 }: ProductDetailCardProps) {
-  const images =
-    product.images && product.images.length > 0 ? product.images : [];
+  const images = useMemo(
+    () => (product.images && product.images.length > 0 ? product.images : []),
+    [product.images],
+  );
   const [imageLoadError, setImageLoadError] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [canScrollPrev, setCanScrollPrev] = useState(false);
@@ -61,7 +63,7 @@ export function ProductDetailCard({
 
   const lightboxSlides = useMemo(
     () => images.map((src) => ({ src })),
-    [images]
+    [images],
   );
 
   const [emblaRef, emblaApi] = useEmblaCarousel({
@@ -157,52 +159,112 @@ export function ProductDetailCard({
 
   return (
     <>
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="bottom"
-        className="h-[90vh] max-h-[90vh] rounded-t-[2rem] p-0 flex flex-col overflow-hidden border-0"
-        showCloseButton={false}
-        style={sheetStyle}
-      >
-        {/* Скрытый заголовок для доступности */}
-        <SheetTitle className="sr-only">{product.name}</SheetTitle>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent
+          side="bottom"
+          className="h-[90vh] max-h-[90vh] rounded-t-[2rem] p-0 flex flex-col overflow-hidden border-0"
+          showCloseButton={false}
+          style={sheetStyle}
+        >
+          {/* Скрытый заголовок для доступности */}
+          <SheetTitle className="sr-only">{product.name}</SheetTitle>
 
-        {/* Шапка: полоска свайпа и крестик — как в остальных sheet */}
-        <header className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-gray-100 flex-shrink-0">
-          <div className="w-8 flex-shrink-0" aria-hidden />
-          <div
-            {...dragHandlers}
-            className="flex-1 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none min-w-0 py-0.5"
-          >
-            <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
-          </div>
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0"
-            aria-label="Закрыть"
-          >
-            <X className="h-5 w-5 text-gray-700" />
-          </button>
-        </header>
+          {/* Шапка: полоска свайпа и крестик — как в остальных sheet */}
+          <header className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-gray-100 flex-shrink-0">
+            <div className="w-8 flex-shrink-0" aria-hidden />
+            <div
+              {...dragHandlers}
+              className="flex-1 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none min-w-0 py-0.5"
+            >
+              <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+            </div>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0"
+              aria-label="Закрыть"
+            >
+              <X className="h-5 w-5 text-gray-700" />
+            </button>
+          </header>
 
-        {/* Контент с прокруткой */}
-        <div className="flex-1 overflow-y-auto" style={scrollableStyle}>
-          {/* Секция изображения продукта */}
-          {images.length > 0 && !imageLoadError ? (
-            <div className="w-full min-h-[320px] flex items-center justify-center gap-2 bg-gray-50 px-4">
-              {images.length > 1 ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={scrollPrev}
-                    disabled={!canScrollPrev}
-                    className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition-colors"
-                    aria-label="Предыдущее изображение"
-                  >
-                    <ChevronLeft className="h-6 w-6" />
-                  </button>
-                  <div className="relative w-[240px] flex-shrink-0">
+          {/* Контент с прокруткой */}
+          <div className="flex-1 overflow-y-auto" style={scrollableStyle}>
+            {/* Секция изображения продукта */}
+            {images.length > 0 && !imageLoadError ? (
+              <div className="w-full min-h-[320px] flex items-center justify-center gap-2 bg-gray-50 px-4">
+                {images.length > 1 ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={scrollPrev}
+                      disabled={!canScrollPrev}
+                      className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                      aria-label="Предыдущее изображение"
+                    >
+                      <ChevronLeft className="h-6 w-6" />
+                    </button>
+                    <div className="relative w-[240px] flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setLightboxOpen(true)}
+                        className="absolute top-2 right-2 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                        aria-label="Развернуть изображение"
+                      >
+                        <Expand className="h-4 w-4" />
+                      </button>
+                      <div className="overflow-hidden" ref={emblaRef}>
+                        <div className="flex touch-pan-y cursor-grab active:cursor-grabbing select-none">
+                          {images.map((src, index) => (
+                            <div
+                              key={index}
+                              className="relative flex-[0_0_100%] min-w-0 w-[240px] h-[320px]"
+                            >
+                              <Image
+                                src={src}
+                                alt={`${product.name} - изображение ${index + 1}`}
+                                fill
+                                className="object-cover"
+                                priority={index === 0}
+                                sizes="240px"
+                                unoptimized
+                                onError={() => setImageLoadError(true)}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                        {images.map((_, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => scrollTo(index)}
+                            className={`h-2 rounded-full transition-all ${
+                              index === selectedIndex
+                                ? "w-2 bg-brand-yellow"
+                                : "w-2 bg-white/60 hover:bg-white/80"
+                            }`}
+                            aria-label={`Изображение ${index + 1} из ${images.length}`}
+                            aria-current={
+                              index === selectedIndex ? "true" : undefined
+                            }
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={scrollNext}
+                      disabled={!canScrollNext}
+                      className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                      aria-label="Следующее изображение"
+                    >
+                      <ChevronRight className="h-6 w-6" />
+                    </button>
+                  </>
+                ) : (
+                  <div className="relative w-[240px] h-[320px] flex-shrink-0 overflow-hidden">
                     <button
                       type="button"
                       onClick={() => setLightboxOpen(true)}
@@ -211,96 +273,36 @@ export function ProductDetailCard({
                     >
                       <Expand className="h-4 w-4" />
                     </button>
-                    <div className="overflow-hidden" ref={emblaRef}>
-                      <div className="flex touch-pan-y cursor-grab active:cursor-grabbing select-none">
-                        {images.map((src, index) => (
-                          <div
-                            key={index}
-                            className="relative flex-[0_0_100%] min-w-0 w-[240px] h-[320px]"
-                          >
-                            <Image
-                              src={src}
-                              alt={`${product.name} - изображение ${index + 1}`}
-                              fill
-                              className="object-cover"
-                              priority={index === 0}
-                              sizes="240px"
-                              unoptimized
-                              onError={() => setImageLoadError(true)}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-                      {images.map((_, index) => (
-                        <button
-                          key={index}
-                          type="button"
-                          onClick={() => scrollTo(index)}
-                          className={`h-2 rounded-full transition-all ${
-                            index === selectedIndex
-                              ? "w-2 bg-brand-yellow"
-                              : "w-2 bg-white/60 hover:bg-white/80"
-                          }`}
-                          aria-label={`Изображение ${index + 1} из ${images.length}`}
-                          aria-current={
-                            index === selectedIndex ? "true" : undefined
-                          }
-                        />
-                      ))}
-                    </div>
+                    <Image
+                      src={images[0]}
+                      alt={product.name}
+                      fill
+                      className="object-cover"
+                      priority
+                      sizes="240px"
+                      unoptimized
+                      onError={() => setImageLoadError(true)}
+                    />
                   </div>
-                  <button
-                    type="button"
-                    onClick={scrollNext}
-                    disabled={!canScrollNext}
-                    className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition-colors"
-                    aria-label="Следующее изображение"
-                  >
-                    <ChevronRight className="h-6 w-6" />
-                  </button>
-                </>
-              ) : (
-                <div className="relative w-[240px] h-[320px] flex-shrink-0 overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setLightboxOpen(true)}
-                    className="absolute top-2 right-2 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
-                    aria-label="Развернуть изображение"
-                  >
-                    <Expand className="h-4 w-4" />
-                  </button>
-                  <Image
-                    src={images[0]}
-                    alt={product.name}
-                    fill
-                    className="object-cover"
-                    priority
-                    sizes="240px"
-                    unoptimized
-                    onError={() => setImageLoadError(true)}
-                  />
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="w-full min-h-[320px] flex items-center justify-center bg-gray-50 px-4">
-              <div className="w-[240px] h-[320px] flex-shrink-0 bg-white border border-gray-200 flex flex-col items-center justify-center gap-2 text-gray-400">
-                <ImageIcon
-                  className="h-16 w-16"
-                  strokeWidth={1.5}
-                  aria-hidden
-                />
-                <span className="text-sm">Нет изображения</span>
+                )}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="w-full min-h-[320px] flex items-center justify-center bg-gray-50 px-4">
+                <div className="w-[240px] h-[320px] flex-shrink-0 bg-white border border-gray-200 flex flex-col items-center justify-center gap-2 text-gray-400">
+                  <ImageIcon
+                    className="h-16 w-16"
+                    strokeWidth={1.5}
+                    aria-hidden
+                  />
+                  <span className="text-sm">Нет изображения</span>
+                </div>
+              </div>
+            )}
 
-          {/* Детали продукта */}
-          <div className="px-5 pt-4 pb-6 space-y-4">
-            {/* Метка BEST SELLER и рейтинг (пока скрыто, так как нет в модели) */}
-            {/* <div className="flex items-center gap-3">
+            {/* Детали продукта */}
+            <div className="px-5 pt-4 pb-6 space-y-4">
+              {/* Метка BEST SELLER и рейтинг (пока скрыто, так как нет в модели) */}
+              {/* <div className="flex items-center gap-3">
               <span className="bg-brand-yellow text-black text-xs font-bold px-2 py-1 rounded">
                 BEST SELLER
               </span>
@@ -310,101 +312,101 @@ export function ProductDetailCard({
               </div>
             </div> */}
 
-            {/* Название продукта и кнопка «Поделиться» */}
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="text-2xl font-black text-gray-900 leading-tight flex-1 min-w-0">
-                {product.name}
-              </h2>
-              <button
-                type="button"
-                onClick={handleShare}
-                className="rounded-full w-10 h-10 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0"
-                aria-label="Поделиться ссылкой"
-              >
-                <Share2 className="h-5 w-5 text-gray-700" />
-              </button>
-            </div>
+              {/* Название продукта и кнопка «Поделиться» */}
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="text-2xl font-black text-gray-900 leading-tight flex-1 min-w-0">
+                  {product.name}
+                </h2>
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  className="rounded-full w-10 h-10 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0"
+                  aria-label="Поделиться ссылкой"
+                >
+                  <Share2 className="h-5 w-5 text-gray-700" />
+                </button>
+              </div>
 
-            {/* Объем/порции */}
-            {weightAndPortions && (
-              <p className="text-sm text-gray-500 font-medium">
-                {weightAndPortions}
-              </p>
-            )}
-
-            {/* Секция ОПИСАНИЕ */}
-            {product.description && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
-                  ОПИСАНИЕ
-                </h3>
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  {product.description}
+              {/* Объем/порции */}
+              {weightAndPortions && (
+                <p className="text-sm text-gray-500 font-medium">
+                  {weightAndPortions}
                 </p>
-              </div>
-            )}
-          </div>
-        </div>
+              )}
 
-        {/* Панель действий (фиксированная внизу) */}
-        <div className="px-5 pb-5 pt-4 border-t bg-white">
-          <div className="flex items-center justify-between gap-3">
-            {/* Цена слева */}
-            <div className="text-2xl font-black text-gray-900">
-              {product.price.toLocaleString("ru-RU")} ₽
+              {/* Секция ОПИСАНИЕ */}
+              {product.description && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                    ОПИСАНИЕ
+                  </h3>
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    {product.description}
+                  </p>
+                </div>
+              )}
             </div>
-
-            {/* Кнопка с плюсиком или селектор количества справа */}
-            {quantity > 0 ? (
-              <div className="flex items-center gap-3 bg-white border-2 border-brand-yellow rounded-xl px-3 h-12">
-                <button
-                  onClick={handleDecrease}
-                  disabled={quantity === 0}
-                  className="w-6 h-6 flex items-center justify-center text-gray-700 hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                  aria-label="Уменьшить количество"
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-                <span className="text-base font-semibold text-gray-900 min-w-[20px] text-center">
-                  {quantity}
-                </span>
-                <button
-                  onClick={handleIncrease}
-                  disabled={!product.inStock}
-                  className="w-6 h-6 flex items-center justify-center text-gray-700 hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                  aria-label="Увеличить количество"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={handleAddToCart}
-                disabled={!product.inStock}
-                className="w-12 h-12 flex items-center justify-center bg-brand-yellow rounded-full text-black shadow-md hover:bg-yellow-400 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Добавить в корзину"
-              >
-                <Plus className="h-6 w-6" />
-              </button>
-            )}
           </div>
-        </div>
-      </SheetContent>
-    </Sheet>
 
-    {lightboxSlides.length > 0 && (
-      <Lightbox
-        open={lightboxOpen}
-        close={() => setLightboxOpen(false)}
-        slides={lightboxSlides}
-        index={selectedIndex}
-        plugins={[Fullscreen, Zoom]}
-        render={{
-          buttonPrev: () => null,
-          buttonNext: () => null,
-        }}
-      />
-    )}
-  </>
+          {/* Панель действий (фиксированная внизу) */}
+          <div className="px-5 pb-5 pt-4 border-t bg-white">
+            <div className="flex items-center justify-between gap-3">
+              {/* Цена слева */}
+              <div className="text-2xl font-black text-gray-900">
+                {product.price.toLocaleString("ru-RU")} ₽
+              </div>
+
+              {/* Кнопка с плюсиком или селектор количества справа */}
+              {quantity > 0 ? (
+                <div className="flex items-center gap-3 bg-white border-2 border-brand-yellow rounded-xl px-3 h-12">
+                  <button
+                    onClick={handleDecrease}
+                    disabled={quantity === 0}
+                    className="w-6 h-6 flex items-center justify-center text-gray-700 hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Уменьшить количество"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <span className="text-base font-semibold text-gray-900 min-w-[20px] text-center">
+                    {quantity}
+                  </span>
+                  <button
+                    onClick={handleIncrease}
+                    disabled={!product.inStock}
+                    className="w-6 h-6 flex items-center justify-center text-gray-700 hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Увеличить количество"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleAddToCart}
+                  disabled={!product.inStock}
+                  className="w-12 h-12 flex items-center justify-center bg-brand-yellow rounded-full text-black shadow-md hover:bg-yellow-400 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Добавить в корзину"
+                >
+                  <Plus className="h-6 w-6" />
+                </button>
+              )}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {lightboxSlides.length > 0 && (
+        <Lightbox
+          open={lightboxOpen}
+          close={() => setLightboxOpen(false)}
+          slides={lightboxSlides}
+          index={selectedIndex}
+          plugins={[Fullscreen, Zoom]}
+          render={{
+            buttonPrev: () => null,
+            buttonNext: () => null,
+          }}
+        />
+      )}
+    </>
   );
 }

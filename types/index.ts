@@ -105,6 +105,8 @@ export interface Product {
 
   inStock: boolean;
   isActive: boolean;
+  /** Порядок отображения в каталоге (настраивается админом) */
+  order: number;
 
   createdAt: string; // timestamp (ISO string)
   updatedAt: string; // timestamp (ISO string)

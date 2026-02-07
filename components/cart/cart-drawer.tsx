@@ -1,20 +1,27 @@
-"use client"
+"use client";
 
-import { useState, useCallback, useEffect, useRef } from "react"
-import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
+import { useState, useCallback, useEffect, useRef } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
   SheetTitle,
   SheetDescription,
-} from "@/components/ui/sheet"
-import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
-import { useCartStore } from "@/store/cart"
-import { useCurrentBusinessStore } from "@/store/current-business"
-import { ShoppingCart, Plus, Minus, Trash2, X, CheckCircle2 } from "lucide-react"
-import { CheckoutDialog } from "./checkout-dialog"
+} from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { useCartStore } from "@/store/cart";
+import { useCurrentBusinessStore } from "@/store/current-business";
+import {
+  ShoppingCart,
+  Plus,
+  Minus,
+  Trash2,
+  X,
+  CheckCircle2,
+} from "lucide-react";
+import { CheckoutDialog } from "./checkout-dialog";
 import {
   generateOrderMessage,
   createWhatsAppLink,
@@ -22,148 +29,147 @@ import {
   createPhoneLink,
   resolveWhatsappForOrder,
   getOrderContactLink,
-} from "@/lib/order"
-import { useSheetDrag } from "@/lib/useSheetDrag"
+} from "@/lib/order";
+import { useSheetDrag } from "@/lib/useSheetDrag";
 
-const COUNTDOWN_SECONDS = 5
+const COUNTDOWN_SECONDS = 5;
 
-type SuccessChannel = "whatsapp" | "telegram" | "phone"
+type SuccessChannel = "whatsapp" | "telegram" | "phone";
 
 interface SuccessState {
-  channel: SuccessChannel
-  orderNumber: string
+  channel: SuccessChannel;
+  orderNumber: string;
 }
 
 const CHANNEL_LABELS: Record<SuccessChannel, string> = {
   whatsapp: "WhatsApp",
   telegram: "Telegram",
   phone: "по телефону",
-}
+};
 
 interface CartDrawerProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
-  const [successState, setSuccessState] = useState<SuccessState | null>(null)
-  const [countdownSeconds, setCountdownSeconds] = useState(COUNTDOWN_SECONDS)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [successState, setSuccessState] = useState<SuccessState | null>(null);
+  const [countdownSeconds, setCountdownSeconds] = useState(COUNTDOWN_SECONDS);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const items = useCartStore((state) => state.items)
-  const comment = useCartStore((state) => state.comment)
-  const promoCode = useCartStore((state) => state.promoCode)
-  const orderNumber = useCartStore((state) => state.orderNumber)
-  const setComment = useCartStore((state) => state.setComment)
-  const setPromoCode = useCartStore((state) => state.setPromoCode)
-  const generateOrderNumber = useCartStore((state) => state.generateOrderNumber)
-  const increaseQuantity = useCartStore((state) => state.increaseQuantity)
-  const decreaseQuantity = useCartStore((state) => state.decreaseQuantity)
-  const removeItem = useCartStore((state) => state.removeItem)
-  const totalPrice = useCartStore((state) => state.getTotalPrice())
-  const createOrderFromCart = useCartStore((state) => state.createOrder)
-  const clearCart = useCartStore((state) => state.clearCart)
-  const business = useCurrentBusinessStore((state) => state.business)
+  const items = useCartStore((state) => state.items);
+  const comment = useCartStore((state) => state.comment);
+  const promoCode = useCartStore((state) => state.promoCode);
+  const orderNumber = useCartStore((state) => state.orderNumber);
+  const setComment = useCartStore((state) => state.setComment);
+  const setPromoCode = useCartStore((state) => state.setPromoCode);
+  const generateOrderNumber = useCartStore(
+    (state) => state.generateOrderNumber,
+  );
+  const increaseQuantity = useCartStore((state) => state.increaseQuantity);
+  const decreaseQuantity = useCartStore((state) => state.decreaseQuantity);
+  const removeItem = useCartStore((state) => state.removeItem);
+  const totalPrice = useCartStore((state) => state.getTotalPrice());
+  const createOrderFromCart = useCartStore((state) => state.createOrder);
+  const clearCart = useCartStore((state) => state.clearCart);
+  const business = useCurrentBusinessStore((state) => state.business);
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       if (!nextOpen) {
-        setSuccessState(null)
+        setSuccessState(null);
       }
-      onOpenChange(nextOpen)
+      onOpenChange(nextOpen);
     },
-    [onOpenChange]
-  )
+    [onOpenChange],
+  );
 
   const { dragHandlers, sheetStyle, scrollableStyle } = useSheetDrag({
     open,
     onOpenChange: handleOpenChange,
-  })
+  });
 
   const doRedirect = useCallback(() => {
-    if (!business || !successState) return
-    const order = createOrderFromCart(business.id, business.pickupPoints)
-    const message = generateOrderMessage(order)
-    const phone = order.selectedPoint?.phone ?? business.phone
-    const whatsapp = resolveWhatsappForOrder(business, order)
-    const telegram = order.selectedPoint?.telegram ?? business.telegram
+    if (!business || !successState) return;
+    const order = createOrderFromCart(business.id, business.pickupPoints);
+    const message = generateOrderMessage(order);
+    const phone = order.selectedPoint?.phone ?? business.phone;
+    const whatsapp = resolveWhatsappForOrder(business, order);
+    const telegram = order.selectedPoint?.telegram ?? business.telegram;
 
     if (successState.channel === "whatsapp" && whatsapp) {
-      window.open(createWhatsAppLink(whatsapp, message), "_blank")
+      window.open(createWhatsAppLink(whatsapp, message), "_blank");
     } else if (successState.channel === "telegram" && telegram) {
-      window.open(createTelegramLink(telegram, message), "_blank")
+      window.open(createTelegramLink(telegram, message), "_blank");
     } else if (successState.channel === "phone" && phone) {
-      window.open(createPhoneLink(phone), "_self")
+      window.open(createPhoneLink(phone), "_self");
     }
-    clearCart()
-    handleOpenChange(false)
-    setSuccessState(null)
+    clearCart();
+    handleOpenChange(false);
+    setSuccessState(null);
   }, [
     business,
     successState,
     createOrderFromCart,
-    generateOrderMessage,
-    resolveWhatsappForOrder,
     clearCart,
     handleOpenChange,
-  ])
+  ]);
 
   // Генерируем номер заказа при открытии корзины, если его еще нет
   useEffect(() => {
     if (open && items.length > 0 && !orderNumber) {
-      generateOrderNumber()
+      generateOrderNumber();
     }
-  }, [open, items.length, orderNumber, generateOrderNumber])
+  }, [open, items.length, orderNumber, generateOrderNumber]);
 
   // Таймер перенаправления на экране успеха
   useEffect(() => {
-    if (!successState || countdownSeconds <= 0) return
+    if (!successState || countdownSeconds <= 0) return;
     intervalRef.current = setInterval(() => {
       setCountdownSeconds((prev) => {
         if (prev <= 1) {
-          if (intervalRef.current) clearInterval(intervalRef.current)
-          intervalRef.current = null
-          return 0
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          intervalRef.current = null;
+          return 0;
         }
-        return prev - 1
-      })
-    }, 1000)
+        return prev - 1;
+      });
+    }, 1000);
     return () => {
       if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
-    }
-  }, [successState])
+    };
+  }, [successState, countdownSeconds]);
 
   useEffect(() => {
     if (successState && countdownSeconds === 0) {
-      doRedirect()
+      doRedirect();
     }
-  }, [successState, countdownSeconds, doRedirect])
+  }, [successState, countdownSeconds, doRedirect]);
 
   const handleCheckout = () => {
-    if (!business) return
-    if (!orderNumber) generateOrderNumber()
-    const order = createOrderFromCart(business.id, business.pickupPoints)
+    if (!business) return;
+    if (!orderNumber) generateOrderNumber();
+    const order = createOrderFromCart(business.id, business.pickupPoints);
     try {
-      getOrderContactLink(business, order)
+      getOrderContactLink(business, order);
     } catch {
-      toast.error("У бизнеса нет контактов для связи")
-      return
+      toast.error("У бизнеса нет контактов для связи");
+      return;
     }
-    setIsCheckoutOpen(true)
-  }
+    setIsCheckoutOpen(true);
+  };
 
   const handleSelectContact = (type: SuccessChannel) => {
-    if (!business) return
-    const num = orderNumber ?? generateOrderNumber()
-    setSuccessState({ channel: type, orderNumber: num })
-    setCountdownSeconds(COUNTDOWN_SECONDS)
-    setIsCheckoutOpen(false)
-  }
-
+    if (!business) return;
+    const num = orderNumber ?? generateOrderNumber();
+    setSuccessState({ channel: type, orderNumber: num });
+    setCountdownSeconds(COUNTDOWN_SECONDS);
+    setIsCheckoutOpen(false);
+  };
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
@@ -248,69 +254,73 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
             style={scrollableStyle}
           >
             {items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center py-12">
-              <ShoppingCart className="h-16 w-16 text-gray-300 mb-4" />
-              <p className="text-gray-500">Корзина пуста</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {items.map((item) => (
-                <div
-                  key={item.productId}
-                  className="bg-white rounded-lg p-4 shadow-sm border border-gray-100"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    {/* Левая часть: название и цена за единицу */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-base mb-1">{item.name}</h3>
-                      <p className="text-sm text-gray-500 mb-3">
-                        {item.price.toLocaleString("ru-RU")} ₽ × {item.quantity}
-                      </p>
+              <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                <ShoppingCart className="h-16 w-16 text-gray-300 mb-4" />
+                <p className="text-gray-500">Корзина пуста</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {items.map((item) => (
+                  <div
+                    key={item.productId}
+                    className="bg-white rounded-lg p-4 shadow-sm border border-gray-100"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      {/* Левая часть: название и цена за единицу */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-base mb-1">
+                          {item.name}
+                        </h3>
+                        <p className="text-sm text-gray-500 mb-3">
+                          {item.price.toLocaleString("ru-RU")} ₽ ×{" "}
+                          {item.quantity}
+                        </p>
 
-                      {/* Управление количеством */}
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg">
+                        {/* Управление количеством */}
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg">
+                            <button
+                              onClick={() => decreaseQuantity(item.productId)}
+                              className="p-1.5 hover:bg-gray-100 rounded-l-lg transition-colors"
+                              aria-label="Уменьшить количество"
+                            >
+                              <Minus className="h-4 w-4 text-gray-600" />
+                            </button>
+                            <span className="w-8 text-center font-medium text-sm">
+                              {item.quantity}
+                            </span>
+                            <button
+                              onClick={() => increaseQuantity(item.productId)}
+                              className="p-1.5 hover:bg-gray-100 rounded-r-lg transition-colors"
+                              aria-label="Увеличить количество"
+                            >
+                              <Plus className="h-4 w-4 text-gray-600" />
+                            </button>
+                          </div>
+
+                          {/* Кнопка удаления */}
                           <button
-                            onClick={() => decreaseQuantity(item.productId)}
-                            className="p-1.5 hover:bg-gray-100 rounded-l-lg transition-colors"
-                            aria-label="Уменьшить количество"
+                            onClick={() => removeItem(item.productId)}
+                            className="p-2 bg-pink-50 hover:bg-pink-100 rounded-lg transition-colors"
+                            aria-label="Удалить товар"
                           >
-                            <Minus className="h-4 w-4 text-gray-600" />
-                          </button>
-                          <span className="w-8 text-center font-medium text-sm">
-                            {item.quantity}
-                          </span>
-                          <button
-                            onClick={() => increaseQuantity(item.productId)}
-                            className="p-1.5 hover:bg-gray-100 rounded-r-lg transition-colors"
-                            aria-label="Увеличить количество"
-                          >
-                            <Plus className="h-4 w-4 text-gray-600" />
+                            <Trash2 className="h-4 w-4 text-red-600" />
                           </button>
                         </div>
+                      </div>
 
-                        {/* Кнопка удаления */}
-                        <button
-                          onClick={() => removeItem(item.productId)}
-                          className="p-2 bg-pink-50 hover:bg-pink-100 rounded-lg transition-colors"
-                          aria-label="Удалить товар"
-                        >
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </button>
+                      {/* Правая часть: итоговая стоимость */}
+                      <div className="flex-shrink-0">
+                        <p className="font-bold text-base whitespace-nowrap">
+                          {(item.price * item.quantity).toLocaleString("ru-RU")}{" "}
+                          ₽
+                        </p>
                       </div>
                     </div>
-
-                    {/* Правая часть: итоговая стоимость */}
-                    <div className="flex-shrink-0">
-                      <p className="font-bold text-base whitespace-nowrap">
-                        {(item.price * item.quantity).toLocaleString("ru-RU")} ₽
-                      </p>
-                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -382,5 +392,5 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
         />
       )}
     </Sheet>
-  )
+  );
 }

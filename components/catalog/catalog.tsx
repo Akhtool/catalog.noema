@@ -1,13 +1,39 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useCallback, useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  verticalListSortingStrategy,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
 import { Category, Product } from "@/types";
 import { useCatalogFiltersStore } from "@/store/catalog-filters";
-import { useHasAccess, useProductEditor, useDeleteProduct, useRestoreProduct } from "@/components/business/profile-editor-context";
+import { useCurrentBusinessStore } from "@/store/current-business";
+import {
+  useHasAccess,
+  useProductEditor,
+  useDeleteProduct,
+  useRestoreProduct,
+} from "@/components/business/profile-editor-context";
+import { toast } from "sonner";
+import { reorderProducts } from "@/app/admin/product/actions";
 import { CategoryList } from "./category-list";
 import { SearchInput } from "./search-input";
 import { ViewToggle } from "./view-toggle";
 import { ProductCard } from "./product-card";
+import { SortableProductCard } from "./sortable-product-card";
 
 interface CatalogProps {
   categories: Category[];
@@ -15,6 +41,8 @@ interface CatalogProps {
 }
 
 export function Catalog({ categories, products }: CatalogProps) {
+  const router = useRouter();
+  const business = useCurrentBusinessStore((s) => s.business);
   const hasAccess = useHasAccess();
   const openProductEditor = useProductEditor();
   const hideProduct = useDeleteProduct();
@@ -30,6 +58,46 @@ export function Catalog({ categories, products }: CatalogProps) {
     viewMode,
     catalogMode,
   } = useCatalogFiltersStore();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { delay: 250, tolerance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  /** Оптимистичный порядок id после drop; null = используем порядок с сервера */
+  const [optimisticOrderIds, setOptimisticOrderIds] = useState<string[] | null>(
+    null,
+  );
+  /** Ожидаемый порядок после refresh — сбрасываем оптимистичный только когда сервер вернул его */
+  const pendingOrderIdsRef = useRef<string[] | null>(null);
+  const reorderInProgressRef = useRef(false);
+
+  useEffect(() => {
+    if (
+      pendingOrderIdsRef.current &&
+      products.length === pendingOrderIdsRef.current.length &&
+      products.every((p, i) => p.id === pendingOrderIdsRef.current![i])
+    ) {
+      pendingOrderIdsRef.current = null;
+      setOptimisticOrderIds(null);
+    }
+  }, [products]);
+
+  /** Продукты в текущем порядке (серверный или оптимистичный) */
+  const productsOrdered = useMemo(() => {
+    if (!optimisticOrderIds || optimisticOrderIds.length === 0) return products;
+    const byId = new Map(products.map((p) => [p.id, p]));
+    const ordered: Product[] = [];
+    for (const id of optimisticOrderIds) {
+      const p = byId.get(id);
+      if (p) ordered.push(p);
+    }
+    return ordered.length > 0 ? ordered : products;
+  }, [products, optimisticOrderIds]);
 
   // Формирование заголовка на основе фильтров
   const getHeaderTitle = () => {
@@ -80,21 +148,21 @@ export function Catalog({ categories, products }: CatalogProps) {
     return parts.length > 0 ? parts.join(", ") : "Популярное";
   };
 
-  // Фильтрация товаров
+  // Фильтрация товаров (по уже упорядоченному списку)
   const filteredProducts = useMemo(() => {
-    let filtered = products;
+    let filtered = productsOrdered;
 
     // Фильтр по категории
     if (selectedCategoryId) {
       filtered = filtered.filter(
-        (product) => product.categoryId === selectedCategoryId
+        (product) => product.categoryId === selectedCategoryId,
       );
     }
 
     // Фильтр по брендам
     if (selectedBrands.length > 0) {
       filtered = filtered.filter(
-        (product) => product.brand && selectedBrands.includes(product.brand)
+        (product) => product.brand && selectedBrands.includes(product.brand),
       );
     }
 
@@ -126,13 +194,13 @@ export function Catalog({ categories, products }: CatalogProps) {
           product.name.toLowerCase().includes(query) ||
           (product.description &&
             product.description.toLowerCase().includes(query)) ||
-          (product.brand && product.brand.toLowerCase().includes(query))
+          (product.brand && product.brand.toLowerCase().includes(query)),
       );
     }
 
     return filtered;
   }, [
-    products,
+    productsOrdered,
     selectedCategoryId,
     selectedBrands,
     minPrice,
@@ -141,6 +209,44 @@ export function Catalog({ categories, products }: CatalogProps) {
     showDiscounted,
     searchQuery,
   ]);
+
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id || !business) return;
+      if (reorderInProgressRef.current) return;
+
+      const oldIndex = filteredProducts.findIndex((p) => p.id === active.id);
+      const newIndex = filteredProducts.findIndex((p) => p.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      const reorderedFiltered = arrayMove(filteredProducts, oldIndex, newIndex);
+      const filteredIdsNewOrder = reorderedFiltered.map((p) => p.id);
+      const fullIds = productsOrdered.map((p) => p.id);
+      const filteredIdSet = new Set(filteredIdsNewOrder);
+      const indicesWhereFiltered = productsOrdered
+        .map((p, i) => (filteredIdSet.has(p.id) ? i : -1))
+        .filter((i) => i >= 0);
+      const newFullIds = [...fullIds];
+      indicesWhereFiltered.forEach((idx, j) => {
+        newFullIds[idx] = filteredIdsNewOrder[j];
+      });
+
+      setOptimisticOrderIds(newFullIds);
+      reorderInProgressRef.current = true;
+
+      const err = await reorderProducts(business.id, newFullIds, business.slug);
+      if (err?.error) {
+        toast.error("Не удалось сохранить порядок");
+        reorderInProgressRef.current = false;
+        return;
+      }
+      pendingOrderIdsRef.current = newFullIds;
+      router.refresh();
+      reorderInProgressRef.current = false;
+    },
+    [business, productsOrdered, filteredProducts, router],
+  );
 
   // Если режим "Категории" - показываем только список категорий
   if (catalogMode === "categories") {
@@ -157,39 +263,41 @@ export function Catalog({ categories, products }: CatalogProps) {
             </p>
           </div>
         ) : (
-        <div className="grid grid-cols-2 gap-4">
-          {categories.map((category) => {
-            const categoryProducts = products.filter(
-              (p) => p.categoryId === category.id
-            );
-            return (
-              <div
-                key={category.id}
-                className="bg-card-white rounded-[1.25rem] p-6 shadow-soft border border-transparent hover:border-brand-yellow/30 transition-all cursor-pointer"
-                onClick={() => {
-                  // Переключаемся в режим каталога и выбираем категорию
-                  useCatalogFiltersStore.getState().setCatalogMode("catalog");
-                  useCatalogFiltersStore
-                    .getState()
-                    .setSelectedCategoryId(category.id);
-                  // Скроллим к началу каталога
-                  setTimeout(() => {
-                    document.getElementById("catalog-section")?.scrollIntoView({
-                      behavior: "smooth",
-                    });
-                  }, 100);
-                }}
-              >
-                <h3 className="text-lg font-bold text-gray-900 mb-2">
-                  {category.name}
-                </h3>
-                <p className="text-sm text-gray-500">
-                  {categoryProducts.length} товаров
-                </p>
-              </div>
-            );
-          })}
-        </div>
+          <div className="grid grid-cols-2 gap-4">
+            {categories.map((category) => {
+              const categoryProducts = products.filter(
+                (p) => p.categoryId === category.id,
+              );
+              return (
+                <div
+                  key={category.id}
+                  className="bg-card-white rounded-[1.25rem] p-6 shadow-soft border border-transparent hover:border-brand-yellow/30 transition-all cursor-pointer"
+                  onClick={() => {
+                    // Переключаемся в режим каталога и выбираем категорию
+                    useCatalogFiltersStore.getState().setCatalogMode("catalog");
+                    useCatalogFiltersStore
+                      .getState()
+                      .setSelectedCategoryId(category.id);
+                    // Скроллим к началу каталога
+                    setTimeout(() => {
+                      document
+                        .getElementById("catalog-section")
+                        ?.scrollIntoView({
+                          behavior: "smooth",
+                        });
+                    }, 100);
+                  }}
+                >
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">
+                    {category.name}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {categoryProducts.length} товаров
+                  </p>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     );
@@ -203,9 +311,7 @@ export function Catalog({ categories, products }: CatalogProps) {
 
       {/* Переключение вида и заголовок */}
       <div className="flex items-center justify-between mt-[5px] mb-2.5 px-1">
-        <h2 className="text-xl font-bold text-gray-900">
-          {getHeaderTitle()}
-        </h2>
+        <h2 className="text-xl font-bold text-gray-900">{getHeaderTitle()}</h2>
         <ViewToggle />
       </div>
 
@@ -230,10 +336,59 @@ export function Catalog({ categories, products }: CatalogProps) {
               <p className="text-muted-foreground">Товары не найдены</p>
             )}
           </div>
+        ) : hasAccess ? (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={filteredProducts.map((p) => p.id)}
+              strategy={
+                viewMode === "grid"
+                  ? rectSortingStrategy
+                  : verticalListSortingStrategy
+              }
+            >
+              <div
+                className={
+                  viewMode === "grid"
+                    ? "grid grid-cols-2 gap-4 mt-2.5 pb-4"
+                    : "space-y-4 mt-2.5"
+                }
+              >
+                {filteredProducts.map((product) => (
+                  <SortableProductCard
+                    key={product.id}
+                    product={product}
+                    viewMode={viewMode}
+                    showAdminActions
+                    onEdit={
+                      openProductEditor
+                        ? () => openProductEditor(product.id)
+                        : undefined
+                    }
+                    onHide={
+                      product.isActive
+                        ? () => hideProduct?.(product.id)
+                        : undefined
+                    }
+                    onRestore={
+                      restoreProduct
+                        ? () => restoreProduct(product.id)
+                        : undefined
+                    }
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         ) : (
           <div
             className={
-              viewMode === "grid" ? "grid grid-cols-2 gap-4 mt-2.5 pb-4" : "space-y-4 mt-2.5"
+              viewMode === "grid"
+                ? "grid grid-cols-2 gap-4 mt-2.5 pb-4"
+                : "space-y-4 mt-2.5"
             }
           >
             {filteredProducts.map((product) => (
@@ -241,20 +396,10 @@ export function Catalog({ categories, products }: CatalogProps) {
                 key={product.id}
                 product={product}
                 viewMode={viewMode}
-                showAdminActions={hasAccess === true}
-                onEdit={
-                  openProductEditor
-                    ? () => openProductEditor(product.id)
-                    : undefined
-                }
-                onHide={
-                  hideProduct && product.isActive
-                    ? () => hideProduct(product.id)
-                    : undefined
-                }
-                onRestore={
-                  restoreProduct ? () => restoreProduct(product.id) : undefined
-                }
+                showAdminActions={false}
+                onEdit={undefined}
+                onHide={undefined}
+                onRestore={undefined}
               />
             ))}
           </div>
