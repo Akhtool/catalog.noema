@@ -350,13 +350,10 @@ export const useCartStore = create<CartStore>()(
     set({ deliveryAddress });
   },
 
-  // Create Order object for message generation
+  // Create Order object for message generation (pure: no set() — do not call during render)
   createOrder: (businessId: string, pickupPoints?: BusinessLocation[]): Order => {
     const state = get();
-    const orderNumber = state.orderNumber || generateOrderNumber();
-    if (!state.orderNumber) {
-      set({ orderNumber });
-    }
+    const orderNumber = state.orderNumber ?? generateOrderNumber();
     const selectedPoint =
       state.selectedPointId && pickupPoints?.length
         ? pickupPoints.find((p) => p.id === state.selectedPointId) ?? null

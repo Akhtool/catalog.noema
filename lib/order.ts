@@ -130,8 +130,30 @@ export function createTelegramLink(username: string, message: string): string {
 }
 
 /**
+ * Возвращает WhatsApp-номер для заказа по приоритету:
+ * 1) selectedPoint.whatsapp (при pickup/dine-in, если у точки свой WA)
+ * 2) business.whatsappDelivery / whatsappPickup / whatsappDineIn (по deliveryType)
+ * 3) business.whatsapp (fallback)
+ */
+export function resolveWhatsappForOrder(business: Business, order: Order): string | null {
+  if (order.selectedPoint?.whatsapp) return order.selectedPoint.whatsapp;
+  const fallback = business.whatsapp ?? null;
+  switch (order.deliveryType) {
+    case 'delivery':
+      return business.whatsappDelivery ?? fallback;
+    case 'pickup':
+      return business.whatsappPickup ?? fallback;
+    case 'dine-in':
+      return business.whatsappDineIn ?? fallback;
+    default:
+      return fallback;
+  }
+}
+
+/**
  * Возвращает ссылку для связи с бизнесом (или с точкой, если выбрана и у неё есть контакты).
  * Приоритет: выбранная точка (WhatsApp > Telegram > телефон) → контакты бизнеса.
+ * WhatsApp: resolveWhatsappForOrder (номер по способу или fallback).
  */
 export function getOrderContactLink(
   business: Business,
@@ -139,7 +161,7 @@ export function getOrderContactLink(
 ): { url: string; type: 'whatsapp' | 'telegram' | 'phone' } {
   const message = generateOrderMessage(order);
   const phone = order.selectedPoint?.phone ?? business.phone ?? null;
-  const whatsapp = order.selectedPoint?.whatsapp ?? business.whatsapp ?? null;
+  const whatsapp = resolveWhatsappForOrder(business, order);
   const telegram = order.selectedPoint?.telegram ?? business.telegram ?? null;
 
   if (whatsapp) {

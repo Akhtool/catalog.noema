@@ -81,6 +81,9 @@ interface FormErrors {
   name?: string
   phone?: string
   whatsapp?: string
+  whatsappDelivery?: string
+  whatsappPickup?: string
+  whatsappDineIn?: string
   telegram?: string
 }
 
@@ -181,6 +184,12 @@ export function BusinessProfileEditorSheet({
 
     const whatsappRes = validateContactWhatsapp(formData.get('whatsapp') as string)
     if (!whatsappRes.isValid && whatsappRes.errorCode) newErrors.whatsapp = getContactErrorMessage(whatsappRes.errorCode)
+    const whatsappDeliveryRes = validateContactWhatsapp(formData.get('whatsapp_delivery') as string)
+    if (!whatsappDeliveryRes.isValid && whatsappDeliveryRes.errorCode) newErrors.whatsappDelivery = getContactErrorMessage(whatsappDeliveryRes.errorCode)
+    const whatsappPickupRes = validateContactWhatsapp(formData.get('whatsapp_pickup') as string)
+    if (!whatsappPickupRes.isValid && whatsappPickupRes.errorCode) newErrors.whatsappPickup = getContactErrorMessage(whatsappPickupRes.errorCode)
+    const whatsappDineInRes = validateContactWhatsapp(formData.get('whatsapp_dine_in') as string)
+    if (!whatsappDineInRes.isValid && whatsappDineInRes.errorCode) newErrors.whatsappDineIn = getContactErrorMessage(whatsappDineInRes.errorCode)
 
     const telegramRes = validateContactTelegram(formData.get('telegram') as string)
     if (!telegramRes.isValid && telegramRes.errorCode) newErrors.telegram = getContactErrorMessage(telegramRes.errorCode)
@@ -467,9 +476,15 @@ export function BusinessProfileEditorSheet({
 
     const phoneNorm = normalizeContactPhone(formData.get('phone') as string)
     const whatsappNorm = normalizeContactWhatsapp(formData.get('whatsapp') as string)
+    const whatsappDeliveryNorm = normalizeContactWhatsapp(formData.get('whatsapp_delivery') as string)
+    const whatsappPickupNorm = normalizeContactWhatsapp(formData.get('whatsapp_pickup') as string)
+    const whatsappDineInNorm = normalizeContactWhatsapp(formData.get('whatsapp_dine_in') as string)
     const telegramNorm = normalizeContactTelegram(formData.get('telegram') as string)
     formData.set('phone', phoneNorm.normalized)
     formData.set('whatsapp', whatsappNorm.normalized)
+    formData.set('whatsapp_delivery', whatsappDeliveryNorm.normalized)
+    formData.set('whatsapp_pickup', whatsappPickupNorm.normalized)
+    formData.set('whatsapp_dine_in', whatsappDineInNorm.normalized)
     formData.set('telegram', telegramNorm.normalized)
 
     setIsSubmitting(true)
@@ -754,8 +769,63 @@ export function BusinessProfileEditorSheet({
                     {errors.whatsapp ? (
                       <p className="text-sm text-red-600">{errors.whatsapp}</p>
                     ) : (
-                      <p className="text-xs text-muted-foreground">Например: wa.me/79991234567 или +7 999 123-45-67</p>
+                      <p className="text-xs text-muted-foreground">Основной номер, используется как запасной, если не указаны отдельные</p>
                     )}
+                  </div>
+                </div>
+
+                <p className="text-xs text-muted-foreground -mt-1">Отдельные номера для способа получения (опционально):</p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs w-20 flex-shrink-0">Доставка</span>
+                    <div className="flex-1 space-y-1">
+                      <Input
+                        id="whatsapp_delivery"
+                        name="whatsapp_delivery"
+                        type="tel"
+                        defaultValue={business.whatsappDelivery || ''}
+                        placeholder="+7 (999) 123-45-67"
+                        disabled={isSubmitting}
+                        className={cn(errors.whatsappDelivery && 'border-red-500')}
+                      />
+                      {errors.whatsappDelivery && (
+                        <p className="text-sm text-red-600">{errors.whatsappDelivery}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs w-20 flex-shrink-0">Самовывоз</span>
+                    <div className="flex-1 space-y-1">
+                      <Input
+                        id="whatsapp_pickup"
+                        name="whatsapp_pickup"
+                        type="tel"
+                        defaultValue={business.whatsappPickup || ''}
+                        placeholder="+7 (999) 123-45-67"
+                        disabled={isSubmitting}
+                        className={cn(errors.whatsappPickup && 'border-red-500')}
+                      />
+                      {errors.whatsappPickup && (
+                        <p className="text-sm text-red-600">{errors.whatsappPickup}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs w-20 flex-shrink-0">В зале</span>
+                    <div className="flex-1 space-y-1">
+                      <Input
+                        id="whatsapp_dine_in"
+                        name="whatsapp_dine_in"
+                        type="tel"
+                        defaultValue={business.whatsappDineIn || ''}
+                        placeholder="+7 (999) 123-45-67"
+                        disabled={isSubmitting}
+                        className={cn(errors.whatsappDineIn && 'border-red-500')}
+                      />
+                      {errors.whatsappDineIn && (
+                        <p className="text-sm text-red-600">{errors.whatsappDineIn}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 

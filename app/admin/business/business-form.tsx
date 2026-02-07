@@ -16,6 +16,9 @@ interface BusinessFormProps {
     description: string | null
     phone: string | null
     whatsapp: string | null
+    whatsapp_delivery?: string | null
+    whatsapp_pickup?: string | null
+    whatsapp_dine_in?: string | null
     telegram: string | null
     yandex_metrika: string | null
     logo_url: string | null
@@ -471,6 +474,46 @@ export function BusinessForm({ business }: BusinessFormProps) {
             {errors.whatsapp && (
               <p className="text-sm text-red-600">{errors.whatsapp}</p>
             )}
+          </div>
+
+          <p className="text-xs text-muted-foreground">Отдельные номера по способу получения (опционально):</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="space-y-1">
+              <label htmlFor="whatsapp_delivery" className="text-sm">Доставка</label>
+              <Input
+                id="whatsapp_delivery"
+                name="whatsapp_delivery"
+                type="tel"
+                defaultValue={business.whatsapp_delivery || ''}
+                placeholder="+7 (999) 123-45-67"
+                disabled={isSubmitting}
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="whatsapp_pickup" className="text-sm">Самовывоз</label>
+              <Input
+                id="whatsapp_pickup"
+                name="whatsapp_pickup"
+                type="tel"
+                defaultValue={business.whatsapp_pickup || ''}
+                placeholder="+7 (999) 123-45-67"
+                disabled={isSubmitting}
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="whatsapp_dine_in" className="text-sm">В зале</label>
+              <Input
+                id="whatsapp_dine_in"
+                name="whatsapp_dine_in"
+                type="tel"
+                defaultValue={business.whatsapp_dine_in || ''}
+                placeholder="+7 (999) 123-45-67"
+                disabled={isSubmitting}
+                className="text-sm"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">

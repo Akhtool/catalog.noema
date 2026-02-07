@@ -20,6 +20,7 @@ import {
   createWhatsAppLink,
   createTelegramLink,
   createPhoneLink,
+  resolveWhatsappForOrder,
 } from "@/lib/order"
 import { useSheetDrag } from "@/lib/useSheetDrag"
 
@@ -62,6 +63,10 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
     if (!business) {
       return
     }
+    // Убеждаемся, что номер заказа есть до открытия диалога (избегаем setState во время рендера CheckoutDialog)
+    if (!orderNumber) {
+      generateOrderNumber()
+    }
     setIsCheckoutOpen(true)
   }
 
@@ -71,7 +76,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
     const order = createOrderFromCart(business.id, business.pickupPoints)
     const message = generateOrderMessage(order)
     const phone = order.selectedPoint?.phone ?? business.phone
-    const whatsapp = order.selectedPoint?.whatsapp ?? business.whatsapp
+    const whatsapp = resolveWhatsappForOrder(business, order)
     const telegram = order.selectedPoint?.telegram ?? business.telegram
 
     if (type === "whatsapp" && whatsapp) {

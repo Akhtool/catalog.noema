@@ -37,7 +37,10 @@ Business {
   yandex_metrika: string | null  // ID Яндекс.Метрики
 
   phone: string | null
-  whatsapp: string | null
+  whatsapp: string | null          // основной WhatsApp, fallback при отсутствии номера по способу
+  whatsappDelivery: string | null  // WhatsApp для заказов с доставкой (опционально)
+  whatsappPickup: string | null    // WhatsApp для самовывоза (опционально)
+  whatsappDineIn: string | null    // WhatsApp для заказа в зале (опционально)
   telegram: string | null
 
   workingHours: string | null

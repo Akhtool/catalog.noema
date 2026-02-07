@@ -13,6 +13,7 @@ import { Business, DeliveryType } from "@/types"
 import { Phone, ChevronRight, X, Truck, Store, UtensilsCrossed } from "lucide-react"
 import { useCartStore } from "@/store/cart"
 import { useSheetDrag } from "@/lib/useSheetDrag"
+import { resolveWhatsappForOrder } from "@/lib/order"
 
 interface CheckoutDialogProps {
   open: boolean
@@ -32,9 +33,12 @@ export function CheckoutDialog({
   const deliveryType = useCartStore((state) => state.deliveryType)
   const deliveryAddressStore = useCartStore((state) => state.deliveryAddress)
   const selectedPointId = useCartStore((state) => state.selectedPointId)
+  const createOrder = useCartStore((state) => state.createOrder)
   const setDeliveryType = useCartStore((state) => state.setDeliveryType)
   const setDeliveryAddressStore = useCartStore((state) => state.setDeliveryAddress)
   const setSelectedPointId = useCartStore((state) => state.setSelectedPointId)
+  const orderNumber = useCartStore((state) => state.orderNumber)
+  const generateOrderNumber = useCartStore((state) => state.generateOrderNumber)
 
   const deliveryOptionsAll: Array<{
     type: DeliveryType
@@ -59,6 +63,8 @@ export function CheckoutDialog({
     ? pickupPoints.find((p) => p.id === selectedPointId) ?? null
     : null
   const contactSource = selectedPoint ?? business
+  const orderForContact = createOrder(business.id, business.pickupPoints)
+  const resolvedWhatsapp = resolveWhatsappForOrder(business, orderForContact)
 
   const prevOpenRef = useRef(false)
   useEffect(() => {
@@ -68,6 +74,7 @@ export function CheckoutDialog({
     }
     const justOpened = !prevOpenRef.current
     prevOpenRef.current = true
+    if (!orderNumber) generateOrderNumber()
     if (deliveryAddressStore) setDeliveryAddress(deliveryAddressStore)
     const allowed = business.deliveryTypes
     const currentInvalid = deliveryType && !allowed.includes(deliveryType)
@@ -104,6 +111,8 @@ export function CheckoutDialog({
     }
   }, [
     open,
+    orderNumber,
+    generateOrderNumber,
     deliveryType,
     deliveryAddressStore,
     business.deliveryTypes,
@@ -123,7 +132,7 @@ export function CheckoutDialog({
     {
       type: "whatsapp",
       label: "WhatsApp",
-      available: !!contactSource.whatsapp,
+      available: !!resolvedWhatsapp,
       icon: (
         <svg
           className="h-6 w-6"
@@ -158,7 +167,10 @@ export function CheckoutDialog({
     },
   ]
 
-  const availableOptions = availableContacts.filter((c) => c.available)
+  // При доставке текст заказа уходит в мессенджер (WhatsApp/Telegram), телефон не показываем
+  const availableOptions = availableContacts
+    .filter((c) => c.available)
+    .filter((c) => deliveryType !== "delivery" || c.type !== "phone")
 
   // Сбрасываем состояние при закрытии, чтобы при следующем открытии показывать первый шаг
   const handleOpenChange = useCallback((open: boolean) => {

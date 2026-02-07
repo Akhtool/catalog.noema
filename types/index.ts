@@ -20,7 +20,13 @@ export interface Business {
   coverUrl: string | null;
 
   phone: string | null;
-  whatsapp: string | null;
+  whatsapp: string | null; // основной WhatsApp, fallback
+  /** WhatsApp для доставки; если null — используется whatsapp */
+  whatsappDelivery: string | null;
+  /** WhatsApp для самовывоза; если null — используется whatsapp */
+  whatsappPickup: string | null;
+  /** WhatsApp для заказа в зале; если null — используется whatsapp */
+  whatsappDineIn: string | null;
   telegram: string | null;
 
   workingHours: string | null;
