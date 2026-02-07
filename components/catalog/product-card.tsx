@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Product } from "@/types";
@@ -53,6 +53,17 @@ export function ProductCard({
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [actionInProgress, setActionInProgress] = useState(false);
   const [showHideConfirm, setShowHideConfirm] = useState(false);
+  const [optimisticallyHidden, setOptimisticallyHidden] = useState(false);
+  const [optimisticallyRestored, setOptimisticallyRestored] = useState(false);
+
+  useEffect(() => {
+    if (!product.isActive) setOptimisticallyHidden(false);
+  }, [product.isActive]);
+
+  useEffect(() => {
+    if (product.isActive) setOptimisticallyRestored(false);
+  }, [product.isActive]);
+
   const addItem = useCartStore((state) => state.addItem);
   const increaseQuantity = useCartStore((state) => state.increaseQuantity);
   const decreaseQuantity = useCartStore((state) => state.decreaseQuantity);
@@ -82,8 +93,12 @@ export function ProductCard({
     }
   };
 
+  const isHidden =
+    showAdminActions &&
+    ((!product.isActive && !optimisticallyRestored) || optimisticallyHidden);
+
   const handleCardClick = () => {
-    if (showAdminActions && !product.isActive) return;
+    if (isHidden) return;
     setIsDetailOpen(true);
   };
 
@@ -98,6 +113,7 @@ export function ProductCard({
     setActionInProgress(true);
     try {
       await Promise.resolve(onHide());
+      setOptimisticallyHidden(true);
       toast.success("Товар скрыт из каталога");
     } catch {
       toast.error("Не удалось скрыть товар");
@@ -112,6 +128,7 @@ export function ProductCard({
     setActionInProgress(true);
     try {
       await Promise.resolve(onRestore());
+      setOptimisticallyRestored(true);
       toast.success("Товар снова отображается в каталоге");
     } catch {
       toast.error("Не удалось вернуть товар в каталог");
@@ -121,7 +138,6 @@ export function ProductCard({
   };
 
   const weight = extractWeight(product.description);
-  const isHidden = showAdminActions && !product.isActive;
 
   if (viewMode === "list") {
     return (
@@ -149,7 +165,7 @@ export function ProductCard({
               </button>
             </div>
           )}
-          {showAdminActions && (onEdit || onHide) && product.isActive && (
+          {showAdminActions && (onEdit || onHide) && !isHidden && (
             <div className="absolute top-2 right-2 z-20 flex gap-1" onClick={(e) => e.stopPropagation()}>
               {onEdit && (
                 <button
@@ -326,7 +342,7 @@ export function ProductCard({
             </button>
           </div>
         )}
-        {showAdminActions && (onEdit || onHide) && product.isActive && !actionInProgress && (
+        {showAdminActions && (onEdit || onHide) && !isHidden && !actionInProgress && (
           <div className="absolute top-2 right-2 z-20 flex gap-1" onClick={(e) => e.stopPropagation()}>
             {onEdit && (
               <button

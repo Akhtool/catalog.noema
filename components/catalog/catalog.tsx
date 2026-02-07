@@ -253,9 +253,7 @@ export function Catalog({ categories, products }: CatalogProps) {
                     : undefined
                 }
                 onRestore={
-                  restoreProduct && !product.isActive
-                    ? () => restoreProduct(product.id)
-                    : undefined
+                  restoreProduct ? () => restoreProduct(product.id) : undefined
                 }
               />
             ))}
