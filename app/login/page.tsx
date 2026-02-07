@@ -18,11 +18,11 @@ export default async function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB] px-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <h1 className="text-3xl font-bold">Вход в админ-панель</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-3xl font-bold text-[#222]">Вход в админ-панель</h1>
+          <p className="text-[#666] mt-2">
             Войдите для управления бизнесом
           </p>
         </div>

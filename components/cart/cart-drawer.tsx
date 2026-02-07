@@ -1,7 +1,6 @@
 "use client"
 
-import { useState } from "react"
-import * as React from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -13,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { useCartStore } from "@/store/cart"
 import { useCurrentBusinessStore } from "@/store/current-business"
-import { ShoppingCart, Plus, Minus, Trash2, X } from "lucide-react"
+import { ShoppingCart, Plus, Minus, Trash2, X, CheckCircle2 } from "lucide-react"
 import { CheckoutDialog } from "./checkout-dialog"
 import {
   generateOrderMessage,
@@ -24,6 +23,21 @@ import {
 } from "@/lib/order"
 import { useSheetDrag } from "@/lib/useSheetDrag"
 
+const COUNTDOWN_SECONDS = 5
+
+type SuccessChannel = "whatsapp" | "telegram" | "phone"
+
+interface SuccessState {
+  channel: SuccessChannel
+  orderNumber: string
+}
+
+const CHANNEL_LABELS: Record<SuccessChannel, string> = {
+  whatsapp: "WhatsApp",
+  telegram: "Telegram",
+  phone: "по телефону",
+}
+
 interface CartDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -31,6 +45,10 @@ interface CartDrawerProps {
 
 export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
+  const [successState, setSuccessState] = useState<SuccessState | null>(null)
+  const [countdownSeconds, setCountdownSeconds] = useState(COUNTDOWN_SECONDS)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
   const items = useCartStore((state) => state.items)
   const comment = useCartStore((state) => state.comment)
   const promoCode = useCartStore((state) => state.promoCode)
@@ -46,57 +64,100 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   const clearCart = useCartStore((state) => state.clearCart)
   const business = useCurrentBusinessStore((state) => state.business)
 
-  // Используем хук для перетаскивания
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        setSuccessState(null)
+      }
+      onOpenChange(nextOpen)
+    },
+    [onOpenChange]
+  )
+
   const { dragHandlers, sheetStyle, scrollableStyle } = useSheetDrag({
     open,
-    onOpenChange,
+    onOpenChange: handleOpenChange,
   })
 
-  // Генерируем номер заказа при открытии корзины, если его еще нет
-  React.useEffect(() => {
-    if (open && items.length > 0 && !orderNumber) {
-      generateOrderNumber()
-    }
-  }, [open, items.length, orderNumber, generateOrderNumber])
-
-  const handleCheckout = () => {
-    if (!business) {
-      return
-    }
-    // Убеждаемся, что номер заказа есть до открытия диалога (избегаем setState во время рендера CheckoutDialog)
-    if (!orderNumber) {
-      generateOrderNumber()
-    }
-    setIsCheckoutOpen(true)
-  }
-
-  const handleSelectContact = (type: "whatsapp" | "phone" | "telegram") => {
-    if (!business) return
-
+  const doRedirect = useCallback(() => {
+    if (!business || !successState) return
     const order = createOrderFromCart(business.id, business.pickupPoints)
     const message = generateOrderMessage(order)
     const phone = order.selectedPoint?.phone ?? business.phone
     const whatsapp = resolveWhatsappForOrder(business, order)
     const telegram = order.selectedPoint?.telegram ?? business.telegram
 
-    if (type === "whatsapp" && whatsapp) {
+    if (successState.channel === "whatsapp" && whatsapp) {
       window.open(createWhatsAppLink(whatsapp, message), "_blank")
-      clearCart()
-      onOpenChange(false)
-    } else if (type === "telegram" && telegram) {
+    } else if (successState.channel === "telegram" && telegram) {
       window.open(createTelegramLink(telegram, message), "_blank")
-      clearCart()
-      onOpenChange(false)
-    } else if (type === "phone" && phone) {
+    } else if (successState.channel === "phone" && phone) {
       window.open(createPhoneLink(phone), "_self")
-      clearCart()
-      onOpenChange(false)
     }
+    clearCart()
+    handleOpenChange(false)
+    setSuccessState(null)
+  }, [
+    business,
+    successState,
+    createOrderFromCart,
+    generateOrderMessage,
+    resolveWhatsappForOrder,
+    clearCart,
+    handleOpenChange,
+  ])
+
+  // Генерируем номер заказа при открытии корзины, если его еще нет
+  useEffect(() => {
+    if (open && items.length > 0 && !orderNumber) {
+      generateOrderNumber()
+    }
+  }, [open, items.length, orderNumber, generateOrderNumber])
+
+  // Таймер перенаправления на экране успеха
+  useEffect(() => {
+    if (!successState || countdownSeconds <= 0) return
+    intervalRef.current = setInterval(() => {
+      setCountdownSeconds((prev) => {
+        if (prev <= 1) {
+          if (intervalRef.current) clearInterval(intervalRef.current)
+          intervalRef.current = null
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+  }, [successState])
+
+  useEffect(() => {
+    if (successState && countdownSeconds === 0) {
+      doRedirect()
+    }
+  }, [successState, countdownSeconds, doRedirect])
+
+  const handleCheckout = () => {
+    if (!business) return
+    if (!orderNumber) generateOrderNumber()
+    setIsCheckoutOpen(true)
+  }
+
+  const handleSelectContact = (type: SuccessChannel) => {
+    if (!business) return
+    const num = orderNumber ?? generateOrderNumber()
+    setSuccessState({ channel: type, orderNumber: num })
+    setCountdownSeconds(COUNTDOWN_SECONDS)
+    setIsCheckoutOpen(false)
   }
 
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent
         side="bottom"
         className="w-full max-h-[95vh] rounded-t-3xl flex flex-col p-0 bg-white border-t-0 !bottom-0 data-[state=open]:duration-500 data-[state=closed]:duration-500"
@@ -114,7 +175,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
           </div>
           <button
             type="button"
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleOpenChange(false)}
             className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0"
             aria-label="Закрыть корзину"
           >
@@ -127,25 +188,57 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
           {...dragHandlers}
           className="px-6 pt-4 pb-3 border-b cursor-grab active:cursor-grabbing touch-none select-none"
         >
-          <SheetTitle className="text-xl font-bold">Корзина</SheetTitle>
-          {orderNumber && (
-            <div className="text-xs text-gray-600 mb-2 font-medium">
-              Номер заказа: {orderNumber}
-            </div>
+          <SheetTitle className="text-xl font-bold">
+            {successState ? "Заказ оформлен" : "Корзина"}
+          </SheetTitle>
+          {successState ? (
+            <SheetDescription className="text-sm text-gray-500 mt-2">
+              Номер заказа: {successState.orderNumber}
+            </SheetDescription>
+          ) : (
+            <>
+              {orderNumber && (
+                <div className="text-xs text-gray-600 mb-2 font-medium">
+                  Номер заказа: {orderNumber}
+                </div>
+              )}
+              <SheetDescription className="text-sm text-gray-500">
+                {items.length === 0
+                  ? "Ваша корзина пуста"
+                  : `Товаров в корзине: ${items.length}`}
+              </SheetDescription>
+            </>
           )}
-          <SheetDescription className="text-sm text-gray-500">
-            {items.length === 0
-              ? "Ваша корзина пуста"
-              : `Товаров в корзине: ${items.length}`}
-          </SheetDescription>
         </div>
 
-        {/* Список товаров */}
-        <div
-          className="flex-1 overflow-y-auto px-6 py-4"
-          style={scrollableStyle}
-        >
-          {items.length === 0 ? (
+        {/* Экран успеха после выбора способа связи */}
+        {successState && (
+          <div className="flex-1 flex flex-col items-center justify-center px-6 py-8 text-center">
+            <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
+            <p className="text-lg font-semibold text-gray-900 mb-2">
+              Заказ №{successState.orderNumber} отправлен
+            </p>
+            <p className="text-sm text-gray-600 mb-6">
+              Через {countdownSeconds} сек. вы будете перенаправлены в{" "}
+              {CHANNEL_LABELS[successState.channel]}
+            </p>
+            <Button
+              size="lg"
+              className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-black font-bold"
+              onClick={() => doRedirect()}
+            >
+              Открыть сейчас
+            </Button>
+          </div>
+        )}
+
+        {/* Список товаров (когда не показываем экран успеха) */}
+        {!successState && (
+          <div
+            className="flex-1 overflow-y-auto px-6 py-4"
+            style={scrollableStyle}
+          >
+            {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-12">
               <ShoppingCart className="h-16 w-16 text-gray-300 mb-4" />
               <p className="text-gray-500">Корзина пуста</p>
@@ -209,10 +302,11 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
               ))}
             </div>
           )}
-        </div>
+          </div>
+        )}
 
         {/* Нижняя часть: комментарий, итого и кнопка */}
-        {items.length > 0 && (
+        {!successState && items.length > 0 && (
           <div className="px-6 pb-6 pt-4 border-t bg-white rounded-b-3xl space-y-4">
             {/* Комментарий к заказу */}
             <div>

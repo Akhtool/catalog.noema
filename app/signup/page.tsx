@@ -3,11 +3,18 @@ import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase-server'
 import { SignupForm } from './signup-form'
 
+// Временно скрыта страница регистрации
+const SHOW_SIGNUP_PAGE = false
+
 /**
  * Страница регистрации
  * Если пользователь уже авторизован → редирект на главную текущего host
  */
 export default async function SignupPage() {
+  if (!SHOW_SIGNUP_PAGE) {
+    redirect('/login')
+  }
+
   const supabase = await createServerClient()
   const {
     data: { user },
