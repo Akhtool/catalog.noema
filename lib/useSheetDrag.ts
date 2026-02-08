@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { useSwipeable } from "react-swipeable"
 
 interface UseSheetDragOptions {
   open: boolean
@@ -11,8 +10,10 @@ interface UseSheetDragOptions {
 
 /** Объект для spread на элемент-хедер sheet (ref + стили + опционально onMouseDown) */
 export interface SheetDragHandlers {
-  ref: (el: HTMLElement | null) => void
-  onMouseDown?: (e: React.MouseEvent) => void
+  onPointerDownCapture: (e: React.PointerEvent) => void
+  onPointerMoveCapture: (e: React.PointerEvent) => void
+  onPointerUpCapture: (e: React.PointerEvent) => void
+  onPointerCancelCapture: (e: React.PointerEvent) => void
   style: React.CSSProperties
 }
 
@@ -40,6 +41,7 @@ export function useSheetDrag({
   const startYRef = useRef(0)
   const trackingRef = useRef(false)
   const dragYRef = useRef(0)
+  const activePointerIdRef = useRef<number | null>(null)
   const closeThresholdRef = useRef(closeThreshold)
   const onOpenChangeRef = useRef(onOpenChange)
   closeThresholdRef.current = closeThreshold
@@ -51,122 +53,69 @@ export function useSheetDrag({
       setDragY(0)
       setIsDragging(false)
       trackingRef.current = false
+      activePointerIdRef.current = null
     }
   }, [open])
 
-  // Мышь — через react-swipeable (десктоп)
-  const swipeable = useSwipeable({
-    onSwiping: (eventData) => {
-      if (eventData.deltaY > 0) {
-        setIsDragging(true)
-        setDragY(eventData.deltaY)
-      }
-    },
-    onSwipedDown: (eventData) => {
-      if (eventData.deltaY >= closeThreshold) {
-        onOpenChange(false)
-      } else {
-        setDragY(0)
-      }
-      setIsDragging(false)
-    },
-    onTouchEndOrOnMouseUp: () => {
-      if (dragYRef.current < closeThreshold) {
-        setDragY(0)
-      }
-      setIsDragging(false)
-    },
-    trackMouse: true,
-    trackTouch: false, // touch делаем сами с capture
-    preventScrollOnSwipe: true,
-  })
-
-  // Touch — свои слушатели в capture, чтобы перехватить до скролла на iOS/Android
-  const attachTouch = useCallback((el: HTMLElement | null): (() => void) | undefined => {
-    if (!el) return undefined
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length > 1) return
-      const target = e.target as HTMLElement
-      // Не ломаем нажатия на кнопки (крестик и т.п.)
-      if (target.closest?.("button")) return
-      // На мобилках браузер может “забрать” жест под scroll / pull-to-refresh ещё до touchmove.
-      // Поэтому перехватываем с touchstart (только вне кнопок).
-      if (e.cancelable) e.preventDefault()
-      e.stopPropagation()
-      startYRef.current = e.touches[0].clientY
-      trackingRef.current = true
-    }
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (!trackingRef.current || !e.touches.length) return
-      const deltaY = e.touches[0].clientY - startYRef.current
-      if (deltaY > 0) {
-        e.preventDefault()
-        e.stopPropagation()
-        setIsDragging(true)
-        setDragY(deltaY)
-        dragYRef.current = deltaY
-      }
-    }
-
-    const onTouchEnd = () => {
-      if (!trackingRef.current) return
-      trackingRef.current = false
-      const currentY = dragYRef.current
-      if (currentY >= closeThresholdRef.current) {
-        onOpenChangeRef.current(false)
-      } else {
-        setDragY(0)
-        dragYRef.current = 0
-      }
-      setIsDragging(false)
-    }
-
-    const onTouchCancel = () => {
-      trackingRef.current = false
+  const endDrag = useCallback(() => {
+    if (!trackingRef.current) return
+    trackingRef.current = false
+    activePointerIdRef.current = null
+    const currentY = dragYRef.current
+    if (currentY >= closeThresholdRef.current) {
+      onOpenChangeRef.current(false)
+    } else {
       setDragY(0)
       dragYRef.current = 0
-      setIsDragging(false)
     }
+    setIsDragging(false)
+  }, [])
 
-    const opts: AddEventListenerOptions = { capture: true, passive: false }
-    el.addEventListener("touchstart", onTouchStart, opts)
-    el.addEventListener("touchmove", onTouchMove, opts)
-    el.addEventListener("touchend", onTouchEnd, opts)
-    el.addEventListener("touchcancel", onTouchCancel, opts)
+  const onPointerDownCapture = useCallback((e: React.PointerEvent) => {
+    // Только primary pointer (один палец / основная кнопка мыши)
+    if (!e.isPrimary) return
+    // Не ломаем клики по кнопкам (крестик и т.п.)
+    const target = e.target as HTMLElement
+    if (target.closest?.("button")) return
 
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart, opts)
-      el.removeEventListener("touchmove", onTouchMove, opts)
-      el.removeEventListener("touchend", onTouchEnd, opts)
-      el.removeEventListener("touchcancel", onTouchCancel, opts)
+    // На мобилках браузер может “забрать” жест под scroll / pull-to-refresh ещё до движения.
+    // Поэтому предотвращаем дефолт уже на старте (вне кнопок).
+    if (e.cancelable) e.preventDefault()
+    e.stopPropagation()
+
+    activePointerIdRef.current = e.pointerId
+    startYRef.current = e.clientY
+    trackingRef.current = true
+
+    // Держим pointer внутри элемента даже если палец/курсор “уехал”
+    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+  }, [])
+
+  const onPointerMoveCapture = useCallback((e: React.PointerEvent) => {
+    if (!trackingRef.current) return
+    if (activePointerIdRef.current !== e.pointerId) return
+    const deltaY = e.clientY - startYRef.current
+    if (deltaY > 0) {
+      if (e.cancelable) e.preventDefault()
+      e.stopPropagation()
+      setIsDragging(true)
+      setDragY(deltaY)
+      dragYRef.current = deltaY
     }
   }, [])
 
-  const elRef = useRef<HTMLElement | null>(null)
-  const cleanupRef = useRef<(() => void) | null>(null)
-  const swipeableRefRef = useRef(swipeable.ref)
-  swipeableRefRef.current = swipeable.ref
+  const onPointerUpCapture = useCallback((e: React.PointerEvent) => {
+    if (activePointerIdRef.current !== e.pointerId) return
+    endDrag()
+  }, [endDrag])
 
-  const setRef = useCallback(
-    (el: HTMLElement | null) => {
-      swipeableRefRef.current(el)
-      if (elRef.current === el) return
-      if (cleanupRef.current) {
-        cleanupRef.current()
-        cleanupRef.current = null
-      }
-      elRef.current = el
-      if (el) {
-        cleanupRef.current = attachTouch(el) ?? null
-      }
-    },
-    [attachTouch]
-  )
-
-  useEffect(() => () => {
-    cleanupRef.current?.()
+  const onPointerCancelCapture = useCallback((e: React.PointerEvent) => {
+    if (activePointerIdRef.current !== e.pointerId) return
+    trackingRef.current = false
+    activePointerIdRef.current = null
+    setDragY(0)
+    dragYRef.current = 0
+    setIsDragging(false)
   }, [])
 
   const opacity = Math.max(0, 1 - dragY / closeThreshold)
@@ -206,8 +155,10 @@ export function useSheetDrag({
     dragY,
     isDragging,
     dragHandlers: {
-      ref: setRef,
-      onMouseDown: swipeable.onMouseDown,
+      onPointerDownCapture,
+      onPointerMoveCapture,
+      onPointerUpCapture,
+      onPointerCancelCapture,
       style: dragHandleStyle,
     },
     sheetStyle,
