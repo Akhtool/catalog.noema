@@ -87,7 +87,13 @@ export function useSheetDrag({
 
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length > 1) return
-      if ((e.target as HTMLElement).closest?.("button")) return
+      const target = e.target as HTMLElement
+      // Не ломаем нажатия на кнопки (крестик и т.п.)
+      if (target.closest?.("button")) return
+      // На мобилках браузер может “забрать” жест под scroll / pull-to-refresh ещё до touchmove.
+      // Поэтому перехватываем с touchstart (только вне кнопок).
+      if (e.cancelable) e.preventDefault()
+      e.stopPropagation()
       startYRef.current = e.touches[0].clientY
       trackingRef.current = true
     }
@@ -117,15 +123,24 @@ export function useSheetDrag({
       setIsDragging(false)
     }
 
+    const onTouchCancel = () => {
+      trackingRef.current = false
+      setDragY(0)
+      dragYRef.current = 0
+      setIsDragging(false)
+    }
+
     const opts: AddEventListenerOptions = { capture: true, passive: false }
     el.addEventListener("touchstart", onTouchStart, opts)
     el.addEventListener("touchmove", onTouchMove, opts)
     el.addEventListener("touchend", onTouchEnd, opts)
+    el.addEventListener("touchcancel", onTouchCancel, opts)
 
     return () => {
       el.removeEventListener("touchstart", onTouchStart, opts)
       el.removeEventListener("touchmove", onTouchMove, opts)
       el.removeEventListener("touchend", onTouchEnd, opts)
+      el.removeEventListener("touchcancel", onTouchCancel, opts)
     }
   }, [])
 
@@ -181,7 +196,9 @@ export function useSheetDrag({
 
   const dragHandleStyle: React.CSSProperties = {
     touchAction: "none",
+    overscrollBehavior: "contain",
     WebkitUserSelect: "none",
+    WebkitTouchCallout: "none",
     userSelect: "none",
   }
 
