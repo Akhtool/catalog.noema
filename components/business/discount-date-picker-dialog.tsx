@@ -97,12 +97,12 @@ export function DiscountDatePickerDialog({
         className="w-full max-h-[95vh] rounded-t-3xl flex flex-col p-0 bg-white border-t-0 !bottom-0 data-[state=open]:duration-500 data-[state=closed]:duration-500"
         style={sheetStyle}
       >
-        <div
+        <header
           {...dragHandlers}
-          className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none"
+          className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none min-h-[44px] items-center"
         >
           <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
-        </div>
+        </header>
 
         <div
           {...dragHandlers}
@@ -115,7 +115,7 @@ export function DiscountDatePickerDialog({
             <button
               type="button"
               onClick={() => handleOpenChange(false)}
-              className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors"
+              className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors touch-manipulation"
               aria-label="Закрыть"
             >
               <X className="h-5 w-5" />

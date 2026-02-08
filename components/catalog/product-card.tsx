@@ -174,7 +174,7 @@ export function ProductCard({
               </button>
             </div>
           )}
-          {showAdminActions && (onEdit || onHide) && !isHidden && (
+          {showAdminActions && (onEdit || onHide) && (
             <div
               className="absolute top-2 right-2 z-20 flex gap-1"
               onClick={(e) => e.stopPropagation()}
@@ -189,7 +189,7 @@ export function ProductCard({
                   <Pencil className="h-4 w-4 text-gray-600" />
                 </button>
               )}
-              {onHide && (
+              {onHide && !isHidden && (
                 <button
                   type="button"
                   onClick={handleHideClick}
@@ -365,7 +365,6 @@ export function ProductCard({
         )}
         {showAdminActions &&
           (onEdit || onHide) &&
-          !isHidden &&
           !actionInProgress && (
             <div
               className="absolute top-2 right-2 z-20 flex gap-1"
@@ -381,7 +380,7 @@ export function ProductCard({
                   <Pencil className="h-4 w-4 text-gray-600" />
                 </button>
               )}
-              {onHide && (
+              {onHide && !isHidden && (
                 <button
                   type="button"
                   onClick={handleHideClick}

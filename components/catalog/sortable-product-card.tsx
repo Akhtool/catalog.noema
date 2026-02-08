@@ -47,7 +47,7 @@ export function SortableProductCard({
         {showAdminActions && (
           <button
             type="button"
-            className="absolute top-2 left-2 z-10 p-1.5 rounded-full bg-white/90 shadow border border-gray-200 hover:bg-gray-50 touch-none"
+            className="absolute top-2 left-2 z-20 p-1.5 rounded-full bg-white/90 shadow border border-gray-200 hover:bg-gray-50 touch-none"
             aria-label="Переместить"
             {...attributes}
             {...listeners}
