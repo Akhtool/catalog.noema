@@ -15,7 +15,7 @@ const ADMIN_BUTTON_BASE =
 const EDIT_PROFILE_CLASS = `${ADMIN_BUTTON_BASE} bg-white border-2 border-gray-200 text-gray-800 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.99] shadow-soft`;
 
 /** Стиль кнопки «Добавить позицию» — основной CTA, brand-yellow */
-const ADD_POSITION_CLASS = `${ADMIN_BUTTON_BASE} bg-brand-yellow text-gray-900 hover:bg-amber-400 border-2 border-transparent active:scale-[0.99] shadow-soft`;
+const ADD_POSITION_CLASS = `${ADMIN_BUTTON_BASE} bg-brand-yellow text-brand-yellow-foreground hover:bg-brand-yellow/90 border-2 border-transparent active:scale-[0.99] shadow-soft`;
 
 interface ContactOrEditSectionProps {
   business: Business;

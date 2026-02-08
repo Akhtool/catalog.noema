@@ -19,6 +19,18 @@ export interface Business {
   logoUrl: string | null;
   coverUrl: string | null;
 
+  /**
+   * Акцентный цвет каталога (визуальное оформление).
+   * Формат: HSL-триплет без hsl(): "48 100% 50%".
+   * null = дефолтная тема приложения.
+   */
+  themeBrandHsl: string | null;
+  /**
+   * Цвет текста на акцентном фоне (для читаемости).
+   * null = дефолт/расчёт на фронтенде.
+   */
+  themeBrandForeground: "black" | "white" | null;
+
   phone: string | null;
   whatsapp: string | null; // основной WhatsApp, fallback
   /** WhatsApp для доставки; если null — используется whatsapp */

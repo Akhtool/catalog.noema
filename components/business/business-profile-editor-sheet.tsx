@@ -32,6 +32,127 @@ import { BusinessImageCropSheet } from './business-image-crop-sheet'
 import { Badge } from '@/components/ui/badge'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
+const DEFAULT_BRAND_HEX = '#ffd600'
+const DEFAULT_BRAND_HSL = '50.4 100% 50%'
+
+type ThemeBrandForeground = 'black' | 'white'
+
+function clamp(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, n))
+}
+
+function normalizeHex(hex: string) {
+  const value = hex.trim().toLowerCase()
+  if (!value.startsWith('#')) return null
+  if (value.length !== 7) return null
+  if (!/^#[0-9a-f]{6}$/.test(value)) return null
+  return value
+}
+
+function hexToRgb(hex: string) {
+  const normalized = normalizeHex(hex)
+  if (!normalized) return null
+  const r = parseInt(normalized.slice(1, 3), 16)
+  const g = parseInt(normalized.slice(3, 5), 16)
+  const b = parseInt(normalized.slice(5, 7), 16)
+  return { r, g, b }
+}
+
+function rgbToHex(rgb: { r: number; g: number; b: number }) {
+  const toHex = (v: number) => clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0')
+  return `#${toHex(rgb.r)}${toHex(rgb.g)}${toHex(rgb.b)}`
+}
+
+function rgbToHslTriple(rgb: { r: number; g: number; b: number }) {
+  const r = rgb.r / 255
+  const g = rgb.g / 255
+  const b = rgb.b / 255
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const delta = max - min
+
+  let h = 0
+  let s = 0
+  const l = (max + min) / 2
+
+  if (delta !== 0) {
+    s = delta / (1 - Math.abs(2 * l - 1))
+    switch (max) {
+      case r:
+        h = ((g - b) / delta) % 6
+        break
+      case g:
+        h = (b - r) / delta + 2
+        break
+      default:
+        h = (r - g) / delta + 4
+        break
+    }
+    h *= 60
+    if (h < 0) h += 360
+  }
+
+  const hue = Math.round(h * 10) / 10
+  const sat = Math.round(s * 1000) / 10
+  const lig = Math.round(l * 1000) / 10
+  return `${hue} ${sat}% ${lig}%`
+}
+
+function hslTripleToRgb(triple: string) {
+  const parts = triple.trim().split(/\s+/)
+  if (parts.length < 3) return null
+  const h = Number(parts[0])
+  const s = Number(parts[1].replace('%', ''))
+  const l = Number(parts[2].replace('%', ''))
+  if (!Number.isFinite(h) || !Number.isFinite(s) || !Number.isFinite(l)) return null
+
+  const hh = ((h % 360) + 360) % 360
+  const ss = clamp(s / 100, 0, 1)
+  const ll = clamp(l / 100, 0, 1)
+
+  if (ss === 0) {
+    const v = Math.round(ll * 255)
+    return { r: v, g: v, b: v }
+  }
+
+  const c = (1 - Math.abs(2 * ll - 1)) * ss
+  const x = c * (1 - Math.abs(((hh / 60) % 2) - 1))
+  const m = ll - c / 2
+
+  let rr = 0, gg = 0, bb = 0
+  if (hh < 60) [rr, gg, bb] = [c, x, 0]
+  else if (hh < 120) [rr, gg, bb] = [x, c, 0]
+  else if (hh < 180) [rr, gg, bb] = [0, c, x]
+  else if (hh < 240) [rr, gg, bb] = [0, x, c]
+  else if (hh < 300) [rr, gg, bb] = [x, 0, c]
+  else [rr, gg, bb] = [c, 0, x]
+
+  return {
+    r: Math.round((rr + m) * 255),
+    g: Math.round((gg + m) * 255),
+    b: Math.round((bb + m) * 255),
+  }
+}
+
+function pickForeground(rgb: { r: number; g: number; b: number }): ThemeBrandForeground {
+  // WCAG relative luminance (sRGB)
+  const srgb = [rgb.r, rgb.g, rgb.b].map((v) => {
+    const c = v / 255
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  })
+  const L = 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2]
+  const contrastWhite = (1.0 + 0.05) / (L + 0.05)
+  const contrastBlack = (L + 0.05) / (0.0 + 0.05)
+  return contrastBlack >= contrastWhite ? 'black' : 'white'
+}
+
+type ThemeScopeSnapshot = {
+  brandYellow: string
+  brandYellowForeground: string
+  primary: string
+  primaryForeground: string
+  ring: string
+}
 
 /** Иконка WhatsApp (логотип бренда) */
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -143,6 +264,115 @@ export function BusinessProfileEditorSheet({
   /** Ошибки валидации контактов в форме филиала */
   const [locationErrors, setLocationErrors] = useState<LocationFormErrors>({})
   const previousPickupPointsLengthRef = useRef((business.pickupPoints ?? []).length)
+  const themeScopeSnapshotRef = useRef<ThemeScopeSnapshot | null>(null)
+  const skipRestoreOnCloseRef = useRef(false)
+
+  const initialBrandRgbFromBusiness =
+    business.themeBrandHsl ? hslTripleToRgb(business.themeBrandHsl) : null
+  const initialBrandHex = initialBrandRgbFromBusiness
+    ? rgbToHex(initialBrandRgbFromBusiness)
+    : DEFAULT_BRAND_HEX
+  const [themeBrandHex, setThemeBrandHex] = useState<string>(initialBrandHex)
+  const [themeBrandHsl, setThemeBrandHsl] = useState<string | null>(business.themeBrandHsl ?? null)
+  const [themeBrandForeground, setThemeBrandForeground] = useState<ThemeBrandForeground | null>(
+    business.themeBrandForeground ??
+      (initialBrandRgbFromBusiness ? pickForeground(initialBrandRgbFromBusiness) : null)
+  )
+
+  function getThemeScopeEl(): HTMLElement | null {
+    return document.documentElement
+  }
+
+  function snapshotThemeScope(el: HTMLElement): ThemeScopeSnapshot {
+    return {
+      brandYellow: el.style.getPropertyValue('--brand-yellow'),
+      brandYellowForeground: el.style.getPropertyValue('--brand-yellow-foreground'),
+      primary: el.style.getPropertyValue('--primary'),
+      primaryForeground: el.style.getPropertyValue('--primary-foreground'),
+      ring: el.style.getPropertyValue('--ring'),
+    }
+  }
+
+  function restoreThemeScope(el: HTMLElement, snapshot: ThemeScopeSnapshot) {
+    const restoreProp = (name: string, value: string) => {
+      if (!value) el.style.removeProperty(name)
+      else el.style.setProperty(name, value)
+    }
+    restoreProp('--brand-yellow', snapshot.brandYellow)
+    restoreProp('--brand-yellow-foreground', snapshot.brandYellowForeground)
+    restoreProp('--primary', snapshot.primary)
+    restoreProp('--primary-foreground', snapshot.primaryForeground)
+    restoreProp('--ring', snapshot.ring)
+  }
+
+  function applyThemePreview(el: HTMLElement, opts: { hsl: string; foreground: ThemeBrandForeground }) {
+    el.style.setProperty('--brand-yellow', opts.hsl)
+    el.style.setProperty('--primary', opts.hsl)
+    el.style.setProperty('--ring', opts.hsl)
+    el.style.setProperty('--brand-yellow-foreground', opts.foreground === 'black' ? '0 0% 0%' : '0 0% 100%')
+    el.style.setProperty('--primary-foreground', opts.foreground === 'black' ? '0 0% 0%' : '0 0% 100%')
+  }
+
+  // Live preview: пока открыт шит, применяем выбранные значения к theme-scope контейнеру каталога.
+  useEffect(() => {
+    if (!open) return
+    const el = getThemeScopeEl()
+    if (!el) return
+    if (!themeScopeSnapshotRef.current) themeScopeSnapshotRef.current = snapshotThemeScope(el)
+    return () => {
+      // cleanup выполняется и при закрытии
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const el = getThemeScopeEl()
+    if (!el) return
+
+    const rgb = hexToRgb(themeBrandHex)
+    const fallbackFg: ThemeBrandForeground = rgb ? pickForeground(rgb) : 'black'
+    const effectiveHsl = themeBrandHsl ?? DEFAULT_BRAND_HSL
+    applyThemePreview(el, { hsl: effectiveHsl, foreground: themeBrandForeground ?? fallbackFg })
+  }, [open, themeBrandHex, themeBrandHsl, themeBrandForeground])
+
+  useEffect(() => {
+    if (open) return
+    const el = getThemeScopeEl()
+    const snap = themeScopeSnapshotRef.current
+    if (!el || !snap) return
+
+    // Если закрываем после успешного сохранения, не откатываем: скоро будет router.refresh().
+    if (skipRestoreOnCloseRef.current) {
+      return
+    }
+
+    restoreThemeScope(el, snap)
+    themeScopeSnapshotRef.current = null
+  }, [open])
+
+  // После router.refresh() проп business обновится — тогда можно безопасно убрать inline preview,
+  // чтобы тема не "утекала" на другие страницы.
+  useEffect(() => {
+    if (open) return
+    if (!skipRestoreOnCloseRef.current) return
+    const el = getThemeScopeEl()
+    const snap = themeScopeSnapshotRef.current
+    if (!el || !snap) return
+
+    restoreThemeScope(el, snap)
+    themeScopeSnapshotRef.current = null
+    skipRestoreOnCloseRef.current = false
+  }, [open, business.themeBrandHsl, business.themeBrandForeground])
+
+  useEffect(() => {
+    return () => {
+      const el = getThemeScopeEl()
+      const snap = themeScopeSnapshotRef.current
+      if (el && snap) restoreThemeScope(el, snap)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const currentLength = (business.pickupPoints ?? []).length
@@ -483,6 +713,9 @@ export function BusinessProfileEditorSheet({
     if (coverUrl) {
       formData.set('cover_url', coverUrl)
     }
+
+    formData.set('theme_brand_hsl', themeBrandHsl ?? '')
+    formData.set('theme_brand_foreground', themeBrandForeground ?? '')
     
     if (!validateForm(formData)) {
       setMessage({ type: 'error', text: 'Пожалуйста, исправьте ошибки в форме' })
@@ -513,6 +746,8 @@ export function BusinessProfileEditorSheet({
         toast.error(text)
       } else {
         setMessage({ type: 'success', text: 'Данные успешно сохранены' })
+        // Не откатываем live-preview при закрытии — через router.refresh() тема станет "официальной".
+        skipRestoreOnCloseRef.current = true
         setTimeout(() => {
           setMessage(null)
           onOpenChange(false)
@@ -881,7 +1116,7 @@ export function BusinessProfileEditorSheet({
                     <h3 className="text-lg font-semibold">Филиалы / точки</h3>
                   </div>
                   {editingLocationId === null && (
-                    <Button type="button" size="sm" onClick={openAddLocation} className="bg-brand-yellow text-black hover:bg-brand-yellow/90">
+                    <Button type="button" size="sm" onClick={openAddLocation} className="bg-brand-yellow text-brand-yellow-foreground hover:bg-brand-yellow/90">
                       <Plus className="w-4 h-4 mr-1" />
                       Добавить
                     </Button>
@@ -970,7 +1205,7 @@ export function BusinessProfileEditorSheet({
                         type="button"
                         onClick={() => handleSaveLocation()}
                         disabled={locationSubmitting}
-                        className="bg-brand-yellow text-black hover:bg-brand-yellow/90"
+                        className="bg-brand-yellow text-brand-yellow-foreground hover:bg-brand-yellow/90"
                       >
                         {locationSubmitting ? 'Сохранение…' : editingLocationId === 'new' ? 'Добавить' : 'Сохранить'}
                       </Button>
@@ -1139,9 +1374,100 @@ export function BusinessProfileEditorSheet({
                 <Settings className="w-5 h-5 text-brand-yellow" />
                 <h3 className="text-lg font-semibold">Настройки</h3>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Дополнительные настройки будут доступны в будущих обновлениях.
-              </p>
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Акцентный цвет влияет на оформление публичной страницы каталога.
+                </p>
+
+                <div className="rounded-lg border bg-white p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold">Акцентный цвет</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Кнопки, рамки и подсветки будут в этом цвете.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9"
+                      onClick={() => {
+                        setThemeBrandHex(DEFAULT_BRAND_HEX)
+                        setThemeBrandHsl(null)
+                        setThemeBrandForeground(null)
+                      }}
+                    >
+                      Сбросить
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={themeBrandHex}
+                      onChange={(e) => {
+                        const nextHex = normalizeHex(e.target.value) ?? DEFAULT_BRAND_HEX
+                        setThemeBrandHex(nextHex)
+                        const rgb = hexToRgb(nextHex)
+                        setThemeBrandHsl(rgb ? rgbToHslTriple(rgb) : null)
+                        setThemeBrandForeground(rgb ? pickForeground(rgb) : null)
+                      }}
+                      className="h-10 w-12 p-0 border rounded-md bg-transparent"
+                      aria-label="Выбрать цвет"
+                    />
+
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        '#ffd600',
+                        '#f97316',
+                        '#ef4444',
+                        '#22c55e',
+                        '#14b8a6',
+                        '#3b82f6',
+                        '#a855f7',
+                        '#111827',
+                      ].map((hex) => (
+                        <button
+                          key={hex}
+                          type="button"
+                          onClick={() => {
+                            setThemeBrandHex(hex)
+                            const rgb = hexToRgb(hex)
+                            setThemeBrandHsl(rgb ? rgbToHslTriple(rgb) : null)
+                            setThemeBrandForeground(rgb ? pickForeground(rgb) : null)
+                          }}
+                          className={cn(
+                            'h-8 w-8 rounded-full border shadow-sm transition-transform active:scale-95',
+                            themeBrandHex.toLowerCase() === hex ? 'ring-2 ring-offset-2 ring-brand-yellow' : 'hover:scale-[1.02]'
+                          )}
+                          style={{ backgroundColor: hex }}
+                          aria-label={`Пресет ${hex}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-xs text-muted-foreground">
+                      <span className="font-medium text-gray-700">Текущее значение:</span>{' '}
+                      {themeBrandHsl ?? 'по умолчанию'}
+                    </div>
+                    <div
+                      className="px-3 py-2 rounded-lg text-sm font-semibold shadow-soft"
+                      style={{
+                        backgroundColor: themeBrandHex,
+                        color:
+                          (themeBrandForeground ??
+                            (hexToRgb(themeBrandHex) ? pickForeground(hexToRgb(themeBrandHex)!) : 'black')) === 'black'
+                            ? '#000000'
+                            : '#ffffff',
+                      }}
+                    >
+                      Пример CTA
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </TabsContent>
             </div>
@@ -1155,7 +1481,7 @@ export function BusinessProfileEditorSheet({
               type="submit"
               size="lg"
               disabled={isSubmitting}
-              className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-black font-normal text-base py-6 rounded-lg"
+              className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-brand-yellow-foreground font-normal text-base py-6 rounded-lg"
             >
               {isSubmitting ? (
                 <>

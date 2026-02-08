@@ -43,7 +43,7 @@ export function ScrollToTop() {
       onClick={scrollToTop}
       size="icon"
       className={cn(
-        "fixed bottom-24 md:bottom-6 right-4 md:right-6 z-50 rounded-full shadow-lg transition-all duration-300 bg-brand-yellow hover:bg-brand-yellow/90 text-black",
+        "fixed bottom-24 md:bottom-6 right-4 md:right-6 z-50 rounded-full shadow-lg transition-all duration-300 bg-brand-yellow hover:bg-brand-yellow/90 text-brand-yellow-foreground",
         isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
       )}
       aria-label="Прокрутить вверх"

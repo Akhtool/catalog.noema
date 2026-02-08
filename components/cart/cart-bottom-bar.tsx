@@ -70,7 +70,7 @@ export function CartBottomBar() {
             <div className="relative">
               <ShoppingBag className="h-6 w-6" />
               {isMounted && totalQuantity > 0 && (
-                <div className="absolute -top-1 -right-1 bg-brand-yellow text-black text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center border border-dark-nav">
+                <div className="absolute -top-1 -right-1 bg-brand-yellow text-brand-yellow-foreground text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center border border-dark-nav">
                   {totalQuantity > 99 ? "99+" : totalQuantity}
                 </div>
               )}

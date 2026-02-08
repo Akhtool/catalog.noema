@@ -24,7 +24,7 @@
 
 **Назначение:** Хранит информацию о бизнесе, его контакты, настройки доставки и визуальное оформление.
 
-**Ключевые поля:** `id`, `slug` (публичный URL), `name`, `logo_url`, `cover_url`, `yandex_metrika`
+**Ключевые поля:** `id`, `slug` (публичный URL), `name`, `logo_url`, `cover_url`, `theme_brand_hsl`
 
 ```ts
 Business {
@@ -35,6 +35,19 @@ Business {
   logo_url: string | null   // URL логотипа (1:1)
   cover_url: string | null  // URL обложки (4:1)
   yandex_metrika: string | null  // ID Яндекс.Метрики
+
+  /**
+   * Акцентный цвет каталога (визуальное оформление).
+   * Формат: HSL-триплет без hsl(): "48 100% 50%".
+   * Если null — используется дефолтная тема приложения.
+   */
+  theme_brand_hsl: string | null
+  /**
+   * Цвет текста на акцентном фоне (для читаемости).
+   * Допустимые значения: "black" | "white".
+   * Если null — может рассчитываться на фронтенде (по контрасту) или использоваться дефолт.
+   */
+  theme_brand_foreground: "black" | "white" | null
 
   phone: string | null
   whatsapp: string | null          // основной WhatsApp, fallback при отсутствии номера по способу
@@ -60,6 +73,7 @@ Business {
 - `slug` используется для публичной страницы каталога.
 - Один Business = один каталог (V1).
 - `yandex_metrika` используется для подключения аналитики на публичной странице.
+- `theme_brand_hsl` и `theme_brand_foreground` влияют только на оформление публичного каталога и не меняют бизнес-логику.
 
 ### 2.2 BusinessLocation (филиал/точка)
 

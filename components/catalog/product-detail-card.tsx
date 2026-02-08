@@ -303,7 +303,7 @@ export function ProductDetailCard({
             <div className="px-5 pt-4 pb-6 space-y-4">
               {/* Метка BEST SELLER и рейтинг (пока скрыто, так как нет в модели) */}
               {/* <div className="flex items-center gap-3">
-              <span className="bg-brand-yellow text-black text-xs font-bold px-2 py-1 rounded">
+              <span className="bg-brand-yellow text-brand-yellow-foreground text-xs font-bold px-2 py-1 rounded">
                 BEST SELLER
               </span>
               <div className="flex items-center gap-1">
@@ -383,7 +383,7 @@ export function ProductDetailCard({
                 <button
                   onClick={handleAddToCart}
                   disabled={!product.inStock}
-                  className="w-12 h-12 flex items-center justify-center bg-brand-yellow rounded-full text-black shadow-md hover:bg-yellow-400 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-12 h-12 flex items-center justify-center bg-brand-yellow rounded-full text-brand-yellow-foreground shadow-md hover:bg-brand-yellow/90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   aria-label="Добавить в корзину"
                 >
                   <Plus className="h-6 w-6" />

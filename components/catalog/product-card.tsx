@@ -168,7 +168,7 @@ export function ProductCard({
               <button
                 type="button"
                 onClick={handleRestore}
-                className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-brand-yellow text-black hover:bg-amber-400 active:scale-[0.99] shadow-soft ring-2 ring-amber-400/50 transition-all"
+                  className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-brand-yellow text-brand-yellow-foreground hover:bg-brand-yellow/90 active:scale-[0.99] shadow-soft ring-2 ring-brand-yellow/50 transition-all"
               >
                 Вернуть в каталог
               </button>
@@ -277,7 +277,7 @@ export function ProductCard({
                 <button
                   onClick={handleAddToCart}
                   disabled={!product.inStock}
-                  className="w-9 h-9 flex items-center justify-center bg-brand-yellow rounded-full text-black shadow-md hover:bg-yellow-400 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-9 h-9 flex items-center justify-center bg-brand-yellow rounded-full text-brand-yellow-foreground shadow-md hover:bg-brand-yellow/90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   aria-label="Добавить в корзину"
                 >
                   <Plus className="h-5 w-5" />
@@ -357,7 +357,7 @@ export function ProductCard({
             <button
               type="button"
               onClick={handleRestore}
-              className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-brand-yellow text-black hover:bg-amber-400 active:scale-[0.99] shadow-soft ring-2 ring-amber-400/50 transition-all"
+              className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-brand-yellow text-brand-yellow-foreground hover:bg-brand-yellow/90 active:scale-[0.99] shadow-soft ring-2 ring-brand-yellow/50 transition-all"
             >
               Вернуть в каталог
             </button>
@@ -476,7 +476,7 @@ export function ProductCard({
               <button
                 onClick={handleAddToCart}
                 disabled={!product.inStock}
-                className="w-9 h-9 flex items-center justify-center bg-brand-yellow rounded-full text-black shadow-md hover:bg-yellow-400 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-9 h-9 flex items-center justify-center bg-brand-yellow rounded-full text-brand-yellow-foreground shadow-md hover:bg-brand-yellow/90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Добавить в корзину"
               >
                 <Plus className="h-5 w-5" />

@@ -126,7 +126,7 @@ export function FiltersSheet({
                 onClick={() => setSelectedCategoryId(null)}
                 className={`w-full text-left px-4 py-2 rounded-lg border transition-colors ${
                   selectedCategoryId === null
-                    ? "bg-brand-yellow border-brand-yellow text-black font-medium"
+                    ? "bg-brand-yellow border-brand-yellow text-brand-yellow-foreground font-medium"
                     : "bg-white border-gray-200 hover:border-gray-300"
                 }`}
               >
@@ -138,7 +138,7 @@ export function FiltersSheet({
                   onClick={() => setSelectedCategoryId(category.id)}
                   className={`w-full text-left px-4 py-2 rounded-lg border transition-colors ${
                     selectedCategoryId === category.id
-                      ? "bg-brand-yellow border-brand-yellow text-black font-medium"
+                      ? "bg-brand-yellow border-brand-yellow text-brand-yellow-foreground font-medium"
                       : "bg-white border-gray-200 hover:border-gray-300"
                   }`}
                 >
@@ -159,7 +159,7 @@ export function FiltersSheet({
                     onClick={() => toggleBrand(brand)}
                     className={`w-full text-left px-4 py-2 rounded-lg border transition-colors ${
                       selectedBrands.includes(brand)
-                        ? "bg-brand-yellow border-brand-yellow text-black font-medium"
+                        ? "bg-brand-yellow border-brand-yellow text-brand-yellow-foreground font-medium"
                         : "bg-white border-gray-200 hover:border-gray-300"
                     }`}
                   >
@@ -200,7 +200,7 @@ export function FiltersSheet({
               </div>
               <Button
                 onClick={handleApplyPriceFilter}
-                className="mt-6 bg-brand-yellow hover:bg-brand-yellow/90 text-black font-medium"
+                className="mt-6 bg-brand-yellow hover:bg-brand-yellow/90 text-brand-yellow-foreground font-medium"
               >
                 Применить
               </Button>
@@ -215,7 +215,7 @@ export function FiltersSheet({
                 onClick={() => setShowPopular(!showPopular)}
                 className={`w-full text-left px-4 py-2 rounded-lg border transition-colors ${
                   showPopular
-                    ? "bg-brand-yellow border-brand-yellow text-black font-medium"
+                    ? "bg-brand-yellow border-brand-yellow text-brand-yellow-foreground font-medium"
                     : "bg-white border-gray-200 hover:border-gray-300"
                 }`}
               >
@@ -225,7 +225,7 @@ export function FiltersSheet({
                 onClick={() => setShowDiscounted(!showDiscounted)}
                 className={`w-full text-left px-4 py-2 rounded-lg border transition-colors ${
                   showDiscounted
-                    ? "bg-brand-yellow border-brand-yellow text-black font-medium"
+                    ? "bg-brand-yellow border-brand-yellow text-brand-yellow-foreground font-medium"
                     : "bg-white border-gray-200 hover:border-gray-300"
                 }`}
               >
@@ -246,7 +246,7 @@ export function FiltersSheet({
           </Button>
           <Button
             onClick={() => onOpenChange(false)}
-            className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-black font-bold"
+            className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-brand-yellow-foreground font-bold"
           >
             Применить
           </Button>

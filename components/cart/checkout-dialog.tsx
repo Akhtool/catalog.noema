@@ -344,7 +344,7 @@ export function CheckoutDialog({
                   <Button
                     onClick={handleAddressContinue}
                     disabled={!deliveryAddress.trim()}
-                    className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-black font-bold"
+                    className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-brand-yellow-foreground font-bold"
                   >
                     Продолжить
                   </Button>
@@ -355,7 +355,7 @@ export function CheckoutDialog({
               {deliveryType && deliveryType !== "delivery" && !needsPointStep && (
                 <Button
                   onClick={() => setStep("contact")}
-                  className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-black font-bold"
+                  className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-brand-yellow-foreground font-bold"
                 >
                   Продолжить
                 </Button>
@@ -387,7 +387,7 @@ export function CheckoutDialog({
               <Button
                 onClick={() => setStep("contact")}
                 disabled={!selectedPointId}
-                className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-black font-bold"
+                className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-brand-yellow-foreground font-bold"
               >
                 Продолжить
               </Button>

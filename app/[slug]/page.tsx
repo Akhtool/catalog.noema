@@ -125,6 +125,19 @@ export default async function Page({ params }: PageProps) {
         .order("id", productOrder);
 
   // Преобразуем данные из snake_case в camelCase для типизации
+  const themeBrandHsl =
+    typeof (business as { theme_brand_hsl?: unknown }).theme_brand_hsl === "string"
+      ? ((business as { theme_brand_hsl: string }).theme_brand_hsl || null)
+      : null;
+  const themeBrandForegroundRaw =
+    typeof (business as { theme_brand_foreground?: unknown }).theme_brand_foreground === "string"
+      ? ((business as { theme_brand_foreground: string }).theme_brand_foreground || null)
+      : null;
+  const themeBrandForeground =
+    themeBrandForegroundRaw === "black" || themeBrandForegroundRaw === "white"
+      ? themeBrandForegroundRaw
+      : null;
+
   const businessTyped: Business = {
     id: business.id,
     slug: business.slug,
@@ -132,6 +145,8 @@ export default async function Page({ params }: PageProps) {
     description: business.description || "",
     logoUrl: business.logo_url || null,
     coverUrl: business.cover_url || null,
+    themeBrandHsl,
+    themeBrandForeground,
     phone: business.phone || null,
     whatsapp: business.whatsapp || null,
     whatsappDelivery: business.whatsapp_delivery || null,
@@ -158,6 +173,26 @@ export default async function Page({ params }: PageProps) {
     createdAt: business.created_at,
     updatedAt: business.updated_at,
   };
+
+  const themeCss = themeBrandHsl
+    ? [
+        ":root{",
+        `--brand-yellow:${themeBrandHsl};`,
+        `--primary:${themeBrandHsl};`,
+        `--ring:${themeBrandHsl};`,
+        ...(themeBrandForeground
+          ? [
+              `--brand-yellow-foreground:${
+                themeBrandForeground === "black" ? "0 0% 0%" : "0 0% 100%"
+              };`,
+              `--primary-foreground:${
+                themeBrandForeground === "black" ? "0 0% 0%" : "0 0% 100%"
+              };`,
+            ]
+          : []),
+        "}",
+      ].join("")
+    : null;
 
   const categoriesTyped: Category[] = (categories || []).map((cat) => ({
     id: cat.id,
@@ -194,146 +229,149 @@ export default async function Page({ params }: PageProps) {
   });
 
   return (
-    <BusinessProvider business={businessTyped}>
-      <BusinessProfileEditorWrapper business={businessTyped}>
-        {/* Баннер с обложкой */}
-        {businessTyped.coverUrl && (
-          <div className="relative w-full min-h-[180px] flex flex-col justify-end rounded-b-[2.5rem] overflow-hidden shadow-xl z-10">
-            {/* Градиенты поверх изображения */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80 z-10" />
-            <div className="absolute inset-0 bg-brand-yellow/10 mix-blend-overlay z-10" />
+    <>
+      {themeCss ? <style>{themeCss}</style> : null}
+      <BusinessProvider business={businessTyped}>
+        <BusinessProfileEditorWrapper business={businessTyped}>
+          {/* Баннер с обложкой */}
+          {businessTyped.coverUrl && (
+            <div className="relative w-full min-h-[180px] flex flex-col justify-end rounded-b-[2.5rem] overflow-hidden shadow-xl z-10">
+              {/* Градиенты поверх изображения */}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80 z-10" />
+              <div className="absolute inset-0 bg-brand-yellow/10 mix-blend-overlay z-10" />
 
-            <Image
-              src={businessTyped.coverUrl}
-              alt={`Обложка ${businessTyped.name}`}
-              fill
-              className="object-cover"
-              priority
-              sizes="100vw"
-              unoptimized
-            />
+              <Image
+                src={businessTyped.coverUrl}
+                alt={`Обложка ${businessTyped.name}`}
+                fill
+                className="object-cover"
+                priority
+                sizes="100vw"
+                unoptimized
+              />
 
-            {/* Информация о бизнесе внизу баннера — в потоке, блок растёт с описанием */}
-            <div className="relative p-8 z-20">
-              <div className="absolute top-4 right-4 z-30">
-                <BannerLogoutButton />
-              </div>
-              <div className="flex items-end gap-4">
-                {businessTyped.logoUrl && (
-                  <div className="flex-shrink-0 relative">
-                    <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-brand-yellow bg-white shadow-lg">
-                      <Image
-                        src={businessTyped.logoUrl}
-                        alt={`Логотип ${businessTyped.name}`}
-                        fill
-                        className="object-cover"
-                        sizes="96px"
-                        unoptimized
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tighter leading-none mb-2 drop-shadow-lg [text-shadow:0_2px_4px_rgba(0,0,0,0.85),0_4px_12px_rgba(0,0,0,0.75)]">
-                    {businessTyped.name}
-                  </h1>
-                  {businessTyped.description && (
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-black/40 rounded-lg blur-sm -z-10" />
-                      <p className="text-white text-sm mt-2 font-medium max-w-[280px] drop-shadow-md leading-relaxed line-clamp-4">
-                        {businessTyped.description}
-                      </p>
+              {/* Информация о бизнесе внизу баннера — в потоке, блок растёт с описанием */}
+              <div className="relative p-8 z-20">
+                <div className="absolute top-4 right-4 z-30">
+                  <BannerLogoutButton />
+                </div>
+                <div className="flex items-end gap-4">
+                  {businessTyped.logoUrl && (
+                    <div className="flex-shrink-0 relative">
+                      <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-brand-yellow bg-white shadow-lg">
+                        <Image
+                          src={businessTyped.logoUrl}
+                          alt={`Логотип ${businessTyped.name}`}
+                          fill
+                          className="object-cover"
+                          sizes="96px"
+                          unoptimized
+                        />
+                      </div>
                     </div>
                   )}
+
+                  <div className="flex-1 min-w-0">
+                    <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tighter leading-none mb-2 drop-shadow-lg [text-shadow:0_2px_4px_rgba(0,0,0,0.85),0_4px_12px_rgba(0,0,0,0.75)]">
+                      {businessTyped.name}
+                    </h1>
+                    {businessTyped.description && (
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-black/40 rounded-lg blur-sm -z-10" />
+                        <p className="text-white text-sm mt-2 font-medium max-w-[280px] drop-shadow-md leading-relaxed line-clamp-4">
+                          {businessTyped.description}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Кнопка «Выйти» при отсутствии обложки */}
-        {!businessTyped.coverUrl && (
-          <div className="pt-4 px-5 flex justify-end">
-            <BannerLogoutButton variant="default" />
-          </div>
-        )}
+          {/* Кнопка «Выйти» при отсутствии обложки */}
+          {!businessTyped.coverUrl && (
+            <div className="pt-4 px-5 flex justify-end">
+              <BannerLogoutButton variant="default" />
+            </div>
+          )}
 
-        {/* Информационная строка с иконками */}
-        <div className="px-5 -mt-6 relative z-20 my-2.5">
-          <div className="bg-white rounded-2xl shadow-card p-3 space-y-2">
-            {businessTyped.deliveryRegions && (
-              <div className="flex items-center gap-2 text-xs">
-                <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <svg
-                    className="w-3.5 h-3.5 text-gray-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                </div>
-                <span className="text-gray-700 font-medium">
-                  {businessTyped.deliveryRegions}
-                </span>
-              </div>
-            )}
-            {businessTyped.cityDelivery && (
-              <div className="flex items-center gap-2 text-xs">
-                <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <svg
-                    className="w-3.5 h-3.5 text-gray-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                    />
-                  </svg>
-                </div>
-                <span className="text-gray-700 font-medium">
-                  {businessTyped.cityDelivery}
-                </span>
-              </div>
-            )}
-            {businessTyped.workingHours && (
-              <div className="flex items-center gap-2 text-xs">
-                <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <Clock className="w-3.5 h-3.5 text-gray-600" />
-                </div>
-                <div className="flex-1 min-w-0">
+          {/* Информационная строка с иконками */}
+          <div className="px-5 -mt-6 relative z-20 my-2.5">
+            <div className="bg-white rounded-2xl shadow-card p-3 space-y-2">
+              {businessTyped.deliveryRegions && (
+                <div className="flex items-center gap-2 text-xs">
+                  <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <svg
+                      className="w-3.5 h-3.5 text-gray-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
                   <span className="text-gray-700 font-medium">
-                    {businessTyped.workingHours}
+                    {businessTyped.deliveryRegions}
                   </span>
                 </div>
-              </div>
-            )}
+              )}
+              {businessTyped.cityDelivery && (
+                <div className="flex items-center gap-2 text-xs">
+                  <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <svg
+                      className="w-3.5 h-3.5 text-gray-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                      />
+                    </svg>
+                  </div>
+                  <span className="text-gray-700 font-medium">
+                    {businessTyped.cityDelivery}
+                  </span>
+                </div>
+              )}
+              {businessTyped.workingHours && (
+                <div className="flex items-center gap-2 text-xs">
+                  <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <Clock className="w-3.5 h-3.5 text-gray-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-gray-700 font-medium">
+                      {businessTyped.workingHours}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Секция "Связаться с нами" или "Редактировать профиль" (для admin/owner) */}
-        <ContactOrEditSection business={businessTyped} />
+          {/* Секция "Связаться с нами" или "Редактировать профиль" (для admin/owner) */}
+          <ContactOrEditSection business={businessTyped} />
 
-        {/* Каталог */}
-        <div className="px-5">
-          <Catalog categories={categoriesTyped} products={productsTyped} />
-        </div>
+          {/* Каталог */}
+          <div className="px-5">
+            <Catalog categories={categoriesTyped} products={productsTyped} />
+          </div>
 
-        <Footer />
+          <Footer />
 
-        {/* Фиксированная нижняя панель с корзиной */}
-        <CartBottomBar />
-      </BusinessProfileEditorWrapper>
-    </BusinessProvider>
+          {/* Фиксированная нижняя панель с корзиной */}
+          <CartBottomBar />
+        </BusinessProfileEditorWrapper>
+      </BusinessProvider>
+    </>
   );
 }

@@ -253,6 +253,11 @@ export async function updateBusiness(formData: FormData) {
 
   // Подготавливаем данные для обновления с нормализацией
   // yandex_metrika исключён — колонка может отсутствовать в схеме БД
+  const themeBrandForegroundRaw = normalizeString(formData.get('theme_brand_foreground') as string)
+  const themeBrandForeground =
+    themeBrandForegroundRaw === 'black' || themeBrandForegroundRaw === 'white'
+      ? themeBrandForegroundRaw
+      : null
   const updateData: Record<string, string | null> = {
     name,
     description: normalizeString(formData.get('description') as string),
@@ -264,6 +269,8 @@ export async function updateBusiness(formData: FormData) {
     telegram: normalizeTelegram(formData.get('telegram') as string),
     logo_url: normalizeString(formData.get('logo_url') as string),
     cover_url: normalizeString(formData.get('cover_url') as string),
+    theme_brand_hsl: normalizeString(formData.get('theme_brand_hsl') as string),
+    theme_brand_foreground: themeBrandForeground,
   }
 
   // Получаем slug бизнеса для revalidatePath

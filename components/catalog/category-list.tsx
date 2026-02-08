@@ -43,7 +43,7 @@ export function CategoryList({ categories }: CategoryListProps) {
           onClick={() => setSelectedCategoryId(null)}
           className={`whitespace-nowrap px-6 py-3 text-sm font-bold rounded-full transition-all ${
             selectedCategoryId === null
-              ? "bg-brand-yellow text-black shadow-yellow-glow"
+              ? "bg-brand-yellow text-brand-yellow-foreground shadow-yellow-glow"
               : "bg-white text-gray-500 border border-gray-100 shadow-sm hover:text-black hover:border-brand-yellow"
           }`}
         >
@@ -62,7 +62,7 @@ export function CategoryList({ categories }: CategoryListProps) {
           }}
           className={`whitespace-nowrap px-6 py-3 text-sm font-semibold rounded-full transition-all ${
             selectedCategoryId === category.id
-              ? "bg-brand-yellow text-black shadow-yellow-glow"
+              ? "bg-brand-yellow text-brand-yellow-foreground shadow-yellow-glow"
               : "bg-white text-gray-500 border border-gray-100 shadow-sm hover:text-black hover:border-brand-yellow"
           }`}
         >
