@@ -82,8 +82,8 @@ export function useSheetDrag({
   })
 
   // Touch — свои слушатели в capture, чтобы перехватить до скролла на iOS/Android
-  const attachTouch = useCallback((el: HTMLElement | null) => {
-    if (!el) return
+  const attachTouch = useCallback((el: HTMLElement | null): (() => void) | undefined => {
+    if (!el) return undefined
 
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length > 1) return
@@ -131,10 +131,12 @@ export function useSheetDrag({
 
   const elRef = useRef<HTMLElement | null>(null)
   const cleanupRef = useRef<(() => void) | null>(null)
+  const swipeableRefRef = useRef(swipeable.ref)
+  swipeableRefRef.current = swipeable.ref
 
   const setRef = useCallback(
     (el: HTMLElement | null) => {
-      swipeable.ref(el)
+      swipeableRefRef.current(el)
       if (elRef.current === el) return
       if (cleanupRef.current) {
         cleanupRef.current()
@@ -142,10 +144,10 @@ export function useSheetDrag({
       }
       elRef.current = el
       if (el) {
-        cleanupRef.current = attachTouch(el)
+        cleanupRef.current = attachTouch(el) ?? null
       }
     },
-    [attachTouch, swipeable.ref]
+    [attachTouch]
   )
 
   useEffect(() => () => {
