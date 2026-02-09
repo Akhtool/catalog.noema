@@ -25,6 +25,7 @@ export function LoginForm() {
   const [isMagicLink, setIsMagicLink] = useState(false)
   const [magicLinkSent, setMagicLinkSent] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
   async function handleEmailPassword(e: React.FormEvent) {
     e.preventDefault()
@@ -50,7 +51,7 @@ export function LoginForm() {
         const { setServerSession, getRedirectAfterLogin } = await import('./actions')
         await setServerSession(data.session.access_token, data.session.refresh_token)
         const redirectTo = await getRedirectAfterLogin()
-        toast.success('Вход выполнен')
+        setIsRedirecting(true)
         setTimeout(() => window.location.replace(redirectTo), 600)
         return
       }
@@ -125,6 +126,19 @@ export function LoginForm() {
   const inputWrapperClass = 'relative'
   const inputClass =
     'h-10 w-full rounded-xl bg-[#EEEEEE] border-0 pl-10 text-[#222] placeholder:text-[#999] focus-visible:ring-2 focus-visible:ring-[#ccc]'
+
+  if (isRedirecting) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#F9FAFB]"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <Loader2 className="h-10 w-10 animate-spin text-[#333]" />
+        <p className="mt-4 text-[#666] font-medium">Переход в каталог…</p>
+      </div>
+    )
+  }
 
   if (magicLinkSent) {
     return (

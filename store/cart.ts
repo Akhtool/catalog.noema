@@ -237,6 +237,12 @@ export const useCartStore = create<CartStore>()(
         name: product.name,
         price: product.price,
         quantity: 1,
+        originalPrice:
+          product.hasDiscount &&
+          product.originalPrice != null &&
+          product.originalPrice > product.price
+            ? product.originalPrice
+            : undefined,
       };
 
       return {

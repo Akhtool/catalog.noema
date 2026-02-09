@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 
 /** Проверяет, что пользователь имеет доступ (owner/admin) к бизнесу */
@@ -38,6 +39,10 @@ export interface ProductForEdit {
   subtitle: string | null;
   description: string | null;
   price: number;
+  hasDiscount: boolean;
+  originalPrice: number | null;
+  discountDateFrom: string | null;
+  discountDateTo: string | null;
   inStock: boolean;
   isActive: boolean;
   images: ProductImageForEdit[];
@@ -72,7 +77,7 @@ export async function getProduct(
   const { data: row, error } = await supabase
     .from("product")
     .select(
-      "id, business_id, category_id, brand_id, name, subtitle, description, price, in_stock, is_active"
+      "id, business_id, category_id, brand_id, name, subtitle, description, price, has_discount, original_price, discount_date_from, discount_date_to, in_stock, is_active, category(name)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -101,16 +106,18 @@ export async function getProduct(
     .eq("product_id", row.id)
     .order("position", { ascending: true });
 
-  let categoryName: string | null = null;
-  let brandName: string | null = null;
-  if (row.category_id) {
+  const catEmbed = row.category as { name: string } | { name: string }[] | null;
+  let categoryName =
+    Array.isArray(catEmbed) ? catEmbed[0]?.name ?? null : catEmbed?.name ?? null;
+  if (!categoryName && row.category_id) {
     const { data: cat } = await supabase
       .from("category")
       .select("name")
       .eq("id", row.category_id)
-      .single();
+      .maybeSingle();
     categoryName = cat?.name ?? null;
   }
+  let brandName: string | null = null;
   if (row.brand_id) {
     const { data: brand } = await supabase
       .from("brand")
@@ -137,6 +144,15 @@ export async function getProduct(
     subtitle: row.subtitle,
     description: row.description,
     price: row.price,
+    hasDiscount: row.has_discount === true,
+    originalPrice:
+      row.original_price != null && typeof row.original_price === "number"
+        ? Number(row.original_price)
+        : null,
+    discountDateFrom:
+      typeof row.discount_date_from === "string" ? row.discount_date_from : null,
+    discountDateTo:
+      typeof row.discount_date_to === "string" ? row.discount_date_to : null,
     inStock: row.in_stock,
     isActive: row.is_active,
     images,
@@ -150,10 +166,63 @@ export interface ProductUpsertPayload {
   subtitle?: string | null;
   description?: string | null;
   price: number;
+  hasDiscount?: boolean;
+  originalPrice?: number | null;
+  discountDateFrom?: string | null;
+  discountDateTo?: string | null;
   categoryId: string;
   brandId?: string | null;
   inStock?: boolean;
   isActive?: boolean;
+}
+
+/**
+ * Сбрасывает истёкшие скидки: price = original_price, has_discount = false.
+ * Вызывается при загрузке каталога. Использует admin-клиент (без авторизации).
+ */
+export async function expireProductDiscounts(
+  businessId: string
+): Promise<{ expired?: number; error?: string }> {
+  const today = new Date().toISOString().slice(0, 10);
+  const supabase = createAdminClient();
+
+  const { data: products, error: fetchError } = await supabase
+    .from("product")
+    .select("id, original_price")
+    .eq("business_id", businessId)
+    .eq("has_discount", true)
+    .not("original_price", "is", null)
+    .not("discount_date_to", "is", null)
+    .lt("discount_date_to", today);
+
+  if (fetchError) {
+    console.error("expireProductDiscounts fetch:", fetchError);
+    return { error: "Ошибка при проверке скидок" };
+  }
+
+  if (!products || products.length === 0) return { expired: 0 };
+
+  let expired = 0;
+  for (const p of products) {
+    const { error: updateError } = await supabase
+      .from("product")
+      .update({
+        price: p.original_price,
+        has_discount: false,
+        original_price: null,
+        discount_date_from: null,
+        discount_date_to: null,
+      })
+      .eq("id", p.id);
+
+    if (updateError) {
+      console.error("expireProductDiscounts update:", updateError);
+      continue;
+    }
+    expired++;
+  }
+
+  return { expired };
 }
 
 /**
@@ -199,6 +268,12 @@ export async function createProduct(
     .maybeSingle();
   const nextOrder = (maxOrderRow?.order ?? -1) + 1;
 
+  const hasDiscount = payload.hasDiscount ?? false;
+  const originalPrice =
+    hasDiscount && payload.originalPrice != null && payload.originalPrice > price
+      ? payload.originalPrice
+      : null;
+
   const { data: row, error } = await supabase
     .from("product")
     .insert({
@@ -209,6 +284,10 @@ export async function createProduct(
       subtitle: payload.subtitle?.trim() || null,
       description: payload.description?.trim() || null,
       price,
+      has_discount: hasDiscount,
+      original_price: originalPrice,
+      discount_date_from: payload.discountDateFrom || null,
+      discount_date_to: payload.discountDateTo || null,
       in_stock: payload.inStock ?? true,
       is_active: payload.isActive ?? false,
       order: nextOrder,
@@ -275,6 +354,12 @@ export async function updateProduct(
     return { error: "Укажите корректную цену" };
   }
 
+  const hasDiscount = payload.hasDiscount ?? false;
+  const originalPrice =
+    hasDiscount && payload.originalPrice != null && payload.originalPrice > price
+      ? payload.originalPrice
+      : null;
+
   const { error: updateError } = await supabase
     .from("product")
     .update({
@@ -284,6 +369,10 @@ export async function updateProduct(
       subtitle: payload.subtitle?.trim() || null,
       description: payload.description?.trim() || null,
       price,
+      has_discount: hasDiscount,
+      original_price: originalPrice,
+      discount_date_from: payload.discountDateFrom ?? null,
+      discount_date_to: payload.discountDateTo ?? null,
       in_stock: payload.inStock ?? true,
       is_active: payload.isActive ?? false,
     })

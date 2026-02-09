@@ -31,6 +31,7 @@ import {
   formatDiscountDateDisplay,
 } from "./discount-date-picker-dialog";
 import { ProductImageCropSheet } from "./product-image-crop-sheet";
+import { calcDiscountPercent } from "@/lib/discount";
 import {
   getProduct,
   createProduct,
@@ -78,10 +79,10 @@ export function ProductEditorSheet({
   const [name, setName] = useState("");
   const [subtitle, setSubtitle] = useState("");
   const [description, setDescription] = useState("");
-  const [price, setPrice] = useState("");
+  const [basePrice, setBasePrice] = useState("");
   const [hasDiscount, setHasDiscount] = useState(false);
+  const [discountedPrice, setDiscountedPrice] = useState("");
   const [discountPercent, setDiscountPercent] = useState("");
-  const [totalWithDiscount, setTotalWithDiscount] = useState("");
   const [discountDateRange, setDiscountDateRange] =
     useState<DiscountDateRange>({ from: null, to: null });
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
@@ -120,14 +121,14 @@ export function ProductEditorSheet({
     name: string;
     subtitle: string;
     description: string;
-    price: string;
+    basePrice: string;
     categoryId: string | null;
     brandId: string | null;
     isActive: boolean;
     inStock: boolean;
     hasDiscount: boolean;
+    discountedPrice: string;
     discountPercent: string;
-    totalWithDiscount: string;
     discountDateFrom: string | null;
     discountDateTo: string | null;
   } | null>(null);
@@ -149,24 +150,24 @@ export function ProductEditorSheet({
   const hasFormDirty = useCallback(() => {
     const i = initialFormRef.current;
     if (!i) return false;
-    const discountFrom = discountDateRange.from ?? null;
-    const discountTo = discountDateRange.to ?? null;
+    const from = discountDateRange.from ?? null;
+    const to = discountDateRange.to ?? null;
     return (
       name !== i.name ||
       subtitle !== i.subtitle ||
       description !== i.description ||
-      price !== i.price ||
+      basePrice !== i.basePrice ||
       selectedCategoryId !== i.categoryId ||
       selectedBrandId !== i.brandId ||
       isActive !== i.isActive ||
       inStock !== i.inStock ||
       hasDiscount !== i.hasDiscount ||
+      discountedPrice !== i.discountedPrice ||
       discountPercent !== i.discountPercent ||
-      totalWithDiscount !== i.totalWithDiscount ||
-      discountFrom !== i.discountDateFrom ||
-      discountTo !== i.discountDateTo
+      from !== i.discountDateFrom ||
+      to !== i.discountDateTo
     );
-  }, [name, subtitle, description, price, selectedCategoryId, selectedBrandId, isActive, inStock, hasDiscount, discountPercent, totalWithDiscount, discountDateRange.from, discountDateRange.to]);
+  }, [name, subtitle, description, basePrice, selectedCategoryId, selectedBrandId, isActive, inStock, hasDiscount, discountedPrice, discountPercent, discountDateRange.from, discountDateRange.to]);
 
   const displayImages = useMemo((): DisplayImageItem[] => {
     const list: DisplayImageItem[] = [];
@@ -224,10 +225,10 @@ export function ProductEditorSheet({
     setName("");
     setSubtitle("");
     setDescription("");
-    setPrice("");
+    setBasePrice("");
     setHasDiscount(false);
+    setDiscountedPrice("");
     setDiscountPercent("");
-    setTotalWithDiscount("");
     setDiscountDateRange({ from: null, to: null });
     setSelectedBrandId(null);
     setSelectedBrandName(null);
@@ -245,14 +246,14 @@ export function ProductEditorSheet({
       name: "",
       subtitle: "",
       description: "",
-      price: "",
+      basePrice: "",
       categoryId: null,
       brandId: null,
       isActive: true,
       inStock: true,
       hasDiscount: false,
+      discountedPrice: "",
       discountPercent: "",
-      totalWithDiscount: "",
       discountDateFrom: null,
       discountDateTo: null,
     };
@@ -275,28 +276,36 @@ export function ProductEditorSheet({
           setName(p.name);
           setSubtitle(p.subtitle ?? "");
           setDescription(p.description ?? "");
-          setPrice(String(p.price));
-          setSelectedBrandId(p.brandId);
-          setSelectedBrandName(p.brandName ?? null);
           setSelectedCategoryId(p.categoryId);
           setSelectedCategoryName(p.categoryName ?? null);
-          setIsActive(p.isActive);
-          setInStock(p.inStock);
+          const hasDisc = p.hasDiscount ?? false;
+          const orig = p.originalPrice;
+          setBasePrice(
+            hasDisc && orig != null ? String(orig) : String(p.price)
+          );
+          setHasDiscount(hasDisc);
+          setDiscountedPrice(hasDisc && orig != null ? String(p.price) : "");
+          setDiscountPercent("");
+          setDiscountDateRange({
+            from: p.discountDateFrom ?? null,
+            to: p.discountDateTo ?? null,
+          });
           setImages(p.images ?? []);
           initialFormRef.current = {
             name: p.name,
             subtitle: p.subtitle ?? "",
             description: p.description ?? "",
-            price: String(p.price),
+            basePrice:
+              hasDisc && orig != null ? String(orig) : String(p.price),
             categoryId: p.categoryId,
             brandId: p.brandId,
             isActive: p.isActive,
             inStock: p.inStock,
-            hasDiscount: false,
+            hasDiscount: hasDisc,
+            discountedPrice: hasDisc && orig != null ? String(p.price) : "",
             discountPercent: "",
-            totalWithDiscount: "",
-            discountDateFrom: null,
-            discountDateTo: null,
+            discountDateFrom: p.discountDateFrom ?? null,
+            discountDateTo: p.discountDateTo ?? null,
           };
         }
       });
@@ -306,38 +315,40 @@ export function ProductEditorSheet({
     }
   }, [open, productId, resetForm]);
 
-  const priceNum = parseFloat(price.replace(",", "."));
-  const discountNum = parseFloat(discountPercent.replace(",", "."));
-  const hasValidPrice = !Number.isNaN(priceNum) && priceNum > 0;
-  const hasValidDiscount =
-    !Number.isNaN(discountNum) && discountNum >= 0 && discountNum <= 100;
+  const basePriceNum = parseFloat(basePrice.replace(",", "."));
+  const discountedPriceNum = parseFloat(discountedPrice.replace(",", "."));
+  const discountPercentNum = parseFloat(discountPercent.replace(",", "."));
+  const hasValidBasePrice = !Number.isNaN(basePriceNum) && basePriceNum > 0;
+  const hasValidDiscountedPrice =
+    !Number.isNaN(discountedPriceNum) &&
+    discountedPriceNum > 0 &&
+    discountedPriceNum < basePriceNum;
+  const hasValidDiscountPercent =
+    !Number.isNaN(discountPercentNum) &&
+    discountPercentNum > 0 &&
+    discountPercentNum < 100;
 
-  useEffect(() => {
-    if (hasValidPrice && hasValidDiscount) {
-      const total =
-        Math.round(priceNum * (1 - discountNum / 100) * 100) / 100;
-      setTotalWithDiscount(
-        total === Math.floor(total) ? String(total) : total.toFixed(2)
-      );
-    } else if (!discountPercent.trim()) {
-      setTotalWithDiscount("");
-    }
-  }, [price, discountPercent, hasValidPrice, hasValidDiscount, priceNum, discountNum]);
+  const computedDiscountPercent =
+    hasValidBasePrice && hasValidDiscountedPrice
+      ? calcDiscountPercent(basePriceNum, discountedPriceNum)
+      : null;
+  const computedDiscountedPrice =
+    hasValidBasePrice && hasValidDiscountPercent
+      ? Math.round(basePriceNum * (1 - discountPercentNum / 100) * 100) / 100
+      : null;
 
-  /** Обновляет итог и пересчитывает процент скидки при вводе в поле «Итоговая сумма» */
-  function handleTotalWithDiscountChange(value: string) {
-    setTotalWithDiscount(value);
-    const totalNum = parseFloat(value.replace(",", "."));
-    if (
-      hasValidPrice &&
-      !Number.isNaN(totalNum) &&
-      totalNum >= 0 &&
-      totalNum <= priceNum
-    ) {
-      const pct = ((priceNum - totalNum) / priceNum) * 100;
-      const pctRounded = Math.round(pct * 100) / 100;
-      setDiscountPercent(String(Math.min(100, Math.max(0, pctRounded))));
-    }
+  const displayPercent =
+    hasValidDiscountPercent ? discountPercentNum : computedDiscountPercent;
+  const displayDiscountedPrice =
+    hasValidDiscountedPrice ? discountedPriceNum : computedDiscountedPrice;
+
+  function handleDiscountedPriceChange(value: string) {
+    setDiscountedPrice(value);
+    setDiscountPercent("");
+  }
+  function handleDiscountPercentInputChange(value: string) {
+    setDiscountPercent(value);
+    setDiscountedPrice("");
   }
 
   /** Выбор файла: открывает модалку обрезки (3:4); при создании — в pending, при редактировании — загрузка после сохранения */
@@ -434,29 +445,59 @@ export function ProductEditorSheet({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
-      setSubmitError("Введите название");
+      const msg = "Введите название";
+      setSubmitError(msg);
+      toast.error(msg);
       return;
     }
     if (!selectedCategoryId) {
-      setSubmitError("Выберите категорию");
+      const msg = "Выберите категорию";
+      setSubmitError(msg);
+      toast.error(msg);
       return;
     }
     if (displayImages.length === 0) {
-      setSubmitError("Добавьте минимум одно фото");
+      const msg = "Добавьте минимум одно фото";
+      setSubmitError(msg);
+      toast.error(msg);
       return;
     }
-    const priceVal = parseFloat(price.replace(",", "."));
-    if (Number.isNaN(priceVal) || priceVal < 0) {
-      setSubmitError("Укажите корректную цену");
+    const baseVal = parseFloat(basePrice.replace(",", "."));
+    if (Number.isNaN(baseVal) || baseVal < 0) {
+      const msg = "Укажите корректную цену";
+      setSubmitError(msg);
+      toast.error(msg);
       return;
     }
+    let finalPrice = baseVal;
+    let origPrice: number | null = null;
+    if (hasDiscount) {
+      if (hasValidDiscountedPrice) {
+        finalPrice = discountedPriceNum;
+        origPrice = baseVal;
+      } else if (hasValidDiscountPercent) {
+        finalPrice =
+          Math.round(baseVal * (1 - discountPercentNum / 100) * 100) / 100;
+        origPrice = baseVal;
+      } else {
+        const msg = "Введите цену со скидкой или процент скидки";
+        setSubmitError(msg);
+        toast.error(msg);
+        return;
+      }
+    }
+
     setSubmitError(null);
     setSubmitInProgress(true);
     const payload = {
       name: name.trim(),
       subtitle: subtitle.trim() || null,
       description: description.trim() || null,
-      price: priceVal,
+      price: finalPrice,
+      hasDiscount,
+      originalPrice: origPrice,
+      discountDateFrom: hasDiscount ? discountDateRange.from : null,
+      discountDateTo: hasDiscount ? discountDateRange.to : null,
       categoryId: selectedCategoryId,
       brandId: selectedBrandId,
       inStock: inStock,
@@ -603,11 +644,6 @@ export function ProductEditorSheet({
           className="flex-1 min-h-[60vh] overflow-y-auto px-6 py-4 flex flex-col"
           style={scrollableStyle}
         >
-          {submitError && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4">
-              {submitError}
-            </p>
-          )}
           {loadingProduct ? (
             <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] gap-3">
               <Loader2 className="h-10 w-10 text-gray-400 animate-spin" aria-hidden />
@@ -712,15 +748,15 @@ export function ProductEditorSheet({
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
-                Цена
+                {hasDiscount ? "Старая цена" : "Цена"}
                 <span className="text-red-600">*</span>
               </label>
               <div className="relative flex items-center">
                 <Input
                   type="text"
                   inputMode="numeric"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
+                  value={basePrice}
+                  onChange={(e) => setBasePrice(e.target.value)}
                   placeholder="...0"
                   disabled={submitInProgress}
                   className="pr-10 border-0 border-b rounded-none bg-gray-50 focus-visible:ring-0"
@@ -758,7 +794,14 @@ export function ProductEditorSheet({
               <input
                 type="checkbox"
                 checked={hasDiscount}
-                onChange={(e) => setHasDiscount(e.target.checked)}
+                onChange={(e) => {
+                  const v = e.target.checked;
+                  setHasDiscount(v);
+                  if (!v) {
+                    setDiscountedPrice("");
+                    setDiscountPercent("");
+                  }
+                }}
                 className="w-4 h-4 rounded border-gray-300"
               />
               <span className="text-sm font-medium text-gray-700">
@@ -768,44 +811,61 @@ export function ProductEditorSheet({
 
             {hasDiscount && (
               <div className="space-y-4 rounded-lg border bg-gray-50/50 p-4">
-                {!hasValidPrice && (
+                {!hasValidBasePrice && (
                   <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    Введите цену товара выше
+                    Введите старую цену выше
                   </p>
                 )}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">
-                    Скидка
+                    Цена со скидкой
                   </label>
                   <div className="relative flex items-center">
                     <Input
                       type="text"
                       inputMode="numeric"
-                      value={discountPercent}
-                      onChange={(e) => setDiscountPercent(e.target.value)}
-                      placeholder="0"
-                      className="pr-10 border-0 border-b rounded-none bg-white focus-visible:ring-0"
-                    />
-                    <span className="absolute right-3 text-gray-500">%</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Итоговая сумма с учётом скидки
-                  </label>
-                  <div className="relative flex items-center">
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      value={totalWithDiscount}
-                      onChange={(e) =>
-                        handleTotalWithDiscountChange(e.target.value)
+                      value={
+                        hasValidDiscountedPrice
+                          ? discountedPrice
+                          : displayDiscountedPrice != null
+                            ? String(displayDiscountedPrice)
+                            : ""
                       }
-                      placeholder="0"
+                      onChange={(e) =>
+                        handleDiscountedPriceChange(e.target.value)
+                      }
+                      placeholder="Например: 450"
                       className="pr-10 border-0 border-b rounded-none bg-white focus-visible:ring-0"
                     />
                     <span className="absolute right-3 text-gray-500">₽</span>
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Или скидка %
+                  </label>
+                  <div className="relative flex items-center">
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      value={
+                        hasValidDiscountPercent
+                          ? discountPercent
+                          : displayPercent != null
+                            ? String(Math.round(displayPercent))
+                            : ""
+                      }
+                      onChange={(e) =>
+                        handleDiscountPercentInputChange(e.target.value)
+                      }
+                      placeholder="Например: 25"
+                      className="pr-10 border-0 border-b rounded-none bg-white focus-visible:ring-0"
+                    />
+                    <span className="absolute right-3 text-gray-500">%</span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Введите цену со скидкой или процент — второе рассчитается само.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">
@@ -831,6 +891,9 @@ export function ProductEditorSheet({
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
+                  <p className="text-xs text-gray-500">
+                    Опционально. Если не задано — скидка действует всегда.
+                  </p>
                 </div>
               </div>
             )}
@@ -930,10 +993,27 @@ export function ProductEditorSheet({
               )}
             </div>
 
+            {submitError && (
+              <div
+                className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-start gap-2"
+                role="alert"
+              >
+                <span className="flex-1">{submitError}</span>
+                <button
+                  type="button"
+                  onClick={() => setSubmitError(null)}
+                  className="text-red-500 hover:text-red-700 shrink-0"
+                  aria-label="Закрыть"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
             <Button
               type="submit"
               disabled={submitInProgress}
-              className="w-full mt-6 py-3 bg-gray-900 text-white rounded-xl font-semibold hover:bg-black disabled:opacity-70"
+              className="w-full mt-6 py-3 bg-gray-900 text-white rounded-xl font-semibold hover:bg-black disabled:opacity-70 touch-manipulation"
             >
               {submitInProgress ? (
                 <>

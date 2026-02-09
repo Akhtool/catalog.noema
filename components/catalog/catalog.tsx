@@ -19,6 +19,7 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { Category, Product } from "@/types";
+import { isDiscountActive } from "@/lib/discount";
 import { useCatalogFiltersStore } from "@/store/catalog-filters";
 import { useCurrentBusinessStore } from "@/store/current-business";
 import {
@@ -180,10 +181,9 @@ export function Catalog({ categories, products }: CatalogProps) {
       filtered = filtered;
     }
 
-    // Фильтр "Товары со скидкой" (пока нет поля скидки, можно добавить позже)
+    // Фильтр "Товары со скидкой" — только активные скидки (в периоде)
     if (showDiscounted) {
-      // Пока оставляем все товары, можно добавить проверку на наличие скидки
-      filtered = filtered;
+      filtered = filtered.filter((product) => isDiscountActive(product));
     }
 
     // Фильтр по поисковому запросу
@@ -357,12 +357,13 @@ export function Catalog({ categories, products }: CatalogProps) {
                     : "space-y-4 mt-2.5"
                 }
               >
-                {filteredProducts.map((product) => (
+                {filteredProducts.map((product, index) => (
                   <SortableProductCard
                     key={product.id}
                     product={product}
                     viewMode={viewMode}
                     showAdminActions
+                    imagePriority={index === 0}
                     onEdit={
                       openProductEditor
                         ? () => openProductEditor(product.id)
@@ -391,12 +392,13 @@ export function Catalog({ categories, products }: CatalogProps) {
                 : "space-y-4 mt-2.5"
             }
           >
-            {filteredProducts.map((product) => (
+            {filteredProducts.map((product, index) => (
               <ProductCard
                 key={product.id}
                 product={product}
                 viewMode={viewMode}
                 showAdminActions={false}
+                imagePriority={index === 0}
                 onEdit={undefined}
                 onHide={undefined}
                 onRestore={undefined}

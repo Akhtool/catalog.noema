@@ -112,6 +112,15 @@ export interface Product {
   description: string | null;
   price: number;
 
+  /** Есть скидка — показывать оригинальную цену зачёркнутой */
+  hasDiscount: boolean;
+  /** Оригинальная цена до скидки; используется только при hasDiscount */
+  originalPrice: number | null;
+  /** Начало периода скидки (yyyy-MM-dd); null = без ограничения */
+  discountDateFrom: string | null;
+  /** Конец периода скидки (yyyy-MM-dd); null = без ограничения */
+  discountDateTo: string | null;
+
   images: string[]; // URLs изображений
   brand: string | null;
 
@@ -136,6 +145,8 @@ export interface CartItem {
   name: string;
   price: number;
   quantity: number;
+  /** Оригинальная цена до скидки; показывается зачёркнутой, если задана */
+  originalPrice?: number | null;
 }
 
 /**

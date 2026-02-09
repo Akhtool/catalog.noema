@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Product } from "@/types";
+import { isDiscountActive } from "@/lib/discount";
 import { useCartStore } from "@/store/cart";
 import { Plus, Minus, Pencil, EyeOff, Loader2 } from "lucide-react";
 import { ProductDetailCard } from "./product-detail-card";
@@ -27,6 +28,8 @@ interface ProductCardProps {
   onHide?: () => void | Promise<void>;
   /** Вернуть в каталог (восстановить) */
   onRestore?: () => void | Promise<void>;
+  /** Приоритет загрузки изображения (для LCP, первый товар в каталоге) */
+  imagePriority?: boolean;
 }
 
 // Извлекаем вес/объем из description или используем description как есть
@@ -49,6 +52,7 @@ export function ProductCard({
   onEdit,
   onHide,
   onRestore,
+  imagePriority = false,
 }: ProductCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [actionInProgress, setActionInProgress] = useState(false);
@@ -217,6 +221,7 @@ export function ProductCard({
                 fill
                 className="object-cover"
                 sizes="96px"
+                priority={imagePriority}
                 unoptimized
               />
             </div>
@@ -243,9 +248,16 @@ export function ProductCard({
               }`}
             >
               {quantity === 0 && (
-                <span className="text-lg font-bold">
-                  {product.price.toLocaleString("ru-RU")} ₽
-                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {isDiscountActive(product) && (
+                    <span className="text-sm text-gray-400 line-through">
+                      {product.originalPrice!.toLocaleString("ru-RU")} ₽
+                    </span>
+                  )}
+                  <span className="text-lg font-bold">
+                    {product.price.toLocaleString("ru-RU")} ₽
+                  </span>
+                </div>
               )}
               {quantity > 0 ? (
                 <div className="relative">
@@ -418,6 +430,7 @@ export function ProductCard({
               fill
               className="object-contain group-hover:scale-105 transition-transform duration-300"
               sizes="50vw"
+              priority={imagePriority}
               unoptimized
             />
           )}
@@ -442,9 +455,16 @@ export function ProductCard({
             }`}
           >
             {quantity === 0 && (
-              <span className="text-sm font-bold text-gray-900 bg-brand-yellow/20 px-2 py-1 rounded-lg">
-                {product.price.toLocaleString("ru-RU")} ₽
-              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                {isDiscountActive(product) && (
+                  <span className="text-xs text-gray-400 line-through">
+                    {product.originalPrice!.toLocaleString("ru-RU")} ₽
+                  </span>
+                )}
+                <span className="text-sm font-bold text-gray-900 bg-brand-yellow/20 px-2 py-1 rounded-lg">
+                  {product.price.toLocaleString("ru-RU")} ₽
+                </span>
+              </div>
             )}
             {quantity > 0 ? (
               <div className="relative">

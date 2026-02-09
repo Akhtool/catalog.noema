@@ -10,6 +10,7 @@ interface SortableProductCardProps {
   product: Product;
   viewMode: "grid" | "list";
   showAdminActions: boolean;
+  imagePriority?: boolean;
   onEdit?: () => void;
   onHide?: () => void | Promise<void>;
   onRestore?: () => void | Promise<void>;
@@ -23,6 +24,7 @@ export function SortableProductCard({
   product,
   viewMode,
   showAdminActions,
+  imagePriority = false,
   onEdit,
   onHide,
   onRestore,
@@ -59,6 +61,7 @@ export function SortableProductCard({
           product={product}
           viewMode={viewMode}
           showAdminActions={showAdminActions}
+          imagePriority={imagePriority}
           onEdit={onEdit}
           onHide={onHide}
           onRestore={onRestore}

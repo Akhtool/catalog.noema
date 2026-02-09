@@ -259,110 +259,141 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                 <p className="text-gray-500">Корзина пуста</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="divide-y divide-gray-100">
                 {items.map((item) => (
                   <div
                     key={item.productId}
-                    className="bg-white rounded-lg p-4 shadow-sm border border-gray-100"
+                    className="flex items-center gap-2 py-3 first:pt-0"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      {/* Левая часть: название и цена за единицу */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-base mb-1">
-                          {item.name}
-                        </h3>
-                        <p className="text-sm text-gray-500 mb-3">
-                          {item.price.toLocaleString("ru-RU")} ₽ ×{" "}
-                          {item.quantity}
-                        </p>
-
-                        {/* Управление количеством */}
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg">
-                            <button
-                              onClick={() => decreaseQuantity(item.productId)}
-                              className="p-1.5 hover:bg-gray-100 rounded-l-lg transition-colors"
-                              aria-label="Уменьшить количество"
-                            >
-                              <Minus className="h-4 w-4 text-gray-600" />
-                            </button>
-                            <span className="w-8 text-center font-medium text-sm">
+                    {/* Название и цена за штуку */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">
+                        {item.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {item.originalPrice != null &&
+                        item.originalPrice > item.price ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="text-gray-400 line-through">
+                              {item.originalPrice.toLocaleString("ru-RU")} ₽
+                            </span>
+                            <span>
+                              {item.price.toLocaleString("ru-RU")} ₽ ×{" "}
                               {item.quantity}
                             </span>
-                            <button
-                              onClick={() => increaseQuantity(item.productId)}
-                              className="p-1.5 hover:bg-gray-100 rounded-r-lg transition-colors"
-                              aria-label="Увеличить количество"
-                            >
-                              <Plus className="h-4 w-4 text-gray-600" />
-                            </button>
-                          </div>
+                          </span>
+                        ) : (
+                          <>
+                            {item.price.toLocaleString("ru-RU")} ₽ ×{" "}
+                            {item.quantity}
+                          </>
+                        )}
+                      </p>
+                    </div>
 
-                          {/* Кнопка удаления */}
-                          <button
-                            onClick={() => removeItem(item.productId)}
-                            className="p-2 bg-pink-50 hover:bg-pink-100 rounded-lg transition-colors"
-                            aria-label="Удалить товар"
-                          >
-                            <Trash2 className="h-4 w-4 text-red-600" />
-                          </button>
+                    {/* Stepper */}
+                    <div className="flex items-center gap-0.5 border-2 border-brand-yellow bg-brand-yellow/10 rounded-lg">
+                      <button
+                        onClick={() => decreaseQuantity(item.productId)}
+                        className="p-1.5 hover:bg-brand-yellow/30 rounded-l-md transition-colors"
+                        aria-label="Уменьшить количество"
+                      >
+                        <Minus className="h-3.5 w-3.5 text-gray-800" />
+                      </button>
+                      <span className="w-6 text-center text-xs font-bold tabular-nums text-gray-900">
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={() => increaseQuantity(item.productId)}
+                        className="p-1.5 hover:bg-brand-yellow/30 rounded-r-md transition-colors"
+                        aria-label="Увеличить количество"
+                      >
+                        <Plus className="h-3.5 w-3.5 text-gray-800" />
+                      </button>
+                    </div>
+
+                    {/* Сумма */}
+                    <div className="w-14 text-right shrink-0">
+                      {item.originalPrice != null &&
+                      item.originalPrice > item.price ? (
+                        <div>
+                          <p className="text-[10px] text-gray-400 line-through leading-tight">
+                            {(item.originalPrice * item.quantity).toLocaleString(
+                              "ru-RU"
+                            )}{" "}
+                            ₽
+                          </p>
+                          <p className="font-semibold text-sm">
+                            {(item.price * item.quantity).toLocaleString(
+                              "ru-RU"
+                            )}{" "}
+                            ₽
+                          </p>
                         </div>
-                      </div>
-
-                      {/* Правая часть: итоговая стоимость */}
-                      <div className="flex-shrink-0">
-                        <p className="font-bold text-base whitespace-nowrap">
-                          {(item.price * item.quantity).toLocaleString("ru-RU")}{" "}
+                      ) : (
+                        <p className="font-semibold text-sm">
+                          {(item.price * item.quantity).toLocaleString(
+                            "ru-RU"
+                          )}{" "}
                           ₽
                         </p>
-                      </div>
+                      )}
                     </div>
+
+                    {/* Удалить */}
+                    <button
+                      onClick={() => removeItem(item.productId)}
+                      className="p-1.5 bg-red-50 hover:bg-red-100 rounded-lg transition-colors shrink-0"
+                      aria-label="Удалить товар"
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </button>
                   </div>
                 ))}
+
+                {/* Комментарий к заказу — прокручивается вместе со списком */}
+                <div>
+                  <label
+                    htmlFor="order-comment"
+                    className="text-sm font-medium mb-2 block"
+                  >
+                    Комментарий к заказу
+                  </label>
+                  <Textarea
+                    id="order-comment"
+                    placeholder="Добавьте комментарий к заказу..."
+                    value={comment || ""}
+                    onChange={(e) => setComment(e.target.value || null)}
+                    rows={2}
+                    className="resize-none bg-gray-50 border-gray-200 rounded-lg text-[16px] min-h-[60px]"
+                  />
+                </div>
+
+                {/* Промокод — прокручивается вместе со списком */}
+                <div>
+                  <label
+                    htmlFor="promo-code"
+                    className="text-sm font-medium mb-2 block"
+                  >
+                    Промокод
+                  </label>
+                  <Input
+                    id="promo-code"
+                    type="text"
+                    placeholder="Введите промокод..."
+                    value={promoCode || ""}
+                    onChange={(e) => setPromoCode(e.target.value || null)}
+                    className="bg-gray-50 border-gray-200 rounded-lg text-[16px]"
+                  />
+                </div>
               </div>
             )}
           </div>
         )}
 
-        {/* Нижняя часть: комментарий, итого и кнопка */}
+        {/* Нижняя часть: итого и кнопка (остаётся закреплённой) */}
         {!successState && items.length > 0 && (
           <div className="px-6 pb-6 pt-4 border-t bg-white rounded-b-3xl space-y-4">
-            {/* Комментарий к заказу */}
-            <div>
-              <label
-                htmlFor="order-comment"
-                className="text-sm font-medium mb-2 block"
-              >
-                Комментарий к заказу
-              </label>
-              <Textarea
-                id="order-comment"
-                placeholder="Добавьте комментарий к заказу..."
-                value={comment || ""}
-                onChange={(e) => setComment(e.target.value || null)}
-                rows={2}
-                className="resize-none bg-gray-50 border-gray-200 rounded-lg text-[16px] min-h-[60px]"
-              />
-            </div>
-
-            {/* Промокод */}
-            <div>
-              <label
-                htmlFor="promo-code"
-                className="text-sm font-medium mb-2 block"
-              >
-                Промокод
-              </label>
-              <Input
-                id="promo-code"
-                type="text"
-                placeholder="Введите промокод..."
-                value={promoCode || ""}
-                onChange={(e) => setPromoCode(e.target.value || null)}
-                className="bg-gray-50 border-gray-200 rounded-lg text-[16px]"
-              />
-            </div>
-
             {/* Итого */}
             <div className="flex items-center justify-between text-lg font-bold mb-4">
               <span>Итого:</span>

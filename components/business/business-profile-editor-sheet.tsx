@@ -322,7 +322,6 @@ export function BusinessProfileEditorSheet({
     return () => {
       // cleanup выполняется и при закрытии
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   useEffect(() => {
@@ -371,7 +370,6 @@ export function BusinessProfileEditorSheet({
       const snap = themeScopeSnapshotRef.current
       if (el && snap) restoreThemeScope(el, snap)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {

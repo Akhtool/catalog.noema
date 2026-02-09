@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Product } from "@/types";
+import { isDiscountActive } from "@/lib/discount";
 import { useCartStore } from "@/store/cart";
 import {
   X,
@@ -352,8 +353,15 @@ export function ProductDetailCard({
           <div className="px-5 pb-5 pt-4 border-t bg-white">
             <div className="flex items-center justify-between gap-3">
               {/* Цена слева */}
-              <div className="text-2xl font-black text-gray-900">
-                {product.price.toLocaleString("ru-RU")} ₽
+              <div className="flex items-center gap-2 flex-wrap">
+                {isDiscountActive(product) && (
+                  <span className="text-lg text-gray-400 line-through font-medium">
+                    {product.originalPrice!.toLocaleString("ru-RU")} ₽
+                  </span>
+                )}
+                <span className="text-2xl font-black text-gray-900">
+                  {product.price.toLocaleString("ru-RU")} ₽
+                </span>
               </div>
 
               {/* Кнопка с плюсиком или селектор количества справа */}

@@ -178,6 +178,11 @@ Product {
   description: string | null
   price: number
 
+  has_discount: boolean    // есть скидка — показывать оригинальную цену зачёркнутой
+  original_price: numeric  // оригинальная цена до скидки; только при has_discount=true
+  discount_date_from: date // начало периода скидки; null = без ограничения
+  discount_date_to: date   // конец периода скидки; null = без ограничения
+
   in_stock: boolean
   is_active: boolean
   order: number             // порядок отображения в каталоге (настраивается админом)
@@ -191,6 +196,8 @@ Product {
 
 - Product всегда принадлежит Business и Category.
 - `brand_id` опционален, ссылается на Brand.
+- `has_discount` и `original_price`: при скидке показывается `original_price` зачёркнутой, `price` — итоговая. Процент скидки рассчитывается на фронте.
+- `discount_date_from` и `discount_date_to`: опционально. Если заданы — скидка отображается только когда текущая дата входит в период.
 - `order` задаётся админом; при создании товара присваивается max(order)+1 в рамках бизнеса.
 - Изображения хранятся в таблице `product_image`.
 - Используется в каталоге, фильтрах и корзине.
@@ -380,6 +387,7 @@ Business
 - по бренду (brand_id)
 - по цене (price)
 - по наличию (in_stock)
+- по скидке (has_discount) — «Товары со скидкой»
 - по текстовому поиску (name, description)
 
 ## 6. Аналитика (V1)

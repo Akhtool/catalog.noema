@@ -1,5 +1,6 @@
 // app/[slug]/page.tsx
 import { supabase } from "@/lib/supabase";
+import { expireProductDiscounts } from "@/app/admin/product/actions";
 import { createServerClient } from "@/lib/supabase-server";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
@@ -93,6 +94,8 @@ export default async function Page({ params }: PageProps) {
     .select("*")
     .eq("business_id", business.id)
     .order("order_position", { ascending: true });
+
+  await expireProductDiscounts(business.id);
 
   // Для админа загружаем все товары (в т.ч. скрытые) через serverClient; для остальных — только активные через anon
   const serverClient = await createServerClient();
@@ -211,6 +214,26 @@ export default async function Page({ params }: PageProps) {
       .sort((a, b) => a.position - b.position)
       .map((img) => img.url);
 
+    const hasDiscount = (prod as { has_discount?: boolean }).has_discount === true;
+    const originalPriceRaw = (prod as { original_price?: number | string | null }).original_price;
+    const originalPriceNum =
+      originalPriceRaw != null ? Number(originalPriceRaw) : NaN;
+    const originalPrice =
+      hasDiscount &&
+      !Number.isNaN(originalPriceNum) &&
+      originalPriceNum > prod.price
+        ? originalPriceNum
+        : null;
+
+    const raw = prod as {
+      discount_date_from?: string | null;
+      discount_date_to?: string | null;
+    };
+    const discountDateFrom =
+      typeof raw.discount_date_from === "string" ? raw.discount_date_from : null;
+    const discountDateTo =
+      typeof raw.discount_date_to === "string" ? raw.discount_date_to : null;
+
     return {
       id: prod.id,
       businessId: prod.business_id,
@@ -218,6 +241,10 @@ export default async function Page({ params }: PageProps) {
       name: prod.name,
       description: prod.description || null,
       price: prod.price,
+      hasDiscount,
+      originalPrice,
+      discountDateFrom,
+      discountDateTo,
       images,
       brand: (prod.brand as { name: string } | null)?.name ?? null,
       inStock: prod.in_stock,
