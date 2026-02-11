@@ -26,7 +26,7 @@ export function SearchInput({ categories, products }: SearchInputProps) {
           <Input
             id="search-input"
             type="search"
-            placeholder="Поиск товаров..."
+            placeholder="Поиск..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-gray-50 border-none rounded-xl pl-12 py-3.5 text-[16px] font-medium focus:ring-2 focus:ring-brand-yellow focus:bg-white transition-all placeholder-gray-400"

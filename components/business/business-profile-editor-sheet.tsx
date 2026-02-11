@@ -25,7 +25,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
 import { Business, BusinessLocation } from '@/types'
-import { Camera, User, Settings, Image as ImageIcon, Frame, X, Phone, Loader2, MapPin, Plus, Pencil, Trash2, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react'
+import { Camera, User, Settings, Image as ImageIcon, Frame, X, Phone, Loader2, MapPin, Plus, Pencil, Trash2, Eye, EyeOff, ChevronDown, ChevronUp, Palette, Clock } from 'lucide-react'
 import { createLocation, updateLocation, deleteLocation } from '@/app/admin/business/actions'
 import { useSheetDrag } from '@/lib/useSheetDrag'
 import { BusinessImageCropSheet } from './business-image-crop-sheet'
@@ -1102,6 +1102,87 @@ export function BusinessProfileEditorSheet({
                 </div>
               </div>
             </div>
+
+            <div className="space-y-4 mt-6">
+              <label className="text-sm font-medium text-gray-700">ОТОБРАЖЕНИЕ НА СТРАНИЦЕ</label>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <svg
+                      className="w-4 h-4 text-gray-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <Input
+                      id="delivery_regions"
+                      name="delivery_regions"
+                      type="text"
+                      defaultValue={business.deliveryRegions || ''}
+                      placeholder="Регионы доставки"
+                      disabled={isSubmitting}
+                    />
+                    <p className="text-xs text-muted-foreground">Например: Грозный, Аргун</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <svg
+                      className="w-4 h-4 text-gray-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                      />
+                    </svg>
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <Input
+                      id="city_delivery"
+                      name="city_delivery"
+                      type="text"
+                      defaultValue={business.cityDelivery || ''}
+                      placeholder="Условия доставки"
+                      disabled={isSubmitting}
+                    />
+                    <p className="text-xs text-muted-foreground">Например: По тарифу такси, От 500₽</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <Clock className="w-4 h-4 text-gray-600" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <Input
+                      id="working_hours"
+                      name="working_hours"
+                      type="text"
+                      defaultValue={business.workingHours || ''}
+                      placeholder="Часы работы"
+                      disabled={isSubmitting}
+                    />
+                    <p className="text-xs text-muted-foreground">Например: Пн-Вс: с 10:00 до 22:00</p>
+                  </div>
+                </div>
+              </div>
+            </div>
               </div>
             </TabsContent>
 
@@ -1399,49 +1480,59 @@ export function BusinessProfileEditorSheet({
                     </Button>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={themeBrandHex}
-                      onChange={(e) => {
-                        const nextHex = normalizeHex(e.target.value) ?? DEFAULT_BRAND_HEX
-                        setThemeBrandHex(nextHex)
-                        const rgb = hexToRgb(nextHex)
-                        setThemeBrandHsl(rgb ? rgbToHslTriple(rgb) : null)
-                        setThemeBrandForeground(rgb ? pickForeground(rgb) : null)
-                      }}
-                      className="h-10 w-12 p-0 border rounded-md bg-transparent"
-                      aria-label="Выбрать цвет"
-                    />
-
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        '#ffd600',
-                        '#f97316',
-                        '#ef4444',
-                        '#22c55e',
-                        '#14b8a6',
-                        '#3b82f6',
-                        '#a855f7',
-                        '#111827',
-                      ].map((hex) => (
-                        <button
-                          key={hex}
-                          type="button"
-                          onClick={() => {
-                            setThemeBrandHex(hex)
-                            const rgb = hexToRgb(hex)
-                            setThemeBrandHsl(rgb ? rgbToHslTriple(rgb) : null)
-                            setThemeBrandForeground(rgb ? pickForeground(rgb) : null)
-                          }}
-                          className={cn(
-                            'h-8 w-8 rounded-full border shadow-sm transition-transform active:scale-95',
-                            themeBrandHex.toLowerCase() === hex ? 'ring-2 ring-offset-2 ring-brand-yellow' : 'hover:scale-[1.02]'
-                          )}
-                          style={{ backgroundColor: hex }}
-                          aria-label={`Пресет ${hex}`}
-                        />
-                      ))}
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      '#ffd600',
+                      '#f97316',
+                      '#ef4444',
+                      '#22c55e',
+                      '#14b8a6',
+                      '#3b82f6',
+                      '#a855f7',
+                      '#111827',
+                    ].map((hex) => (
+                      <button
+                        key={hex}
+                        type="button"
+                        onClick={() => {
+                          setThemeBrandHex(hex)
+                          const rgb = hexToRgb(hex)
+                          setThemeBrandHsl(rgb ? rgbToHslTriple(rgb) : null)
+                          setThemeBrandForeground(rgb ? pickForeground(rgb) : null)
+                        }}
+                        className={cn(
+                          'h-8 w-8 rounded-full border shadow-sm transition-transform active:scale-95',
+                          themeBrandHex.toLowerCase() === hex ? 'ring-2 ring-offset-2 ring-brand-yellow' : 'hover:scale-[1.02]'
+                        )}
+                        style={{ backgroundColor: hex }}
+                        aria-label={`Пресет ${hex}`}
+                      />
+                    ))}
+                    
+                    <div className="relative">
+                      <input
+                        type="color"
+                        value={themeBrandHex}
+                        onChange={(e) => {
+                          const nextHex = normalizeHex(e.target.value) ?? DEFAULT_BRAND_HEX
+                          setThemeBrandHex(nextHex)
+                          const rgb = hexToRgb(nextHex)
+                          setThemeBrandHsl(rgb ? rgbToHslTriple(rgb) : null)
+                          setThemeBrandForeground(rgb ? pickForeground(rgb) : null)
+                        }}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        aria-label="Выбрать цвет"
+                      />
+                      <button
+                        type="button"
+                        className="h-8 w-8 rounded-full border shadow-sm transition-transform active:scale-95 hover:scale-[1.02] bg-white flex items-center justify-center"
+                        aria-label="Выбрать цвет"
+                        onClick={(e) => {
+                          e.currentTarget.previousElementSibling?.click()
+                        }}
+                      >
+                        <Palette className="h-4 w-4 text-gray-600" />
+                      </button>
                     </div>
                   </div>
 
@@ -1451,7 +1542,7 @@ export function BusinessProfileEditorSheet({
                       {themeBrandHsl ?? 'по умолчанию'}
                     </div>
                     <div
-                      className="px-3 py-2 rounded-lg text-sm font-semibold shadow-soft"
+                      className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer select-none whitespace-nowrap"
                       style={{
                         backgroundColor: themeBrandHex,
                         color:
@@ -1461,7 +1552,7 @@ export function BusinessProfileEditorSheet({
                             : '#ffffff',
                       }}
                     >
-                      Пример CTA
+                      Пример кнопки
                     </div>
                   </div>
                 </div>

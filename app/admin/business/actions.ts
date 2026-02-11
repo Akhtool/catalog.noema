@@ -271,6 +271,9 @@ export async function updateBusiness(formData: FormData) {
     cover_url: normalizeString(formData.get('cover_url') as string),
     theme_brand_hsl: normalizeString(formData.get('theme_brand_hsl') as string),
     theme_brand_foreground: themeBrandForeground,
+    delivery_regions: normalizeString(formData.get('delivery_regions') as string),
+    city_delivery: normalizeString(formData.get('city_delivery') as string),
+    working_hours: normalizeString(formData.get('working_hours') as string),
   }
 
   // Получаем slug бизнеса для revalidatePath

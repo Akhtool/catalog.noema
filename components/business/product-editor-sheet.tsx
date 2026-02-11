@@ -1012,12 +1012,13 @@ export function ProductEditorSheet({
 
             <Button
               type="submit"
+              size="lg"
               disabled={submitInProgress}
-              className="w-full mt-6 py-3 bg-gray-900 text-white rounded-xl font-semibold hover:bg-black disabled:opacity-70 touch-manipulation"
+              className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-brand-yellow-foreground font-normal text-base py-6 rounded-lg"
             >
               {submitInProgress ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Сохранение…
                 </>
               ) : (
