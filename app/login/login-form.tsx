@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { toast } from 'sonner'
 import { getAuthErrorMessage } from '@/lib/auth-errors'
 import { supabase } from '@/lib/supabase'
@@ -9,9 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Loader2, Mail, Lock, Link2, Eye, EyeOff } from 'lucide-react'
 
-// Временно скрыты magic link и регистрация (переключить на true для включения)
+// Временно скрыты magic link (переключить на true для включения)
 const SHOW_MAGIC_LINK = false
-const SHOW_SIGNUP_LINK = false
 
 /**
  * Форма входа в админ-панель
@@ -303,18 +301,6 @@ export function LoginForm() {
             </>
           )}
         </form>
-      )}
-
-      {SHOW_SIGNUP_LINK && (
-        <div className="text-center text-sm pt-4 border-t border-[#eee]">
-          <span className="text-[#666]">Нет аккаунта? </span>
-          <Link
-            href="/signup"
-            className="text-[#333] underline hover:text-[#111]"
-          >
-            Зарегистрироваться
-          </Link>
-        </div>
       )}
     </div>
   )
