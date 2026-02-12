@@ -60,5 +60,5 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   // Исключаем системные маршруты, чтобы не ломать ассеты и API.
-  matcher: ['/((?!api|_next|favicon\\.ico|robots\\.txt|sitemap\\.xml|admin|login|signup|auth).*)'],
+  matcher: ['/((?!api|_next|favicon\\.ico|robots\\.txt|sitemap\\.xml|admin|login|signup|auth|onboarding).*)'],
 }
