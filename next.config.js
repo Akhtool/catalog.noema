@@ -7,8 +7,13 @@ const nextConfig = {
    * @see https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats
    */
   outputFileTracingRoot: __dirname,
-  // Разрешить dev-запросы с поддоменов каталога (например crusty.catlg.ru)
-  allowedDevOrigins: ['crusty.catlg.ru', 'catlg.ru'],
+  // Разрешить dev-запросы с поддоменов каталога (добавляйте сюда новые slug при разработке)
+  allowedDevOrigins: [
+    'crusty.catlg.ru',
+    'noema-coffee.catlg.ru',
+    'catlg.ru',
+    'http://localhost:3000',
+  ],
   images: {
     remotePatterns: [
       {

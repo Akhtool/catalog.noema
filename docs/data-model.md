@@ -63,6 +63,17 @@ Business {
 
   deliveryTypes: ("delivery" | "pickup" | "dine-in")[]   // доступные способы получения заказа (из Supabase delivery_types)
 
+  // Промокод (один активный на бизнес)
+  promo_enabled: boolean       // включён ли промокод
+  promo_code: string | null    // код (например "SALE10"); сравнение без учёта регистра
+  promo_type: "percent" | "fixed" | null   // тип скидки
+  promo_value: numeric | null  // процент (1–100) или сумма в рублях
+  promo_min_order: numeric | null   // минимальная сумма заказа для применения (руб)
+  promo_date_from: date | null     // начало периода; null = без ограничения
+  promo_date_to: date | null       // конец периода; null = без ограничения
+  // Срок действия промо (date_from/date_to) проверяется по локальной дате на устройстве клиента.
+  promo_max_discount: numeric | null  // макс. сумма скидки для percent (руб); null = без лимита
+
   createdAt: timestamp
   updatedAt: timestamp
 }
@@ -71,6 +82,7 @@ Business {
 **Примечания:**
 
 - `slug` используется для публичной страницы каталога.
+- Промокод: при включённом `promo_enabled` клиент вводит код в корзине; при совпадении и соблюдении периода/минимума заказа применяется скидка. Расчёт только на клиенте.
 - Один Business = один каталог (V1).
 - `yandex_metrika` используется для подключения аналитики на публичной странице.
 - `theme_brand_hsl` и `theme_brand_foreground` влияют только на оформление публичного каталога и не меняют бизнес-логику.
@@ -289,6 +301,7 @@ BusinessUser {
 
 CartItem {
   productId: UUID
+  businessId: UUID   // бизнес, которому принадлежит товар
   name: string
   price: number
   quantity: number
@@ -302,14 +315,27 @@ CartItem {
 
 ### 3.2 Cart
 
-Корзина пользователя.
+Корзина пользователя. **Отдельная на каждый бизнес** (cartByBusinessId: Record<businessId, CartSlice>).
 
-Cart {
+CartSlice {
   items: CartItem[]
   comment: string | null
+  promoCode: string | null        // введённый код (для отображения и сообщения)
+  appliedPromo: AppliedPromo | null  // применённый промокод (для расчёта скидки)
+  promoError: string | null        // сообщение об ошибке при применении
   deliveryType: DeliveryType | null
   deliveryAddress: string | null
   selectedPointId: string | null   // UUID точки (BusinessLocation), для pickup/dine-in
+}
+
+// Данные применённого промокода (из настроек бизнеса, после успешной проверки)
+AppliedPromo {
+  code: string
+  type: "percent" | "fixed"
+  value: number
+  minOrder: number | null
+  maxDiscount: number | null   // только для percent
+  businessId: UUID             // бизнес, для которого применён промо
 }
 
 Примечания:
@@ -317,6 +343,8 @@ Cart {
 Корзина не сохраняется в базе данных.
 
 Может храниться в памяти или localStorage.
+
+Корзина хранится по businessId; при переходе на витрину другого бизнеса отображается только его корзина.
 
 ### 3.3 Order (виртуальный)
 
@@ -326,10 +354,13 @@ Order {
   orderNumber: string
 
   items: CartItem[]
-  totalPrice: number
+  subtotal: number        // сумма товаров до скидки
+  discountAmount: number  // скидка по промокоду (0 если не применён)
+  totalPrice: number     // итог к оплате (subtotal - discountAmount)
   totalQuantity: number
 
   comment: string | null
+  promoCode: string | null
   deliveryType: DeliveryType | null
   deliveryAddress: string | null
   selectedPointId: string | null   // выбранная точка (для текста сообщения и контакта)

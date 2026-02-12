@@ -38,6 +38,7 @@ supabase db push
 - `add_business_theme_brand.sql` - кастомные цвета темы
 - `add_product_discount.sql` - система скидок
 - `add_whatsapp_per_delivery_type.sql` - отдельные WhatsApp для способов доставки
+- `add_promo_to_business.sql` - поля промокода (один активный на бизнес)
 
 ## Важные замечания
 
