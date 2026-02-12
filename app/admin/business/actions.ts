@@ -276,6 +276,30 @@ export async function updateBusiness(formData: FormData) {
     working_hours: normalizeString(formData.get('working_hours') as string),
   }
 
+  const promoEnabled = formData.get('promo_enabled') === 'true'
+  const promoCode = normalizeString(formData.get('promo_code') as string)
+  const promoTypeRaw = normalizeString(formData.get('promo_type') as string)
+  const promoType = promoTypeRaw === 'percent' || promoTypeRaw === 'fixed' ? promoTypeRaw : null
+  const promoValueStr = normalizeString(formData.get('promo_value') as string)
+  const promoValue = promoValueStr ? parseFloat(promoValueStr) : null
+  const promoMinOrderStr = normalizeString(formData.get('promo_min_order') as string)
+  const promoMinOrder = promoMinOrderStr ? parseFloat(promoMinOrderStr) : null
+  const promoDateFrom = normalizeString(formData.get('promo_date_from') as string)
+  const promoDateTo = normalizeString(formData.get('promo_date_to') as string)
+  const promoMaxDiscountStr = normalizeString(formData.get('promo_max_discount') as string)
+  const promoMaxDiscount = promoMaxDiscountStr ? parseFloat(promoMaxDiscountStr) : null
+
+  const promoData: Record<string, unknown> = {
+    promo_enabled: promoEnabled,
+    promo_code: promoCode,
+    promo_type: promoType,
+    promo_value: promoValue,
+    promo_min_order: promoMinOrder,
+    promo_date_from: promoDateFrom || null,
+    promo_date_to: promoDateTo || null,
+    promo_max_discount: promoMaxDiscount,
+  }
+
   // Получаем slug бизнеса для revalidatePath
   const { data: businessData } = await supabase
     .from('business')
@@ -286,7 +310,7 @@ export async function updateBusiness(formData: FormData) {
   // Обновляем бизнес
   const { error } = await supabase
     .from('business')
-    .update(updateData)
+    .update({ ...updateData, ...promoData })
     .eq('id', businessId)
 
   if (error) {

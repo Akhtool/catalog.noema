@@ -25,7 +25,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
 import { Business, BusinessLocation } from '@/types'
-import { Camera, User, Settings, Image as ImageIcon, Frame, X, Phone, Loader2, MapPin, Plus, Pencil, Trash2, Eye, EyeOff, ChevronDown, ChevronUp, Palette, Clock } from 'lucide-react'
+import { Camera, User, Settings, Image as ImageIcon, Frame, X, Phone, Loader2, MapPin, Plus, Pencil, Trash2, Eye, EyeOff, ChevronDown, ChevronUp, Palette, Clock, Tag } from 'lucide-react'
 import { createLocation, updateLocation, deleteLocation } from '@/app/admin/business/actions'
 import { useSheetDrag } from '@/lib/useSheetDrag'
 import { BusinessImageCropSheet } from './business-image-crop-sheet'
@@ -819,7 +819,7 @@ export function BusinessProfileEditorSheet({
 
             <div className="space-y-6">
           <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="w-full grid grid-cols-4 mb-4">
+            <TabsList className="w-full grid grid-cols-5 mb-4">
               <TabsTrigger value="profile" className="flex-1 text-xs">
                 Профиль
               </TabsTrigger>
@@ -828,6 +828,9 @@ export function BusinessProfileEditorSheet({
               </TabsTrigger>
               <TabsTrigger value="locations" className="flex-1 text-xs">
                 Филиалы
+              </TabsTrigger>
+              <TabsTrigger value="promo" className="flex-1 text-xs">
+                Промокод
               </TabsTrigger>
               <TabsTrigger value="settings" className="flex-1 text-xs">
                 Настройки
@@ -1446,6 +1449,132 @@ export function BusinessProfileEditorSheet({
               </div>
             </TabsContent>
 
+            {/* Вкладка "Промокод" */}
+            <TabsContent value="promo" className="space-y-4">
+              <div className="space-y-4 rounded-lg border p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Tag className="w-5 h-5 text-brand-yellow" />
+                  <h3 className="text-lg font-semibold">Промокод</h3>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Один активный промокод на каталог. Клиент вводит код в корзине; при совпадении и соблюдении условий применяется скидка.
+                </p>
+                <label className="flex items-center gap-2 cursor-pointer mb-4">
+                  <input
+                    type="checkbox"
+                    name="promo_enabled"
+                    value="true"
+                    defaultChecked={business.promo?.enabled}
+                    disabled={isSubmitting}
+                    className="rounded border-gray-300"
+                  />
+                  <span className="text-sm font-medium">Включить промокод</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <label htmlFor="promo_code" className="text-sm font-medium">Код</label>
+                    <Input
+                      id="promo_code"
+                      name="promo_code"
+                      type="text"
+                      defaultValue={business.promo?.code ?? ''}
+                      placeholder="SALE10"
+                      disabled={isSubmitting}
+                      className="bg-white"
+                      onInput={(e) => {
+                        const el = e.currentTarget;
+                        const start = el.selectionStart ?? 0;
+                        const end = el.selectionEnd ?? 0;
+                        const v = el.value.toUpperCase();
+                        if (v !== el.value) {
+                          el.value = v;
+                          el.setSelectionRange(start, end);
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="promo_type" className="text-sm font-medium">Тип скидки</label>
+                    <select
+                      id="promo_type"
+                      name="promo_type"
+                      defaultValue={business.promo?.type ?? ''}
+                      disabled={isSubmitting}
+                      className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
+                    >
+                      <option value="">—</option>
+                      <option value="percent">Процент</option>
+                      <option value="fixed">Фиксированная сумма</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="promo_value" className="text-sm font-medium">Значение (%) или сумма (₽)</label>
+                    <Input
+                      id="promo_value"
+                      name="promo_value"
+                      type="number"
+                      min={0}
+                      step={1}
+                      defaultValue={business.promo?.value ?? ''}
+                      placeholder="10 или 500"
+                      disabled={isSubmitting}
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="promo_min_order" className="text-sm font-medium">Мин. сумма заказа (₽)</label>
+                    <Input
+                      id="promo_min_order"
+                      name="promo_min_order"
+                      type="number"
+                      min={0}
+                      step={1}
+                      defaultValue={business.promo?.minOrder ?? ''}
+                      placeholder="1000"
+                      disabled={isSubmitting}
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="promo_date_from" className="text-sm font-medium">Действует с</label>
+                    <Input
+                      id="promo_date_from"
+                      name="promo_date_from"
+                      type="date"
+                      defaultValue={business.promo?.dateFrom ?? ''}
+                      disabled={isSubmitting}
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="promo_date_to" className="text-sm font-medium">Действует по</label>
+                    <Input
+                      id="promo_date_to"
+                      name="promo_date_to"
+                      type="date"
+                      defaultValue={business.promo?.dateTo ?? ''}
+                      disabled={isSubmitting}
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-y-2 sm:col-span-2">
+                    <label htmlFor="promo_max_discount" className="text-sm font-medium">Макс. скидка (₽) — только для %</label>
+                    <Input
+                      id="promo_max_discount"
+                      name="promo_max_discount"
+                      type="number"
+                      min={0}
+                      step={1}
+                      defaultValue={business.promo?.maxDiscount ?? ''}
+                      placeholder="500"
+                      disabled={isSubmitting}
+                      className="bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
             {/* Вкладка "Настройки" */}
           <TabsContent value="settings" className="space-y-4">
             <div className="space-y-4 rounded-lg border p-4">
@@ -1528,7 +1657,7 @@ export function BusinessProfileEditorSheet({
                         className="h-8 w-8 rounded-full border shadow-sm transition-transform active:scale-95 hover:scale-[1.02] bg-white flex items-center justify-center"
                         aria-label="Выбрать цвет"
                         onClick={(e) => {
-                          e.currentTarget.previousElementSibling?.click()
+                          (e.currentTarget.previousElementSibling as HTMLElement | null)?.click()
                         }}
                       >
                         <Palette className="h-4 w-4 text-gray-600" />

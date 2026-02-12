@@ -14,6 +14,8 @@ import {
 
 interface BusinessProfileEditorWrapperProps {
   business: Business;
+  /** Передаётся с сервера при рендере страницы — чтобы кнопки админа показывались сразу, без ожидания клиентской проверки */
+  initialHasAccess?: boolean | null;
   children: React.ReactNode;
 }
 
@@ -23,13 +25,14 @@ interface BusinessProfileEditorWrapperProps {
  */
 export function BusinessProfileEditorWrapper({
   business,
+  initialHasAccess = null,
   children,
 }: BusinessProfileEditorWrapperProps) {
   const router = useRouter();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isProductEditorOpen, setIsProductEditorOpen] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
-  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
+  const [hasAccess, setHasAccess] = useState<boolean | null>(initialHasAccess ?? null);
 
   useEffect(() => {
     checkBusinessAccess(business.slug).then((result) => {

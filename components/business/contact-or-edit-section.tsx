@@ -19,14 +19,16 @@ const ADD_POSITION_CLASS = `${ADMIN_BUTTON_BASE} bg-brand-yellow text-brand-yell
 
 interface ContactOrEditSectionProps {
   business: Business;
+  /** Передаётся с сервера — чтобы кнопки показывались сразу при входе владельца, без ожидания клиентской проверки */
+  initialHasAccess?: boolean | null;
 }
 
 /**
  * Секция "Связаться с нами" или кнопки админа (редактировать профиль, добавить позицию).
  * Для admin/owner показывает кнопки редактирования, для остальных — ContactButton.
  */
-export function ContactOrEditSection({ business }: ContactOrEditSectionProps) {
-  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
+export function ContactOrEditSection({ business, initialHasAccess = null }: ContactOrEditSectionProps) {
+  const [hasAccess, setHasAccess] = useState<boolean | null>(initialHasAccess ?? null);
   const openEditor = useProfileEditor();
   const openProductEditor = useProductEditor();
 
