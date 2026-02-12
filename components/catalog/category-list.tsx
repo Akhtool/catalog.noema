@@ -1,7 +1,8 @@
 "use client";
 
 import { Category } from "@/types";
-import { useCatalogFiltersStore } from "@/store/catalog-filters";
+import { useFiltersForBusiness } from "@/store/catalog-filters";
+import { useCurrentBusinessStore } from "@/store/current-business";
 import { useRef, useEffect } from "react";
 
 interface CategoryListProps {
@@ -9,8 +10,9 @@ interface CategoryListProps {
 }
 
 export function CategoryList({ categories }: CategoryListProps) {
+  const business = useCurrentBusinessStore((s) => s.business);
   const { selectedCategoryId, setSelectedCategoryId, catalogMode } =
-    useCatalogFiltersStore();
+    useFiltersForBusiness(business?.id ?? null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const categoryRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 

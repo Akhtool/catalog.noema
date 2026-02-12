@@ -41,20 +41,27 @@ export function generateOrderMessage(order: Order): string {
 
   lines.push('');
 
-  // Итого
-  lines.push(`*Итого:* ${formatPrice(order.totalPrice)}`);
+  // Итого: при скидке — подытог, скидка, итог (subtotal/discountAmount могут быть из createOrder)
+  const discountAmount = typeof order.discountAmount === 'number' ? order.discountAmount : 0;
+  const subtotal = typeof order.subtotal === 'number' ? order.subtotal : order.items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const hasDiscount = discountAmount > 0;
+  if (hasDiscount) {
+    lines.push(`*Подытог:* ${formatPrice(subtotal)}`);
+    lines.push(`*Скидка по промокоду:* −${formatPrice(discountAmount)}`);
+    lines.push(`*Итого:* ${formatPrice(order.totalPrice)}`);
+  } else {
+    lines.push(`*Итого:* ${formatPrice(order.totalPrice)}`);
+  }
   lines.push(`*Количество товаров:* ${order.totalQuantity} шт.`);
 
-  // Комментарий, если есть
-  if (order.comment) {
-    lines.push('');
-    lines.push(`*Комментарий:* ${order.comment}`);
-  }
-
-  // Промокод, если есть
   if (order.promoCode) {
     lines.push('');
     lines.push(`*Промокод:* ${order.promoCode}`);
+  }
+
+  if (order.comment) {
+    lines.push('');
+    lines.push(`*Комментарий:* ${order.comment}`);
   }
 
   // Способ получения заказа

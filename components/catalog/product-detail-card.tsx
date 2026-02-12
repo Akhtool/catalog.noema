@@ -104,7 +104,7 @@ export function ProductDetailCard({
   const addItem = useCartStore((state) => state.addItem);
   const increaseQuantity = useCartStore((state) => state.increaseQuantity);
   const decreaseQuantity = useCartStore((state) => state.decreaseQuantity);
-  const cartItems = useCartStore((state) => state.items);
+  const cartItems = useCartStore((state) => state.getItems(product.businessId));
 
   const cartItem = cartItems.find((item) => item.productId === product.id);
   const quantity = cartItem?.quantity || 0;
@@ -113,7 +113,7 @@ export function ProductDetailCard({
     if (quantity === 0) {
       addItem(product);
     } else {
-      increaseQuantity(product.id);
+      increaseQuantity(product.businessId, product.id);
     }
   };
 
@@ -121,13 +121,13 @@ export function ProductDetailCard({
     if (quantity === 0) {
       addItem(product);
     } else {
-      increaseQuantity(product.id);
+      increaseQuantity(product.businessId, product.id);
     }
   };
 
   const handleDecrease = () => {
     if (quantity > 0) {
-      decreaseQuantity(product.id);
+      decreaseQuantity(product.businessId, product.id);
     }
   };
 

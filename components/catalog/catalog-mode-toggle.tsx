@@ -1,9 +1,11 @@
 "use client"
 
-import { useCatalogFiltersStore } from "@/store/catalog-filters"
+import { useFiltersForBusiness } from "@/store/catalog-filters"
+import { useCurrentBusinessStore } from "@/store/current-business"
 
 export function CatalogModeToggle() {
-  const { catalogMode, setCatalogMode } = useCatalogFiltersStore()
+  const business = useCurrentBusinessStore((s) => s.business)
+  const { catalogMode, setCatalogMode } = useFiltersForBusiness(business?.id ?? null)
 
   return (
     <div className="bg-white rounded-2xl shadow-card p-1 flex items-center gap-1 mb-6">

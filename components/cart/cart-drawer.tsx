@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { useCartStore } from "@/store/cart";
+import { useCartStore, useCartForBusiness } from "@/store/cart";
 import { useCurrentBusinessStore } from "@/store/current-business";
 import {
   ShoppingCart,
@@ -20,6 +20,7 @@ import {
   Trash2,
   X,
   CheckCircle2,
+  Tag,
 } from "lucide-react";
 import { CheckoutDialog } from "./checkout-dialog";
 import {
@@ -30,6 +31,7 @@ import {
   resolveWhatsappForOrder,
   getOrderContactLink,
 } from "@/lib/order";
+import { validatePromo } from "@/lib/promo";
 import { useSheetDrag } from "@/lib/useSheetDrag";
 
 const COUNTDOWN_SECONDS = 5;
@@ -58,22 +60,45 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   const [countdownSeconds, setCountdownSeconds] = useState(COUNTDOWN_SECONDS);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const items = useCartStore((state) => state.items);
-  const comment = useCartStore((state) => state.comment);
-  const promoCode = useCartStore((state) => state.promoCode);
-  const orderNumber = useCartStore((state) => state.orderNumber);
+  const business = useCurrentBusinessStore((state) => state.business);
+  const cart = useCartForBusiness(business?.id ?? null);
+  const {
+    items,
+    comment,
+    promoCode,
+    appliedPromo,
+    promoError,
+    getSubtotal,
+    getDiscountAmount,
+    getTotalPrice,
+  } = cart;
+
+  const orderNumberByBusinessId = useCartStore((s) => s.orderNumberByBusinessId);
+  const orderNumber = business ? orderNumberByBusinessId[business.id] ?? null : null;
   const setComment = useCartStore((state) => state.setComment);
   const setPromoCode = useCartStore((state) => state.setPromoCode);
-  const generateOrderNumber = useCartStore(
-    (state) => state.generateOrderNumber,
-  );
+  const applyPromo = useCartStore((state) => state.applyPromo);
+  const clearPromo = useCartStore((state) => state.clearPromo);
+  const generateOrderNumber = useCartStore((state) => state.generateOrderNumber);
   const increaseQuantity = useCartStore((state) => state.increaseQuantity);
   const decreaseQuantity = useCartStore((state) => state.decreaseQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
-  const totalPrice = useCartStore((state) => state.getTotalPrice());
   const createOrderFromCart = useCartStore((state) => state.createOrder);
   const clearCart = useCartStore((state) => state.clearCart);
-  const business = useCurrentBusinessStore((state) => state.business);
+
+  const subtotal = getSubtotal();
+  const discountAmount = getDiscountAmount();
+  const totalPrice = getTotalPrice();
+
+  // Промо считаем действительным только для текущего бизнеса (на случай старых данных / краевых случаев)
+  const isPromoForCurrentBusiness =
+    appliedPromo != null && business?.id != null && appliedPromo.businessId === business.id;
+
+  const handleApplyPromo = () => {
+    if (!business?.promo || !business.id) return;
+    const ok = applyPromo(business.id, business.promo);
+    if (ok) toast.success("Промокод применён");
+  };
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -105,7 +130,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
     } else if (successState.channel === "phone" && phone) {
       window.open(createPhoneLink(phone), "_self");
     }
-    clearCart();
+    clearCart(business.id);
     handleOpenChange(false);
     setSuccessState(null);
   }, [
@@ -118,10 +143,30 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
 
   // Генерируем номер заказа при открытии корзины, если его еще нет
   useEffect(() => {
-    if (open && items.length > 0 && !orderNumber) {
-      generateOrderNumber();
+    if (open && business?.id && items.length > 0 && !orderNumber) {
+      generateOrderNumber(business.id);
     }
-  }, [open, items.length, orderNumber, generateOrderNumber]);
+  }, [open, business?.id, items.length, orderNumber, generateOrderNumber]);
+
+  // Валидация промо после гидрации: при открытии drawer проверяем appliedPromo для текущего бизнеса
+  useEffect(() => {
+    if (!open || !business?.id || !appliedPromo) return;
+    if (appliedPromo.businessId !== business.id) {
+      clearPromo(business.id);
+      return;
+    }
+    const subtotal = useCartStore.getState().getSubtotal(business.id);
+    const result = validatePromo(
+      business.promo,
+      appliedPromo.code,
+      subtotal,
+      undefined,
+      business.id
+    );
+    if (!result.valid) {
+      clearPromo(business.id);
+    }
+  }, [open, business?.id, business?.promo, appliedPromo, clearPromo]);
 
   // Таймер перенаправления на экране успеха
   useEffect(() => {
@@ -152,7 +197,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
 
   const handleCheckout = () => {
     if (!business) return;
-    if (!orderNumber) generateOrderNumber();
+    if (!orderNumber) generateOrderNumber(business.id);
     const order = createOrderFromCart(business.id, business.pickupPoints);
     try {
       getOrderContactLink(business, order);
@@ -165,7 +210,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
 
   const handleSelectContact = (type: SuccessChannel) => {
     if (!business) return;
-    const num = orderNumber ?? generateOrderNumber();
+    const num = orderNumber ?? generateOrderNumber(business.id);
     setSuccessState({ channel: type, orderNumber: num });
     setCountdownSeconds(COUNTDOWN_SECONDS);
     setIsCheckoutOpen(false);
@@ -294,7 +339,10 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                     {/* Stepper */}
                     <div className="flex items-center gap-0.5 border-2 border-brand-yellow bg-brand-yellow/10 rounded-lg">
                       <button
-                        onClick={() => decreaseQuantity(item.productId)}
+                        onClick={() =>
+                          business?.id &&
+                          decreaseQuantity(business.id, item.productId)
+                        }
                         className="p-1.5 hover:bg-brand-yellow/30 rounded-l-md transition-colors"
                         aria-label="Уменьшить количество"
                       >
@@ -304,7 +352,10 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                         {item.quantity}
                       </span>
                       <button
-                        onClick={() => increaseQuantity(item.productId)}
+                        onClick={() =>
+                          business?.id &&
+                          increaseQuantity(business.id, item.productId)
+                        }
                         className="p-1.5 hover:bg-brand-yellow/30 rounded-r-md transition-colors"
                         aria-label="Увеличить количество"
                       >
@@ -342,7 +393,9 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
 
                     {/* Удалить */}
                     <button
-                      onClick={() => removeItem(item.productId)}
+                      onClick={() =>
+                        business?.id && removeItem(business.id, item.productId)
+                      }
                       className="p-1.5 bg-red-50 hover:bg-red-100 rounded-lg transition-colors shrink-0"
                       aria-label="Удалить товар"
                     >
@@ -363,28 +416,80 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                     id="order-comment"
                     placeholder="Добавьте комментарий к заказу..."
                     value={comment || ""}
-                    onChange={(e) => setComment(e.target.value || null)}
+                    onChange={(e) =>
+                      business?.id && setComment(business.id, e.target.value || null)
+                    }
                     rows={2}
                     className="resize-none bg-gray-50 border-gray-200 rounded-lg text-[16px] min-h-[60px]"
                   />
                 </div>
 
-                {/* Промокод — прокручивается вместе со списком */}
-                <div>
+                {/* Промокод */}
+                <div className="space-y-2">
                   <label
                     htmlFor="promo-code"
-                    className="text-sm font-medium mb-2 block"
+                    className="text-sm font-medium mb-2 block flex items-center gap-1.5"
                   >
+                    <Tag className="h-4 w-4 text-gray-500" />
                     Промокод
                   </label>
-                  <Input
-                    id="promo-code"
-                    type="text"
-                    placeholder="Введите промокод..."
-                    value={promoCode || ""}
-                    onChange={(e) => setPromoCode(e.target.value || null)}
-                    className="bg-gray-50 border-gray-200 rounded-lg text-[16px]"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="promo-code"
+                      type="text"
+                      placeholder="Введите промокод..."
+                      value={promoCode || ""}
+                      onChange={(e) =>
+                        business?.id &&
+                        setPromoCode(
+                          business.id,
+                          e.target.value ? e.target.value.toUpperCase() : null
+                        )
+                      }
+                      className="flex-1 bg-gray-50 border-gray-200 rounded-lg text-[16px]"
+                      disabled={isPromoForCurrentBusiness}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleApplyPromo}
+                      disabled={!business?.promo?.enabled || !promoCode?.trim() || isPromoForCurrentBusiness}
+                      className="shrink-0"
+                    >
+                      {isPromoForCurrentBusiness ? "Применён" : "Применить"}
+                    </Button>
+                  </div>
+                  {isPromoForCurrentBusiness && appliedPromo && (
+                    <div className="space-y-1">
+                      <p className="text-sm text-green-600 flex items-center gap-1">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Промокод {appliedPromo.code} применён
+                        <button
+                        type="button"
+                        onClick={() => business?.id && clearPromo(business.id)}
+                        className="ml-2 text-gray-500 underline hover:text-gray-700"
+                      >
+                        снять
+                      </button>
+                    </p>
+                      {discountAmount === 0 &&
+                        appliedPromo.minOrder != null &&
+                        appliedPromo.minOrder > 0 &&
+                        subtotal < appliedPromo.minOrder && (
+                          <p className="text-xs text-amber-600">
+                            Минимальная сумма заказа для промокода:{" "}
+                            {Math.round(appliedPromo.minOrder).toLocaleString(
+                              "ru-RU"
+                            )}{" "}
+                            ₽
+                          </p>
+                        )}
+                    </div>
+                  )}
+                  {promoError && !isPromoForCurrentBusiness && (
+                    <p className="text-sm text-red-600">{promoError}</p>
+                  )}
                 </div>
               </div>
             )}
@@ -394,10 +499,36 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
         {/* Нижняя часть: итого и кнопка (остаётся закреплённой) */}
         {!successState && items.length > 0 && (
           <div className="px-6 pb-6 pt-4 border-t bg-white rounded-b-3xl space-y-4">
-            {/* Итого */}
-            <div className="flex items-center justify-between text-lg font-bold mb-4">
-              <span>Итого:</span>
-              <span>{totalPrice.toLocaleString("ru-RU")} ₽</span>
+            {/* Подытог / Скидка / Итого — показываем разбивку при применённом промокоде */}
+            <div className="space-y-1.5 mb-4">
+              {isPromoForCurrentBusiness && appliedPromo != null && (
+                <>
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span>Подытог:</span>
+                    <span>{subtotal.toLocaleString("ru-RU")} ₽</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-green-600">
+                    <span>Скидка по промокоду:</span>
+                    <span>−{discountAmount.toLocaleString("ru-RU")} ₽</span>
+                  </div>
+                  {discountAmount === 0 &&
+                    appliedPromo.minOrder != null &&
+                    appliedPromo.minOrder > 0 &&
+                    subtotal < appliedPromo.minOrder && (
+                      <p className="text-xs text-amber-600">
+                        Минимальная сумма заказа для промокода:{" "}
+                        {Math.round(appliedPromo.minOrder).toLocaleString(
+                          "ru-RU"
+                        )}{" "}
+                        ₽
+                      </p>
+                    )}
+                </>
+              )}
+              <div className="flex items-center justify-between text-lg font-bold">
+                <span>Итого:</span>
+                <span>{totalPrice.toLocaleString("ru-RU")} ₽</span>
+              </div>
             </div>
 
             {/* Кнопка оформления заказа */}

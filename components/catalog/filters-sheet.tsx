@@ -1,13 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Sheet,
   SheetContent,
   SheetTitle,
 } from "@/components/ui/sheet"
 import { X } from "lucide-react"
-import { useCatalogFiltersStore } from "@/store/catalog-filters"
+import { useFiltersForBusiness } from "@/store/catalog-filters"
 import { Category, Product } from "@/types"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,7 @@ interface FiltersSheetProps {
   onOpenChange: (open: boolean) => void
   categories: Category[]
   products: Product[]
+  businessId: string
 }
 
 export function FiltersSheet({
@@ -25,6 +26,7 @@ export function FiltersSheet({
   onOpenChange,
   categories,
   products,
+  businessId,
 }: FiltersSheetProps) {
   const {
     selectedCategoryId,
@@ -39,7 +41,7 @@ export function FiltersSheet({
     setShowPopular,
     setShowDiscounted,
     resetFilters,
-  } = useCatalogFiltersStore()
+  } = useFiltersForBusiness(businessId || null)
 
   // Получаем уникальные бренды из товаров
   const brands = Array.from(
@@ -59,6 +61,13 @@ export function FiltersSheet({
   const [localMaxPrice, setLocalMaxPrice] = useState(
     maxPrice?.toString() || ""
   )
+
+  useEffect(() => {
+    if (open) {
+      setLocalMinPrice(minPrice?.toString() || "")
+      setLocalMaxPrice(maxPrice?.toString() || "")
+    }
+  }, [open, minPrice, maxPrice])
 
   const handleApplyPriceFilter = () => {
     const min = localMinPrice ? parseFloat(localMinPrice) : null

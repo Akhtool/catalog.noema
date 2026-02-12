@@ -20,10 +20,11 @@ import {
 } from "@dnd-kit/sortable";
 import { Category, Product } from "@/types";
 import { isDiscountActive } from "@/lib/discount";
-import { useCatalogFiltersStore } from "@/store/catalog-filters";
+import { useFiltersForBusiness } from "@/store/catalog-filters";
 import { useCurrentBusinessStore } from "@/store/current-business";
 import {
   useHasAccess,
+  useProfileEditor,
   useProductEditor,
   useDeleteProduct,
   useRestoreProduct,
@@ -35,6 +36,8 @@ import { SearchInput } from "./search-input";
 import { ViewToggle } from "./view-toggle";
 import { ProductCard } from "./product-card";
 import { SortableProductCard } from "./sortable-product-card";
+import { Button } from "@/components/ui/button";
+import { Pencil, Plus } from "lucide-react";
 
 interface CatalogProps {
   categories: Category[];
@@ -45,6 +48,7 @@ export function Catalog({ categories, products }: CatalogProps) {
   const router = useRouter();
   const business = useCurrentBusinessStore((s) => s.business);
   const hasAccess = useHasAccess();
+  const openProfileEditor = useProfileEditor();
   const openProductEditor = useProductEditor();
   const hideProduct = useDeleteProduct();
   const restoreProduct = useRestoreProduct();
@@ -58,7 +62,9 @@ export function Catalog({ categories, products }: CatalogProps) {
     showDiscounted,
     viewMode,
     catalogMode,
-  } = useCatalogFiltersStore();
+    setCatalogMode,
+    setSelectedCategoryId,
+  } = useFiltersForBusiness(business?.id ?? null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -68,6 +74,12 @@ export function Catalog({ categories, products }: CatalogProps) {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
+
+  /** Рендер DndContext только после монтирования, чтобы избежать hydration mismatch (aria-describedby у @dnd-kit разный на сервере и клиенте) */
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   /** Оптимистичный порядок id после drop; null = используем порядок с сервера */
   const [optimisticOrderIds, setOptimisticOrderIds] = useState<string[] | null>(
@@ -273,11 +285,10 @@ export function Catalog({ categories, products }: CatalogProps) {
                   key={category.id}
                   className="bg-card-white rounded-[1.25rem] p-6 shadow-soft border border-transparent hover:border-brand-yellow/30 transition-all cursor-pointer"
                   onClick={() => {
-                    // Переключаемся в режим каталога и выбираем категорию
-                    useCatalogFiltersStore.getState().setCatalogMode("catalog");
-                    useCatalogFiltersStore
-                      .getState()
-                      .setSelectedCategoryId(category.id);
+                    if (business?.id) {
+                      setCatalogMode("catalog");
+                      setSelectedCategoryId(category.id);
+                    }
                     // Скроллим к началу каталога
                     setTimeout(() => {
                       document
@@ -320,23 +331,43 @@ export function Catalog({ categories, products }: CatalogProps) {
         {filteredProducts.length === 0 ? (
           <div className="text-center py-12 px-4">
             {products.length === 0 ? (
-              <div className="space-y-2 text-gray-500">
-                <p className="text-base font-medium">
+              <div className="space-y-4">
+                <p className="text-base font-medium text-gray-700">
                   {hasAccess
-                    ? "В каталоге пока нет товаров"
+                    ? "Настройте витрину и добавьте товары"
                     : "Товары появятся скоро"}
                 </p>
-                <p className="text-sm">
-                  {hasAccess
-                    ? "Добавьте первую позицию, нажав кнопку ниже"
-                    : ""}
-                </p>
+                {hasAccess && (openProfileEditor || openProductEditor) ? (
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                    {openProfileEditor && (
+                      <Button
+                        onClick={openProfileEditor}
+                        variant="outline"
+                        className="w-full sm:w-auto rounded-xl border-2 border-gray-200 gap-2"
+                      >
+                        <Pencil className="w-4 h-4" />
+                        Логотип и обложка
+                      </Button>
+                    )}
+                    {openProductEditor && (
+                      <Button
+                        onClick={() => openProductEditor()}
+                        className="w-full sm:w-auto rounded-xl bg-brand-yellow text-brand-yellow-foreground hover:bg-brand-yellow/90 gap-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Добавить позицию
+                      </Button>
+                    )}
+                  </div>
+                ) : hasAccess ? (
+                  <p className="text-sm text-gray-500">Используйте кнопки выше для настройки</p>
+                ) : null}
               </div>
             ) : (
               <p className="text-muted-foreground">Товары не найдены</p>
             )}
           </div>
-        ) : hasAccess ? (
+        ) : hasAccess && isMounted ? (
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -397,11 +428,17 @@ export function Catalog({ categories, products }: CatalogProps) {
                 key={product.id}
                 product={product}
                 viewMode={viewMode}
-                showAdminActions={false}
+                showAdminActions={hasAccess}
                 imagePriority={index === 0}
-                onEdit={undefined}
-                onHide={undefined}
-                onRestore={undefined}
+                onEdit={
+                  hasAccess && openProductEditor
+                    ? () => openProductEditor(product.id)
+                    : undefined
+                }
+                onHide={
+                  hasAccess && product.isActive ? () => hideProduct?.(product.id) : undefined
+                }
+                onRestore={hasAccess ? () => restoreProduct?.(product.id) : undefined}
               />
             ))}
           </div>

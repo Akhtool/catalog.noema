@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { ShoppingBag, Search } from "lucide-react"
-import { useCartStore, useCartHydration } from "@/store/cart"
+import { useCartHydration, useCartTotalQuantity } from "@/store/cart"
+import { useCurrentBusinessStore } from "@/store/current-business"
 import { CartDrawer } from "./cart-drawer"
 
 /**
@@ -32,8 +33,9 @@ const handleSearchClick = () => {
 export function CartBottomBar() {
   const [isOpen, setIsOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
-  useCartHydration() // Восстанавливаем корзину из localStorage
-  const totalQuantity = useCartStore((state) => state.getTotalQuantity())
+  useCartHydration()
+  const business = useCurrentBusinessStore((s) => s.business)
+  const totalQuantity = useCartTotalQuantity(business?.id ?? null)
 
   // Предотвращаем ошибку гидратации, показывая данные корзины только после монтирования на клиенте
   useEffect(() => {

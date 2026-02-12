@@ -30,14 +30,17 @@ export function CheckoutDialog({
 }: CheckoutDialogProps) {
   const [step, setStep] = useState<"delivery" | "point" | "contact">("delivery")
   const [deliveryAddress, setDeliveryAddress] = useState("")
-  const deliveryType = useCartStore((state) => state.deliveryType)
-  const deliveryAddressStore = useCartStore((state) => state.deliveryAddress)
-  const selectedPointId = useCartStore((state) => state.selectedPointId)
+  const businessId = business.id
+  const cartSlice = useCartStore((state) => state.cartByBusinessId[businessId])
+  const deliveryType = cartSlice?.deliveryType ?? null
+  const deliveryAddressStore = cartSlice?.deliveryAddress ?? null
+  const selectedPointId = cartSlice?.selectedPointId ?? null
   const createOrder = useCartStore((state) => state.createOrder)
   const setDeliveryType = useCartStore((state) => state.setDeliveryType)
   const setDeliveryAddressStore = useCartStore((state) => state.setDeliveryAddress)
   const setSelectedPointId = useCartStore((state) => state.setSelectedPointId)
-  const orderNumber = useCartStore((state) => state.orderNumber)
+  const orderNumberByBusinessId = useCartStore((state) => state.orderNumberByBusinessId)
+  const orderNumber = orderNumberByBusinessId[businessId] ?? null
   const generateOrderNumber = useCartStore((state) => state.generateOrderNumber)
 
   const deliveryOptionsAll: Array<{
@@ -74,15 +77,15 @@ export function CheckoutDialog({
     }
     const justOpened = !prevOpenRef.current
     prevOpenRef.current = true
-    if (!orderNumber) generateOrderNumber()
+    if (!orderNumber) generateOrderNumber(businessId)
     if (deliveryAddressStore) setDeliveryAddress(deliveryAddressStore)
     const allowed = business.deliveryTypes
     const currentInvalid = deliveryType && !allowed.includes(deliveryType)
     if (currentInvalid) {
-      setDeliveryType(null)
-      setDeliveryAddressStore(null)
+      setDeliveryType(businessId, null)
+      setDeliveryAddressStore(businessId, null)
       setDeliveryAddress("")
-      setSelectedPointId(null)
+      setSelectedPointId(businessId, null)
       setStep("delivery")
       return
     }
@@ -99,11 +102,11 @@ export function CheckoutDialog({
           selectedPointId &&
           !pickupPoints.some((p) => p.id === selectedPointId)
         ) {
-          setSelectedPointId(null)
+          setSelectedPointId(businessId, null)
         }
       } else {
-        if (pickupPoints.length === 1) setSelectedPointId(pickupPoints[0].id)
-        else setSelectedPointId(null)
+        if (pickupPoints.length === 1) setSelectedPointId(businessId, pickupPoints[0].id)
+        else setSelectedPointId(businessId, null)
         setStep("contact")
       }
     } else {
@@ -111,6 +114,7 @@ export function CheckoutDialog({
     }
   }, [
     open,
+    businessId,
     orderNumber,
     generateOrderNumber,
     deliveryType,
@@ -177,12 +181,12 @@ export function CheckoutDialog({
     if (!open) {
       setStep("delivery")
       setDeliveryAddress("")
-      setDeliveryType(null)
-      setDeliveryAddressStore(null)
-      setSelectedPointId(null)
+      setDeliveryType(businessId, null)
+      setDeliveryAddressStore(businessId, null)
+      setSelectedPointId(businessId, null)
     }
     onOpenChange(open)
-  }, [onOpenChange, setDeliveryType, setDeliveryAddressStore, setSelectedPointId])
+  }, [businessId, onOpenChange, setDeliveryType, setDeliveryAddressStore, setSelectedPointId])
 
   // Используем хук для перетаскивания (должен быть вызван до условных возвратов)
   const { dragHandlers, sheetStyle, scrollableStyle } = useSheetDrag({
@@ -195,21 +199,21 @@ export function CheckoutDialog({
   }
 
   const handleDeliveryTypeSelect = (type: DeliveryType) => {
-    setDeliveryType(type)
+    setDeliveryType(businessId, type)
     if (type === "delivery") return
     const points = business.pickupPoints ?? []
     if (points.length > 1) {
       setStep("point")
     } else {
-      if (points.length === 1) setSelectedPointId(points[0].id)
-      else setSelectedPointId(null)
+      if (points.length === 1) setSelectedPointId(businessId, points[0].id)
+      else setSelectedPointId(businessId, null)
       setStep("contact")
     }
   }
 
   const handleAddressContinue = () => {
     if (deliveryAddress.trim()) {
-      setDeliveryAddressStore(deliveryAddress.trim())
+      setDeliveryAddressStore(businessId, deliveryAddress.trim())
       setStep("contact")
     }
   }
@@ -227,9 +231,8 @@ export function CheckoutDialog({
   }
 
   const handleContactSelect = (type: "whatsapp" | "phone" | "telegram") => {
-    // Сохраняем адрес, если выбран способ доставки
     if (deliveryType === "delivery" && deliveryAddress.trim()) {
-      setDeliveryAddressStore(deliveryAddress.trim())
+      setDeliveryAddressStore(businessId, deliveryAddress.trim())
     }
     onSelectContact(type)
     onOpenChange(false)
@@ -368,7 +371,7 @@ export function CheckoutDialog({
                 {pickupPoints.map((point) => (
                   <button
                     key={point.id}
-                    onClick={() => setSelectedPointId(point.id)}
+                    onClick={() => setSelectedPointId(businessId, point.id)}
                     className={`w-full flex flex-col items-start p-4 border-2 rounded-xl transition-colors text-left ${
                       selectedPointId === point.id
                         ? "border-brand-yellow bg-brand-yellow/5"

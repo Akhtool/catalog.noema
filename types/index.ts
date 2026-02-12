@@ -52,8 +52,38 @@ export interface Business {
   /** Точки/филиалы для самовывоза и «В зале». Загружаются отдельно (business_location). */
   pickupPoints?: BusinessLocation[];
 
+  /** Настройки промокода (один активный на бизнес). */
+  promo?: BusinessPromo | null;
+
   createdAt: string; // timestamp (ISO string)
   updatedAt: string; // timestamp (ISO string)
+}
+
+/**
+ * Настройки промокода бизнеса (из БД).
+ */
+export interface BusinessPromo {
+  enabled: boolean;
+  code: string | null;
+  type: "percent" | "fixed" | null;
+  value: number | null;
+  minOrder: number | null;
+  dateFrom: string | null; // yyyy-MM-dd
+  dateTo: string | null;
+  maxDiscount: number | null;
+}
+
+/**
+ * Применённый промокод (после успешной проверки), для расчёта скидки в корзине.
+ */
+export interface AppliedPromo {
+  code: string;
+  type: "percent" | "fixed";
+  value: number;
+  minOrder: number | null;
+  maxDiscount: number | null;
+  /** UUID бизнеса, для которого применён промо */
+  businessId: string;
 }
 
 /**
@@ -142,11 +172,26 @@ export interface Product {
  */
 export interface CartItem {
   productId: string; // UUID
+  businessId: string; // UUID бизнеса
   name: string;
   price: number;
   quantity: number;
   /** Оригинальная цена до скидки; показывается зачёркнутой, если задана */
   originalPrice?: number | null;
+}
+
+/**
+ * Данные корзины для одного бизнеса
+ */
+export interface CartSlice {
+  items: CartItem[];
+  comment: string | null;
+  promoCode: string | null;
+  appliedPromo: AppliedPromo | null;
+  promoError: string | null;
+  deliveryType: DeliveryType | null;
+  deliveryAddress: string | null;
+  selectedPointId: string | null;
 }
 
 /**
@@ -161,6 +206,10 @@ export interface Cart {
   items: CartItem[];
   comment: string | null;
   promoCode: string | null;
+  /** Применённый промокод (для расчёта скидки). */
+  appliedPromo: AppliedPromo | null;
+  /** Сообщение об ошибке при применении промокода. */
+  promoError: string | null;
   deliveryType: DeliveryType | null;
   deliveryAddress: string | null;
   /** ID выбранной точки (BusinessLocation) для pickup/dine-in */
@@ -175,6 +224,11 @@ export interface Order {
   orderNumber: string; // номер заказа
 
   items: CartItem[];
+  /** Сумма товаров до скидки по промокоду. */
+  subtotal: number;
+  /** Скидка по промокоду (0 если не применён). */
+  discountAmount: number;
+  /** Итог к оплате (subtotal - discountAmount). */
   totalPrice: number;
   totalQuantity: number;
 
