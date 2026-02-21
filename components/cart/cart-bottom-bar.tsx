@@ -5,6 +5,7 @@ import { ShoppingBag, Search } from "lucide-react"
 import { useCartHydration, useCartTotalQuantity } from "@/store/cart"
 import { useCurrentBusinessStore } from "@/store/current-business"
 import { CartDrawer } from "./cart-drawer"
+import { CartFlyLayer } from "./cart-fly-layer"
 
 /**
  * Обработчик клика по кнопке поиска
@@ -44,8 +45,9 @@ export function CartBottomBar() {
 
   return (
     <>
+      <CartFlyLayer />
       <div
-        className={`fixed bottom-0 left-0 right-0 z-40 bg-dark-nav pb-safe-sm pt-3 px-6 rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.1)] transition-all duration-500 ease-in-out ${
+        className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-40 bg-dark-nav pb-safe-sm pt-3 px-6 rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.1)] transition-all duration-500 ease-in-out ${
           isOpen ? "translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
         }`}
         style={{
@@ -68,6 +70,7 @@ export function CartBottomBar() {
             onClick={() => setIsOpen(true)}
             className="flex flex-col items-center gap-1 text-brand-yellow flex-1 relative"
             aria-label="Корзина"
+            data-cart-target="true"
           >
             <div className="relative">
               <ShoppingBag className="h-6 w-6" />

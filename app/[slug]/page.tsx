@@ -274,6 +274,7 @@ export default async function Page({ params }: PageProps) {
       businessId: prod.business_id,
       categoryId: prod.category_id,
       name: prod.name,
+      subtitle: (prod as { subtitle?: string | null }).subtitle ?? null,
       description: prod.description || null,
       price: prod.price,
       hasDiscount,
@@ -395,7 +396,7 @@ export default async function Page({ params }: PageProps) {
           )}
 
           {/* Информационная строка: доставка и часы (всегда три строки, плейсхолдеры при пустых данных) */}
-          <div className="px-5 -mt-6 relative z-20 my-2.5">
+          <div className="px-3 -mt-6 relative z-20 my-2.5">
             <div className="bg-white rounded-2xl shadow-card p-3 space-y-2">
               <div className="flex items-center gap-2 text-xs">
                 <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
@@ -454,7 +455,7 @@ export default async function Page({ params }: PageProps) {
           <ContactOrEditSection business={businessTyped} initialHasAccess={isAdmin} />
 
           {/* Каталог */}
-          <div className="px-5">
+          <div className="px-3">
             <Catalog categories={categoriesTyped} products={productsTyped} />
           </div>
 

@@ -109,19 +109,45 @@ export function ProductDetailCard({
   const cartItem = cartItems.find((item) => item.productId === product.id);
   const quantity = cartItem?.quantity || 0;
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (e: React.MouseEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const from = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
     if (quantity === 0) {
       addItem(product);
+      const img = images[selectedIndex] ?? product.images?.[0] ?? null;
+      window.dispatchEvent(
+        new CustomEvent("catalog:fly-to-cart", {
+          detail: { from, imageSrc: img, fly: true },
+        }),
+      );
     } else {
       increaseQuantity(product.businessId, product.id);
+      window.dispatchEvent(
+        new CustomEvent("catalog:fly-to-cart", {
+          detail: { from, fly: false },
+        }),
+      );
     }
   };
 
-  const handleIncrease = () => {
+  const handleIncrease = (e: React.MouseEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const from = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
     if (quantity === 0) {
       addItem(product);
+      const img = images[selectedIndex] ?? product.images?.[0] ?? null;
+      window.dispatchEvent(
+        new CustomEvent("catalog:fly-to-cart", {
+          detail: { from, imageSrc: img, fly: true },
+        }),
+      );
     } else {
       increaseQuantity(product.businessId, product.id);
+      window.dispatchEvent(
+        new CustomEvent("catalog:fly-to-cart", {
+          detail: { from, fly: false },
+        }),
+      );
     }
   };
 
@@ -409,6 +435,12 @@ export function ProductDetailCard({
           slides={lightboxSlides}
           index={selectedIndex}
           plugins={[Fullscreen, Zoom]}
+          zoom={{
+            pinchZoomV4: true,
+            maxZoomPixelRatio: 3,
+            minZoom: 1,
+            doubleTapDelay: 300,
+          }}
           render={{
             buttonPrev: () => null,
             buttonNext: () => null,

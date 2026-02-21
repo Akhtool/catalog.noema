@@ -78,15 +78,34 @@ export function ProductCard({
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const from = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
     addItem(product);
+    window.dispatchEvent(
+      new CustomEvent("catalog:fly-to-cart", {
+        detail: { from, imageSrc: product.images?.[0] ?? null, fly: true },
+      }),
+    );
   };
 
   const handleIncrease = (e: React.MouseEvent) => {
     e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const from = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
     if (quantity === 0) {
       addItem(product);
+      window.dispatchEvent(
+        new CustomEvent("catalog:fly-to-cart", {
+          detail: { from, imageSrc: product.images?.[0] ?? null, fly: true },
+        }),
+      );
     } else {
       increaseQuantity(product.businessId, product.id);
+      window.dispatchEvent(
+        new CustomEvent("catalog:fly-to-cart", {
+          detail: { from, fly: false },
+        }),
+      );
     }
   };
 
@@ -147,10 +166,8 @@ export function ProductCard({
     return (
       <>
         <div
-          className={`bg-card-white rounded-[1.25rem] p-4 shadow-soft relative group flex gap-4 border transition-all ${
-            isHidden
-              ? "border-gray-200 bg-gray-100 cursor-default"
-              : "border-transparent hover:border-brand-yellow/30"
+          className={`bg-card-white rounded-[1.25rem] p-4 shadow-soft relative group flex gap-4 transition-all overflow-hidden ${
+            isHidden ? "bg-gray-100 cursor-default" : ""
           }`}
         >
           {actionInProgress && (
@@ -212,7 +229,7 @@ export function ProductCard({
               tabIndex={0}
               onClick={handleCardClick}
               onKeyDown={(e) => e.key === "Enter" && handleCardClick()}
-              className="relative w-24 h-24 flex-shrink-0 rounded-md overflow-hidden cursor-pointer"
+              className="relative w-[38%] min-w-[100px] max-w-[160px] aspect-[3/4] flex-shrink-0 overflow-hidden cursor-pointer -my-4 -ml-4"
               aria-label={`Подробнее о ${product.name}`}
             >
               <Image
@@ -220,13 +237,13 @@ export function ProductCard({
                 alt={product.name}
                 fill
                 className="object-cover"
-                sizes="96px"
+                sizes="160px"
                 priority={imagePriority}
                 unoptimized
               />
             </div>
           )}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 flex flex-col justify-between">
             <div
               role="button"
               tabIndex={0}
@@ -243,7 +260,7 @@ export function ProductCard({
               )}
             </div>
             <div
-              className={`flex items-center ${
+              className={`flex items-center mt-2 ${
                 quantity > 0 ? "justify-end" : "justify-between"
               }`}
             >
@@ -344,10 +361,8 @@ export function ProductCard({
   return (
     <>
       <div
-        className={`bg-card-white rounded-[1.25rem] p-4 shadow-soft relative group flex flex-col justify-between h-full border transition-all ${
-          isHidden
-            ? "border-gray-200 bg-gray-100 cursor-default"
-            : "border-transparent hover:border-brand-yellow/30"
+        className={`bg-card-white rounded-[1.25rem] p-4 shadow-soft relative group flex flex-col justify-between h-full transition-all overflow-hidden ${
+          isHidden ? "bg-gray-100 cursor-default" : ""
         }`}
       >
         {actionInProgress && (
@@ -414,13 +429,13 @@ export function ProductCard({
           </div>
         )}
 
-        {/* Изображение продукта — клик открывает детали */}
+        {/* Изображение продукта — во всю ширину, без отступов сверху/по бокам */}
         <div
           role="button"
           tabIndex={0}
           onClick={handleCardClick}
           onKeyDown={(e) => e.key === "Enter" && handleCardClick()}
-          className="relative h-36 w-full flex items-center justify-center mb-4 mt-2 cursor-pointer outline-none"
+          className="relative -mx-4 -mt-4 w-[calc(100%+2rem)] aspect-[3/4] flex items-center justify-center mb-4 cursor-pointer outline-none"
           aria-label={`Подробнее о ${product.name}`}
         >
           {product.images && product.images.length > 0 && (
@@ -428,7 +443,7 @@ export function ProductCard({
               src={product.images[0]}
               alt={product.name}
               fill
-              className="object-contain group-hover:scale-105 transition-transform duration-300"
+              className="object-contain"
               sizes="50vw"
               priority={imagePriority}
               unoptimized

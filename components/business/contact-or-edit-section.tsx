@@ -42,7 +42,7 @@ export function ContactOrEditSection({ business, initialHasAccess = null }: Cont
 
   if (hasAccess === null) {
     return (
-      <div className="px-5 my-2.5">
+      <div className="px-3 my-2.5">
         <Button disabled className={EDIT_PROFILE_CLASS}>
           <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
         </Button>
@@ -52,7 +52,7 @@ export function ContactOrEditSection({ business, initialHasAccess = null }: Cont
 
   if (hasAccess === true && (openEditor || openProductEditor)) {
     return (
-      <div className="px-5 my-2.5 space-y-2.5">
+      <div className="px-3 my-2.5 space-y-2.5">
         {openEditor && (
           <Button onClick={openEditor} className={EDIT_PROFILE_CLASS}>
             <Pencil className="w-5 h-5 text-gray-600" />
@@ -70,7 +70,7 @@ export function ContactOrEditSection({ business, initialHasAccess = null }: Cont
   }
 
   return (
-    <div className="px-5 my-2.5">
+    <div className="px-3 my-2.5">
       <ContactButton business={business} variant="wide" />
     </div>
   );

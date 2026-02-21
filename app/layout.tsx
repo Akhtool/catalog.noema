@@ -22,10 +22,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru">
-      <body className={inter.className}>
-        {children}
-        <ScrollToTop />
-        <Toaster richColors position="top-center" />
+      <body className={`${inter.className} min-h-screen flex flex-col items-center`}>
+        <div className="w-full max-w-[430px] min-h-screen flex flex-col relative shrink-0">
+          {children}
+          <ScrollToTop />
+          <Toaster richColors position="top-center" />
+        </div>
       </body>
     </html>
   )

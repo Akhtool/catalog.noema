@@ -139,6 +139,8 @@ export interface Product {
   categoryId: string; // UUID
 
   name: string;
+  /** Подзаголовок (например, объём/вес). Может отображаться под названием. */
+  subtitle: string | null;
   description: string | null;
   price: number;
 

@@ -261,6 +261,12 @@ export function BusinessProfileEditorSheet({
   const [isAddingLocation, setIsAddingLocation] = useState(false)
   /** id раскрытой карточки филиала (подробные данные) */
   const [expandedLocationId, setExpandedLocationId] = useState<string | null>(null)
+  /** раскрыта ли секция «Филиалы / точки» во вкладке Настройки */
+  const [locationsSectionOpen, setLocationsSectionOpen] = useState(false)
+  /** раскрыта ли секция «Промокод» во вкладке Настройки */
+  const [promoSectionOpen, setPromoSectionOpen] = useState(false)
+  /** раскрыта ли секция «Акцентный цвет» во вкладке Настройки */
+  const [accentColorSectionOpen, setAccentColorSectionOpen] = useState(false)
   /** Ошибки валидации контактов в форме филиала */
   const [locationErrors, setLocationErrors] = useState<LocationFormErrors>({})
   const previousPickupPointsLengthRef = useRef((business.pickupPoints ?? []).length)
@@ -819,18 +825,12 @@ export function BusinessProfileEditorSheet({
 
             <div className="space-y-6">
           <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="w-full grid grid-cols-5 mb-4">
+            <TabsList className="w-full grid grid-cols-3 mb-4">
               <TabsTrigger value="profile" className="flex-1 text-xs">
                 Профиль
               </TabsTrigger>
               <TabsTrigger value="about" className="flex-1 text-xs">
                 О себе
-              </TabsTrigger>
-              <TabsTrigger value="locations" className="flex-1 text-xs">
-                Филиалы
-              </TabsTrigger>
-              <TabsTrigger value="promo" className="flex-1 text-xs">
-                Промокод
               </TabsTrigger>
               <TabsTrigger value="settings" className="flex-1 text-xs">
                 Настройки
@@ -1189,22 +1189,43 @@ export function BusinessProfileEditorSheet({
               </div>
             </TabsContent>
 
-            {/* Вкладка "Филиалы" */}
-            <TabsContent value="locations" className="space-y-4">
-              <div className="space-y-4 rounded-lg border p-4">
-                <div className="flex items-center justify-between mb-4">
+            {/* Вкладка "Настройки" */}
+          <TabsContent value="settings" className="space-y-4">
+            <div className="space-y-4 rounded-lg border p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Settings className="w-5 h-5 text-brand-yellow" />
+                <h3 className="text-lg font-semibold">Настройки</h3>
+              </div>
+
+              {/* Секция: Филиалы / точки (раскрывается по кнопке) */}
+              <div className="rounded-lg border p-4">
+                <button
+                  type="button"
+                  onClick={() => setLocationsSectionOpen((v) => !v)}
+                  className="flex w-full items-center justify-between gap-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md -m-1 p-1"
+                  aria-expanded={locationsSectionOpen}
+                >
                   <div className="flex items-center gap-2">
                     <MapPin className="w-5 h-5 text-brand-yellow" />
                     <h3 className="text-lg font-semibold">Филиалы / точки</h3>
                   </div>
-                  {editingLocationId === null && (
-                    <Button type="button" size="sm" onClick={openAddLocation} className="bg-brand-yellow text-brand-yellow-foreground hover:bg-brand-yellow/90">
-                      <Plus className="w-4 h-4 mr-1" />
-                      Добавить
-                    </Button>
+                  {locationsSectionOpen ? (
+                    <ChevronUp className="w-5 h-5 text-muted-foreground shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-muted-foreground shrink-0" />
                   )}
-                </div>
-                <p className="text-sm text-muted-foreground mb-4">
+                </button>
+                {locationsSectionOpen && (
+                  <div className="space-y-4 mt-4">
+                    <div className="flex justify-end">
+                      {editingLocationId === null && (
+                        <Button type="button" size="sm" onClick={openAddLocation} className="bg-brand-yellow text-brand-yellow-foreground hover:bg-brand-yellow/90">
+                          <Plus className="w-4 h-4 mr-1" />
+                          Добавить
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
                   Точки самовывоза и залы для способов «Самовывоз» и «В зале». Контакты точки подставляются в заказ, если указаны.
                 </p>
                 {locationMessage && (
@@ -1446,20 +1467,34 @@ export function BusinessProfileEditorSheet({
                 {pickupPoints.length === 0 && !isAddingLocation && editingLocationId === null && (
                   <p className="text-sm text-muted-foreground">Нет добавленных филиалов. Нажмите «Добавить» для первой точки.</p>
                 )}
+                  </div>
+                )}
               </div>
-            </TabsContent>
 
-            {/* Вкладка "Промокод" */}
-            <TabsContent value="promo" className="space-y-4">
-              <div className="space-y-4 rounded-lg border p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Tag className="w-5 h-5 text-brand-yellow" />
-                  <h3 className="text-lg font-semibold">Промокод</h3>
-                </div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Один активный промокод на каталог. Клиент вводит код в корзине; при совпадении и соблюдении условий применяется скидка.
-                </p>
-                <label className="flex items-center gap-2 cursor-pointer mb-4">
+              {/* Секция: Промокод (раскрывается по кнопке) */}
+              <div className="rounded-lg border p-4">
+                <button
+                  type="button"
+                  onClick={() => setPromoSectionOpen((v) => !v)}
+                  className="flex w-full items-center justify-between gap-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md -m-1 p-1"
+                  aria-expanded={promoSectionOpen}
+                >
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-5 h-5 text-brand-yellow" />
+                    <h3 className="text-lg font-semibold">Промокод</h3>
+                  </div>
+                  {promoSectionOpen ? (
+                    <ChevronUp className="w-5 h-5 text-muted-foreground shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-muted-foreground shrink-0" />
+                  )}
+                </button>
+                {promoSectionOpen && (
+                  <div className="space-y-4 mt-4">
+                    <p className="text-sm text-muted-foreground">
+                      Один активный промокод на каталог. Клиент вводит код в корзине; при совпадении и соблюдении условий применяется скидка.
+                    </p>
+                    <label className="flex items-center gap-2 cursor-pointer mb-4">
                   <input
                     type="checkbox"
                     name="promo_enabled"
@@ -1572,29 +1607,42 @@ export function BusinessProfileEditorSheet({
                     />
                   </div>
                 </div>
+                  </div>
+                )}
               </div>
-            </TabsContent>
 
-            {/* Вкладка "Настройки" */}
-          <TabsContent value="settings" className="space-y-4">
-            <div className="space-y-4 rounded-lg border p-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Settings className="w-5 h-5 text-brand-yellow" />
-                <h3 className="text-lg font-semibold">Настройки</h3>
-              </div>
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Акцентный цвет влияет на оформление публичной страницы каталога.
-                </p>
+              {/* Секция: Акцентный цвет (раскрывается по кнопке) */}
+              <div className="rounded-lg border p-4">
+                <button
+                  type="button"
+                  onClick={() => setAccentColorSectionOpen((v) => !v)}
+                  className="flex w-full items-center justify-between gap-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md -m-1 p-1"
+                  aria-expanded={accentColorSectionOpen}
+                >
+                  <div className="flex items-center gap-2">
+                    <Palette className="w-5 h-5 text-brand-yellow" />
+                    <h3 className="text-lg font-semibold">Акцентный цвет</h3>
+                  </div>
+                  {accentColorSectionOpen ? (
+                    <ChevronUp className="w-5 h-5 text-muted-foreground shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-muted-foreground shrink-0" />
+                  )}
+                </button>
+                {accentColorSectionOpen && (
+                  <div className="space-y-3 mt-4">
+                    <p className="text-sm text-muted-foreground">
+                      Акцентный цвет влияет на оформление публичной страницы каталога.
+                    </p>
 
-                <div className="rounded-lg border bg-white p-4 space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold">Акцентный цвет</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Кнопки, рамки и подсветки будут в этом цвете.
-                      </p>
-                    </div>
+                    <div className="rounded-lg border bg-white p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold">Акцентный цвет</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Кнопки, рамки и подсветки будут в этом цвете.
+                          </p>
+                        </div>
                     <Button
                       type="button"
                       variant="outline"
@@ -1685,6 +1733,8 @@ export function BusinessProfileEditorSheet({
                     </div>
                   </div>
                 </div>
+                  </div>
+                )}
               </div>
             </div>
           </TabsContent>

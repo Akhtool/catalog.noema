@@ -31,3 +31,5 @@ npm run dev
 - Каталог (пример): `http://crusty.catlg.ru:3000`
 
 Переменные окружения — см. `.env.local` (Supabase).
+
+**Онбординг:** открывать только по ссылке с ключом: `/onboarding?key=<ONBOARDING_ACCESS_KEY>`. Подробнее: [docs/business-onboarding-plan.md](docs/business-onboarding-plan.md).
