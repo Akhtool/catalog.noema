@@ -1,64 +1,72 @@
 import { Skeleton } from "@/components/ui/skeleton"
 
-/**
- * Показывается при загрузке страницы каталога (в т.ч. после редиректа с логина).
- * Вместо белого экрана пользователь видит skeleton, пока подгружаются данные и toast успевает отобразиться.
- */
-export default function CatalogLoading() {
+export default function Loading() {
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <div className="min-h-[180px]" aria-hidden />
-
-      {/* Блок с лого + название (внутри баннера по макету) */}
-      <div className="px-5 -mt-16 relative z-10">
-        <div className="flex items-end gap-4">
-          <Skeleton className="w-24 h-24 rounded-full flex-shrink-0" />
-          <div className="flex-1 space-y-2 pb-1">
-            <Skeleton className="h-10 w-3/4 max-w-[240px]" />
-            <Skeleton className="h-4 w-1/2 max-w-[160px]" />
+    <div className="w-full max-w-[430px] min-h-screen flex flex-col relative shrink-0 bg-background">
+      {/* Имитация обложки */}
+      <div className="relative w-full min-h-[180px] flex flex-col justify-end rounded-b-[2.5rem] overflow-hidden shadow-xl z-10 bg-muted">
+        <div className="relative p-8 z-20">
+          <div className="flex items-end gap-4">
+            {/* Логотип */}
+            <Skeleton className="w-24 h-24 rounded-full border-2 border-background shrink-0" />
+            
+            <div className="flex-1 min-w-0 space-y-2 mb-2">
+              {/* Название */}
+              <Skeleton className="h-8 w-3/4" />
+              {/* Описание */}
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Инфо-карточка (доставка/часы) */}
-      <div className="px-5 mt-4">
-        <Skeleton className="w-full h-[72px] rounded-2xl" />
-      </div>
-
-      {/* Секция контактов / кнопка */}
-      <div className="px-5 mt-4">
-        <Skeleton className="w-full h-12 rounded-xl" />
-      </div>
-
-      {/* Заголовок каталога / поиск */}
-      <div className="px-5 mt-6 space-y-3">
-        <Skeleton className="h-9 w-32" />
-        <Skeleton className="h-10 w-full rounded-xl" />
-      </div>
-
-      {/* Сетка карточек товаров (pb — место под фиксированную панель корзины) */}
-      <div className="px-5 mt-4 pb-20 grid grid-cols-2 gap-3 sm:gap-4">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="flex flex-col gap-2">
-            <Skeleton className="aspect-square w-full rounded-2xl" />
-            <Skeleton className="h-4 w-full" />
+      {/* Информационная строка */}
+      <div className="px-3 -mt-6 relative z-20 my-2.5">
+        <div className="bg-background rounded-2xl shadow-card p-3 space-y-2 border border-border/50">
+          <div className="flex items-center gap-2">
+            <Skeleton className="w-6 h-6 rounded-full" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="w-6 h-6 rounded-full" />
+            <Skeleton className="h-4 w-1/3" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="w-6 h-6 rounded-full" />
             <Skeleton className="h-4 w-2/3" />
-            <Skeleton className="h-5 w-1/2 mt-1" />
+          </div>
+        </div>
+      </div>
+
+      {/* Секция контактов */}
+      <div className="px-3 py-2">
+        <Skeleton className="h-12 w-full rounded-xl" />
+      </div>
+
+      {/* Категории */}
+      <div className="px-3 py-2 flex gap-2 overflow-hidden">
+        <Skeleton className="h-8 w-24 rounded-full shrink-0" />
+        <Skeleton className="h-8 w-28 rounded-full shrink-0" />
+        <Skeleton className="h-8 w-20 rounded-full shrink-0" />
+        <Skeleton className="h-8 w-24 rounded-full shrink-0" />
+      </div>
+
+      {/* Товары */}
+      <div className="px-3 space-y-4 pb-24">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex gap-4 p-4 rounded-xl border border-border/50">
+            <Skeleton className="w-24 h-24 rounded-lg shrink-0" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-4 w-full" />
+              <div className="flex justify-between items-center pt-2">
+                <Skeleton className="h-6 w-20" />
+                <Skeleton className="h-8 w-24 rounded-full" />
+              </div>
+            </div>
           </div>
         ))}
-      </div>
-
-      {/* Футер */}
-      <div className="mt-8 pt-6 border-t border-border">
-        <div className="container flex flex-col items-center gap-2 px-4">
-          <Skeleton className="h-4 w-48" />
-          <Skeleton className="h-3.5 w-12" />
-        </div>
-      </div>
-
-      {/* Нижняя панель корзины */}
-      <div className="fixed bottom-0 left-0 right-0 h-16 border-t border-border bg-background flex items-center px-5">
-        <Skeleton className="h-10 flex-1 max-w-[200px] rounded-xl" />
       </div>
     </div>
   )

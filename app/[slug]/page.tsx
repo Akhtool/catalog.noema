@@ -1,6 +1,5 @@
 // app/[slug]/page.tsx
 import { supabase } from "@/lib/supabase";
-import { expireProductDiscounts } from "@/app/admin/product/actions";
 import { createServerClient } from "@/lib/supabase-server";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
@@ -42,7 +41,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const { data: business } = await supabase
     .from("business")
-    .select("name, description, logo_url")
+    .select("name, description, logo_url, cover_url")
     .eq("slug", slug)
     .single();
 
@@ -53,12 +52,27 @@ export async function generateMetadata({
     };
   }
 
+  const title = business.name || "Catalog Noema";
+  const description = business.description || "Каталог товаров";
+  const ogImage = business.cover_url || business.logo_url || null;
+
   const metadata: Metadata = {
-    title: business.name || "Catalog Noema",
-    description: business.description || "Каталог товаров",
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      ...(ogImage ? { images: [{ url: ogImage, alt: title }] } : {}),
+    },
+    twitter: {
+      card: ogImage ? "summary_large_image" : "summary",
+      title,
+      description,
+      ...(ogImage ? { images: [ogImage] } : {}),
+    },
   };
 
-  // Устанавливаем favicon из логотипа бизнеса, если он есть
   if (business.logo_url) {
     metadata.icons = {
       icon: business.logo_url,
@@ -82,50 +96,65 @@ export default async function Page({ params }: PageProps) {
     notFound();
   }
 
-  const { data: categories } = await supabase
+  // Запускаем запросы параллельно
+  const categoriesPromise = supabase
     .from("category")
     .select("*")
     .eq("business_id", business.id)
     .eq("is_active", true)
     .order("order", { ascending: true });
 
-  const { data: locations } = await supabase
+  const locationsPromise = supabase
     .from("business_location")
     .select("*")
     .eq("business_id", business.id)
     .order("order_position", { ascending: true });
 
-  await expireProductDiscounts(business.id);
+  // Логика получения продуктов и проверки прав админа
+  const productsAndAdminPromise = (async () => {
+    const serverClient = await createServerClient();
+    const { data: { user } } = await serverClient.auth.getUser();
+    let isAdmin = false;
+    if (user) {
+      const { data: bu } = await serverClient
+        .from("business_user")
+        .select("role")
+        .eq("business_id", business.id)
+        .eq("user_id", user.id)
+        .single();
+      isAdmin = !!(bu && (bu.role === "owner" || bu.role === "admin"));
+    }
 
-  // Для админа загружаем все товары (в т.ч. скрытые) через serverClient; для остальных — только активные через anon
-  const serverClient = await createServerClient();
-  const { data: { user } } = await serverClient.auth.getUser();
-  let isAdmin = false;
-  if (user) {
-    const { data: bu } = await serverClient
-      .from("business_user")
-      .select("role")
-      .eq("business_id", business.id)
-      .eq("user_id", user.id)
-      .single();
-    isAdmin = !!(bu && (bu.role === "owner" || bu.role === "admin"));
-  }
-  const productSelect = "*, product_image(url, position), brand(name)";
-  const productOrder = { ascending: true as const };
-  const { data: products } = isAdmin
-    ? await serverClient
-        .from("product")
-        .select(productSelect)
-        .eq("business_id", business.id)
-        .order("order", productOrder)
-        .order("id", productOrder)
-    : await supabase
-        .from("product")
-        .select(productSelect)
-        .eq("business_id", business.id)
-        .eq("is_active", true)
-        .order("order", productOrder)
-        .order("id", productOrder);
+    const productSelect = "*, product_image(url, position), brand(name)";
+    const productOrder = { ascending: true as const };
+    
+    const { data: products } = isAdmin
+      ? await serverClient
+          .from("product")
+          .select(productSelect)
+          .eq("business_id", business.id)
+          .order("order", productOrder)
+          .order("id", productOrder)
+      : await supabase
+          .from("product")
+          .select(productSelect)
+          .eq("business_id", business.id)
+          .eq("is_active", true)
+          .order("order", productOrder)
+          .order("id", productOrder);
+
+    return { products, isAdmin };
+  })();
+
+  const [categoriesResult, locationsResult, productsAndAdminResult] = await Promise.all([
+    categoriesPromise,
+    locationsPromise,
+    productsAndAdminPromise
+  ]);
+
+  const categories = categoriesResult.data;
+  const locations = locationsResult.data;
+  const { products, isAdmin } = productsAndAdminResult;
 
   // Преобразуем данные из snake_case в camelCase для типизации
   const themeBrandHsl =
@@ -307,8 +336,7 @@ export default async function Page({ params }: PageProps) {
                 fill
                 className="object-cover"
                 priority
-                sizes="100vw"
-                unoptimized
+                sizes="(max-width: 768px) 100vw, 50vw"
               />
               <div className="relative p-8 z-20">
                 <div className="absolute top-4 right-4 z-30">
@@ -324,7 +352,6 @@ export default async function Page({ params }: PageProps) {
                           fill
                           className="object-cover"
                           sizes="96px"
-                          unoptimized
                         />
                       </div>
                     </div>
@@ -369,7 +396,6 @@ export default async function Page({ params }: PageProps) {
                           fill
                           className="object-cover"
                           sizes="96px"
-                          unoptimized
                         />
                       </div>
                     </div>

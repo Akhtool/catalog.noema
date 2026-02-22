@@ -18,10 +18,16 @@ import {
 } from "lucide-react";
 import { useSheetDrag } from "@/lib/useSheetDrag";
 import useEmblaCarousel from "embla-carousel-react";
-import Lightbox from "yet-another-react-lightbox";
-import Fullscreen from "yet-another-react-lightbox/plugins/fullscreen";
-import Zoom from "yet-another-react-lightbox/plugins/zoom";
+import dynamic from "next/dynamic";
+
+const Lightbox = dynamic(() => import("yet-another-react-lightbox"), {
+  ssr: false,
+});
 import "yet-another-react-lightbox/styles.css";
+const loadFullscreen = () =>
+  import("yet-another-react-lightbox/plugins/fullscreen").then((m) => m.default);
+const loadZoom = () =>
+  import("yet-another-react-lightbox/plugins/zoom").then((m) => m.default);
 
 interface ProductDetailCardProps {
   product: Product;
@@ -61,6 +67,16 @@ export function ProductDetailCard({
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxPlugins, setLightboxPlugins] = useState<unknown[]>([]);
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    let cancelled = false;
+    Promise.all([loadFullscreen(), loadZoom()]).then((plugins) => {
+      if (!cancelled) setLightboxPlugins(plugins);
+    });
+    return () => { cancelled = true; };
+  }, [lightboxOpen]);
 
   const lightboxSlides = useMemo(
     () => images.map((src) => ({ src })),
@@ -254,7 +270,6 @@ export function ProductDetailCard({
                                 className="object-cover"
                                 priority={index === 0}
                                 sizes="240px"
-                                unoptimized
                                 onError={() => setImageLoadError(true)}
                               />
                             </div>
@@ -307,7 +322,6 @@ export function ProductDetailCard({
                       className="object-cover"
                       priority
                       sizes="240px"
-                      unoptimized
                       onError={() => setImageLoadError(true)}
                     />
                   </div>
@@ -381,7 +395,7 @@ export function ProductDetailCard({
               {/* Цена слева */}
               <div className="flex items-center gap-2 flex-wrap">
                 {isDiscountActive(product) && (
-                  <span className="text-lg text-gray-400 line-through font-medium">
+                  <span className="text-lg text-gray-500 line-through font-medium">
                     {product.originalPrice!.toLocaleString("ru-RU")} ₽
                   </span>
                 )}
@@ -428,13 +442,13 @@ export function ProductDetailCard({
         </SheetContent>
       </Sheet>
 
-      {lightboxSlides.length > 0 && (
+      {lightboxOpen && lightboxSlides.length > 0 && (
         <Lightbox
           open={lightboxOpen}
           close={() => setLightboxOpen(false)}
           slides={lightboxSlides}
           index={selectedIndex}
-          plugins={[Fullscreen, Zoom]}
+          plugins={lightboxPlugins as never[]}
           zoom={{
             pinchZoomV4: true,
             maxZoomPixelRatio: 3,

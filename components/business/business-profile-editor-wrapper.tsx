@@ -1,10 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { Business } from "@/types";
-import { BusinessProfileEditorSheet } from "./business-profile-editor-sheet";
-import { ProductEditorSheet } from "./product-editor-sheet";
 import { ProfileEditorContext } from "./profile-editor-context";
+
+const BusinessProfileEditorSheet = dynamic(
+  () => import("./business-profile-editor-sheet").then((m) => m.BusinessProfileEditorSheet),
+  { ssr: false },
+);
+const ProductEditorSheet = dynamic(
+  () => import("./product-editor-sheet").then((m) => m.ProductEditorSheet),
+  { ssr: false },
+);
 import { useRouter } from "next/navigation";
 import { checkBusinessAccess } from "@/app/admin/business/actions";
 import {
@@ -80,9 +88,9 @@ export function BusinessProfileEditorWrapper({
         hasAccess,
       }}
     >
-      <div className="min-h-screen bg-background-light pb-16 relative">
+      <main className="min-h-screen bg-background-light pb-16 relative">
         {children}
-      </div>
+      </main>
 
       <BusinessProfileEditorSheet
         business={business}

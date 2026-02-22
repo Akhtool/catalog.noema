@@ -239,7 +239,6 @@ export function ProductCard({
                 className="object-cover"
                 sizes="160px"
                 priority={imagePriority}
-                unoptimized
               />
             </div>
           )}
@@ -267,7 +266,7 @@ export function ProductCard({
               {quantity === 0 && (
                 <div className="flex items-center gap-2 flex-wrap">
                   {isDiscountActive(product) && (
-                    <span className="text-sm text-gray-400 line-through">
+                    <span className="text-sm text-gray-500 line-through">
                       {product.originalPrice!.toLocaleString("ru-RU")} ₽
                     </span>
                   )}
@@ -446,7 +445,6 @@ export function ProductCard({
               className="object-contain"
               sizes="50vw"
               priority={imagePriority}
-              unoptimized
             />
           )}
         </div>
@@ -472,7 +470,7 @@ export function ProductCard({
             {quantity === 0 && (
               <div className="flex items-center gap-2 flex-wrap">
                 {isDiscountActive(product) && (
-                  <span className="text-xs text-gray-400 line-through">
+                  <span className="text-xs text-gray-500 line-through">
                     {product.originalPrice!.toLocaleString("ru-RU")} ₽
                   </span>
                 )}

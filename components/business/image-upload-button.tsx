@@ -80,6 +80,7 @@ export function ImageUploadButton({
         .upload(filePath, croppedFile, {
           contentType: croppedFile.type,
           upsert: true,
+          cacheControl: 'public, max-age=31536000, immutable',
         })
 
       if (uploadError) {
