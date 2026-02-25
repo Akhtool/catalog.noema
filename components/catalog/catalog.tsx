@@ -87,6 +87,7 @@ export function Catalog({ categories, products }: CatalogProps) {
       setIsExporting(false);
     }
   }
+
   /** Ожидаемый порядок после refresh — сбрасываем оптимистичный только когда сервер вернул его */
   const pendingOrderIdsRef = useRef<string[] | null>(null);
 
@@ -284,33 +285,22 @@ export function Catalog({ categories, products }: CatalogProps) {
       <CategoryList categories={categories} />
 
       {/* Переключение вида и заголовок */}
-      <div className="flex items-center justify-between mt-[5px] mb-2.5 px-1">
-        <h2 className="text-xl font-bold text-gray-900">{getHeaderTitle()}</h2>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2 mt-[5px] mb-2.5 px-1 min-w-0">
+        <h2 className="text-xl font-bold text-gray-900 truncate min-w-0">
+          {getHeaderTitle()}
+        </h2>
+        <div className="flex items-center gap-2 flex-shrink-0">
           {hasAccess && (
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleExport}
-                disabled={isExporting || !business?.id}
-                className="gap-1.5 text-gray-600"
-              >
-                <FileDown className="w-4 h-4" />
-                {isExporting ? "Экспорт…" : "Экспорт"}
-              </Button>
-              {openBulkImport && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={openBulkImport}
-                  className="gap-1.5 text-gray-600"
-                >
-                  <FileSpreadsheet className="w-4 h-4" />
-                  Импорт
-                </Button>
-              )}
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleExport}
+              disabled={isExporting || !business?.id}
+              className="gap-1.5 text-gray-600 shrink-0"
+            >
+              <FileDown className="w-4 h-4" />
+              {isExporting ? "Экспорт…" : "Экспорт в Excel"}
+            </Button>
           )}
           <ViewToggle />
         </div>

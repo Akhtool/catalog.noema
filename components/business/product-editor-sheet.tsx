@@ -22,7 +22,8 @@ import {
 } from "@/components/ui/dialog";
 import { useSheetDrag } from "@/lib/useSheetDrag";
 import { Business } from "@/types";
-import { X, ChevronRight, Camera, Calendar, Trash2, Loader2 } from "lucide-react";
+import { X, ChevronRight, Camera, Calendar, Trash2, Loader2, FileSpreadsheet } from "lucide-react";
+import { useBulkImport } from "./profile-editor-context";
 import { BrandPickerSheet } from "./brand-picker-sheet";
 import { CategoryPickerSheet } from "./category-picker-sheet";
 import type { DiscountDateRange } from "./discount-date-picker-dialog";
@@ -114,6 +115,7 @@ export function ProductEditorSheet({
   const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
   const [pendingMainImageId, setPendingMainImageId] = useState<string | null>(null);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
+  const openBulkImport = useBulkImport();
   const imageInputRef = useRef<HTMLInputElement>(null);
   /** Ref для проверки несохранённых изменений при любом способе закрытия (свайп, кнопка, overlay). */
   const hasUnsavedRef = useRef<() => boolean>(() => false);
@@ -638,6 +640,20 @@ export function ProductEditorSheet({
           <p className="text-xs text-gray-500 mt-1">
             <span className="text-red-600">*</span> — обязательные поля
           </p>
+          {openBulkImport && (
+            <div className="flex items-center gap-2 mt-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={openBulkImport}
+                className="gap-1.5"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                Импорт из Excel
+              </Button>
+            </div>
+          )}
         </div>
 
         <div
