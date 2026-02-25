@@ -31,6 +31,9 @@
     "react-swipeable": "^7.0.2",
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.6.0",
+    "papaparse": "^5.4.1",
+    "read-excel-file": "^7.0.0",
+    "write-excel-file": "^3.0.4",
     "yet-another-react-lightbox": "^3.29.1",
     "zustand": "^5.0.11"
   },
@@ -41,6 +44,7 @@
     "@eslint/eslintrc": "^3.2.0",
     "@next/bundle-analyzer": "^16.1.6",
     "@types/node": "^22.19.11",
+    "@types/papaparse": "^5.3.15",
     "@types/react": "18.3.27",
     "@types/react-dom": "^18.3.7",
     "autoprefixer": "^10.4.24",

@@ -13,6 +13,10 @@ const ProductEditorSheet = dynamic(
   () => import("./product-editor-sheet").then((m) => m.ProductEditorSheet),
   { ssr: false },
 );
+const BulkImportSheet = dynamic(
+  () => import("./bulk-import-sheet").then((m) => m.BulkImportSheet),
+  { ssr: false },
+);
 import { useRouter } from "next/navigation";
 import { checkBusinessAccess } from "@/app/admin/business/actions";
 import {
@@ -39,6 +43,8 @@ export function BusinessProfileEditorWrapper({
   const router = useRouter();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isProductEditorOpen, setIsProductEditorOpen] = useState(false);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [hasOpenedBulkImport, setHasOpenedBulkImport] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [hasAccess, setHasAccess] = useState<boolean | null>(initialHasAccess ?? null);
 
@@ -83,6 +89,10 @@ export function BusinessProfileEditorWrapper({
       value={{
         openEditor: () => setIsProfileOpen(true),
         openProductEditor,
+        openBulkImport: () => {
+          setHasOpenedBulkImport(true);
+          setIsBulkImportOpen(true);
+        },
         deleteProduct: handleDeleteProduct,
         restoreProduct: handleRestoreProduct,
         hasAccess,
@@ -105,6 +115,13 @@ export function BusinessProfileEditorWrapper({
         onOpenChange={handleProductEditorOpenChange}
         productId={editingProductId}
       />
+      {hasOpenedBulkImport && (
+        <BulkImportSheet
+          business={business}
+          open={isBulkImportOpen}
+          onOpenChange={setIsBulkImportOpen}
+        />
+      )}
     </ProfileEditorContext.Provider>
   );
 }

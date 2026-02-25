@@ -27,8 +27,6 @@ export function Footer() {
             alt={NOEMA_LOGO_ALT}
             width={NOEMA_LOGO_WIDTH}
             height={NOEMA_LOGO_HEIGHT}
-            className="h-3.5 w-auto"
-            style={{ width: "auto", height: "auto" }}
             sizes="50px"
             priority={false}
           />

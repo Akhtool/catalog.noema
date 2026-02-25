@@ -6,6 +6,8 @@ interface ProfileEditorContextValue {
   openEditor: () => void;
   /** Открыть редактор позиции: без id — новая позиция, с id — редактирование */
   openProductEditor: (productId?: string) => void;
+  /** Открыть импорт товаров (Excel/CSV) */
+  openBulkImport: () => void;
   /** Скрыть позицию из каталога (soft delete), затем обновить страницу */
   deleteProduct: (productId: string) => Promise<void>;
   /** Восстановить скрытую позицию (is_active = true), затем обновить страницу */
@@ -32,6 +34,11 @@ export function useProfileEditor() {
 export function useProductEditor() {
   const ctx = useContext(ProfileEditorContext);
   return ctx?.openProductEditor ?? null;
+}
+
+export function useBulkImport() {
+  const ctx = useContext(ProfileEditorContext);
+  return ctx?.openBulkImport ?? null;
 }
 
 /**

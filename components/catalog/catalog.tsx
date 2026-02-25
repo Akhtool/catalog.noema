@@ -10,6 +10,7 @@ import {
   useHasAccess,
   useProfileEditor,
   useProductEditor,
+  useBulkImport,
   useDeleteProduct,
   useRestoreProduct,
 } from "@/components/business/profile-editor-context";
@@ -18,7 +19,9 @@ import { SearchInput } from "./search-input";
 import { ViewToggle } from "./view-toggle";
 import { ProductCard } from "./product-card";
 import { Button } from "@/components/ui/button";
-import { Pencil, Plus } from "lucide-react";
+import { FileSpreadsheet, FileDown, Pencil, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { getProductsForExport } from "@/app/admin/product/actions";
 
 const SortableCatalogGrid = dynamic(
   () => import("./sortable-catalog-grid").then((m) => m.SortableCatalogGrid),
@@ -35,6 +38,7 @@ export function Catalog({ categories, products }: CatalogProps) {
   const hasAccess = useHasAccess();
   const openProfileEditor = useProfileEditor();
   const openProductEditor = useProductEditor();
+  const openBulkImport = useBulkImport();
   const hideProduct = useDeleteProduct();
   const restoreProduct = useRestoreProduct();
   const {
@@ -55,6 +59,34 @@ export function Catalog({ categories, products }: CatalogProps) {
   const [optimisticOrderIds, setOptimisticOrderIds] = useState<string[] | null>(
     null,
   );
+  const [isExporting, setIsExporting] = useState(false);
+
+  async function handleExport() {
+    if (!business?.id || !business?.slug) return;
+    setIsExporting(true);
+    try {
+      const res = await getProductsForExport(business.id);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      if (!res.data?.length) {
+        toast.info("Нет товаров для экспорта");
+        return;
+      }
+      const { exportProductsToExcel } = await import("@/lib/bulk-export");
+      const date = new Date().toISOString().slice(0, 10);
+      await exportProductsToExcel(
+        res.data,
+        `каталог_${business.slug}_${date}.xlsx`,
+      );
+      toast.success(`Экспортировано ${res.data.length} товаров`);
+    } catch {
+      toast.error("Ошибка экспорта");
+    } finally {
+      setIsExporting(false);
+    }
+  }
   /** Ожидаемый порядок после refresh — сбрасываем оптимистичный только когда сервер вернул его */
   const pendingOrderIdsRef = useRef<string[] | null>(null);
 
@@ -254,7 +286,34 @@ export function Catalog({ categories, products }: CatalogProps) {
       {/* Переключение вида и заголовок */}
       <div className="flex items-center justify-between mt-[5px] mb-2.5 px-1">
         <h2 className="text-xl font-bold text-gray-900">{getHeaderTitle()}</h2>
-        <ViewToggle />
+        <div className="flex items-center gap-2">
+          {hasAccess && (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleExport}
+                disabled={isExporting || !business?.id}
+                className="gap-1.5 text-gray-600"
+              >
+                <FileDown className="w-4 h-4" />
+                {isExporting ? "Экспорт…" : "Экспорт"}
+              </Button>
+              {openBulkImport && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={openBulkImport}
+                  className="gap-1.5 text-gray-600"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Импорт
+                </Button>
+              )}
+            </div>
+          )}
+          <ViewToggle />
+        </div>
       </div>
 
       {/* Список товаров */}
@@ -268,8 +327,8 @@ export function Catalog({ categories, products }: CatalogProps) {
                     ? "Настройте витрину и добавьте товары"
                     : "Товары появятся скоро"}
                 </p>
-                {hasAccess && (openProfileEditor || openProductEditor) ? (
-                  <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                {hasAccess && (openProfileEditor || openProductEditor || openBulkImport) ? (
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center items-center flex-wrap">
                     {openProfileEditor && (
                       <Button
                         onClick={openProfileEditor}
@@ -287,6 +346,16 @@ export function Catalog({ categories, products }: CatalogProps) {
                       >
                         <Plus className="w-4 h-4" />
                         Добавить позицию
+                      </Button>
+                    )}
+                    {openBulkImport && (
+                      <Button
+                        onClick={openBulkImport}
+                        variant="outline"
+                        className="w-full sm:w-auto rounded-xl border-2 border-gray-200 gap-2"
+                      >
+                        <FileSpreadsheet className="w-4 h-4" />
+                        Импорт
                       </Button>
                     )}
                   </div>
