@@ -1,12 +1,32 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import { Category, Product } from "@/types";
-import { useCatalogFiltersStore } from "@/store/catalog-filters";
+import { isDiscountActive } from "@/lib/discount";
+import { useFiltersForBusiness } from "@/store/catalog-filters";
+import { useCurrentBusinessStore } from "@/store/current-business";
+import {
+  useHasAccess,
+  useProfileEditor,
+  useProductEditor,
+  useBulkImport,
+  useDeleteProduct,
+  useRestoreProduct,
+} from "@/components/business/profile-editor-context";
 import { CategoryList } from "./category-list";
 import { SearchInput } from "./search-input";
 import { ViewToggle } from "./view-toggle";
 import { ProductCard } from "./product-card";
+import { Button } from "@/components/ui/button";
+import { FileSpreadsheet, FileDown, Pencil, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { getProductsForExport } from "@/app/admin/product/actions";
+
+const SortableCatalogGrid = dynamic(
+  () => import("./sortable-catalog-grid").then((m) => m.SortableCatalogGrid),
+  { ssr: false },
+);
 
 interface CatalogProps {
   categories: Category[];
@@ -14,6 +34,13 @@ interface CatalogProps {
 }
 
 export function Catalog({ categories, products }: CatalogProps) {
+  const business = useCurrentBusinessStore((s) => s.business);
+  const hasAccess = useHasAccess();
+  const openProfileEditor = useProfileEditor();
+  const openProductEditor = useProductEditor();
+  const openBulkImport = useBulkImport();
+  const hideProduct = useDeleteProduct();
+  const restoreProduct = useRestoreProduct();
   const {
     searchQuery,
     selectedCategoryId,
@@ -24,7 +51,68 @@ export function Catalog({ categories, products }: CatalogProps) {
     showDiscounted,
     viewMode,
     catalogMode,
-  } = useCatalogFiltersStore();
+    setCatalogMode,
+    setSelectedCategoryId,
+  } = useFiltersForBusiness(business?.id ?? null);
+
+  /** Оптимистичный порядок id после drop; null = используем порядок с сервера */
+  const [optimisticOrderIds, setOptimisticOrderIds] = useState<string[] | null>(
+    null,
+  );
+  const [isExporting, setIsExporting] = useState(false);
+
+  async function handleExport() {
+    if (!business?.id || !business?.slug) return;
+    setIsExporting(true);
+    try {
+      const res = await getProductsForExport(business.id);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      if (!res.data?.length) {
+        toast.info("Нет товаров для экспорта");
+        return;
+      }
+      const { exportProductsToExcel } = await import("@/lib/bulk-export");
+      const date = new Date().toISOString().slice(0, 10);
+      await exportProductsToExcel(
+        res.data,
+        `каталог_${business.slug}_${date}.xlsx`,
+      );
+      toast.success(`Экспортировано ${res.data.length} товаров`);
+    } catch {
+      toast.error("Ошибка экспорта");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  /** Ожидаемый порядок после refresh — сбрасываем оптимистичный только когда сервер вернул его */
+  const pendingOrderIdsRef = useRef<string[] | null>(null);
+
+  useEffect(() => {
+    if (
+      pendingOrderIdsRef.current &&
+      products.length === pendingOrderIdsRef.current.length &&
+      products.every((p, i) => p.id === pendingOrderIdsRef.current![i])
+    ) {
+      pendingOrderIdsRef.current = null;
+      setOptimisticOrderIds(null);
+    }
+  }, [products]);
+
+  /** Продукты в текущем порядке (серверный или оптимистичный) */
+  const productsOrdered = useMemo(() => {
+    if (!optimisticOrderIds || optimisticOrderIds.length === 0) return products;
+    const byId = new Map(products.map((p) => [p.id, p]));
+    const ordered: Product[] = [];
+    for (const id of optimisticOrderIds) {
+      const p = byId.get(id);
+      if (p) ordered.push(p);
+    }
+    return ordered.length > 0 ? ordered : products;
+  }, [products, optimisticOrderIds]);
 
   // Формирование заголовка на основе фильтров
   const getHeaderTitle = () => {
@@ -75,21 +163,21 @@ export function Catalog({ categories, products }: CatalogProps) {
     return parts.length > 0 ? parts.join(", ") : "Популярное";
   };
 
-  // Фильтрация товаров
+  // Фильтрация товаров (по уже упорядоченному списку)
   const filteredProducts = useMemo(() => {
-    let filtered = products;
+    let filtered = productsOrdered;
 
     // Фильтр по категории
     if (selectedCategoryId) {
       filtered = filtered.filter(
-        (product) => product.categoryId === selectedCategoryId
+        (product) => product.categoryId === selectedCategoryId,
       );
     }
 
     // Фильтр по брендам
     if (selectedBrands.length > 0) {
       filtered = filtered.filter(
-        (product) => product.brand && selectedBrands.includes(product.brand)
+        (product) => product.brand && selectedBrands.includes(product.brand),
       );
     }
 
@@ -107,10 +195,9 @@ export function Catalog({ categories, products }: CatalogProps) {
       filtered = filtered;
     }
 
-    // Фильтр "Товары со скидкой" (пока нет поля скидки, можно добавить позже)
+    // Фильтр "Товары со скидкой" — только активные скидки (в периоде)
     if (showDiscounted) {
-      // Пока оставляем все товары, можно добавить проверку на наличие скидки
-      filtered = filtered;
+      filtered = filtered.filter((product) => isDiscountActive(product));
     }
 
     // Фильтр по поисковому запросу
@@ -121,13 +208,13 @@ export function Catalog({ categories, products }: CatalogProps) {
           product.name.toLowerCase().includes(query) ||
           (product.description &&
             product.description.toLowerCase().includes(query)) ||
-          (product.brand && product.brand.toLowerCase().includes(query))
+          (product.brand && product.brand.toLowerCase().includes(query)),
       );
     }
 
     return filtered;
   }, [
-    products,
+    productsOrdered,
     selectedCategoryId,
     selectedBrands,
     minPrice,
@@ -142,39 +229,51 @@ export function Catalog({ categories, products }: CatalogProps) {
     return (
       <div className="space-y-6">
         <SearchInput categories={categories} products={products} />
-        <div className="grid grid-cols-2 gap-4">
-          {categories.map((category) => {
-            const categoryProducts = products.filter(
-              (p) => p.categoryId === category.id
-            );
-            return (
-              <div
-                key={category.id}
-                className="bg-card-white rounded-[1.25rem] p-6 shadow-soft border border-transparent hover:border-brand-yellow/30 transition-all cursor-pointer"
-                onClick={() => {
-                  // Переключаемся в режим каталога и выбираем категорию
-                  useCatalogFiltersStore.getState().setCatalogMode("catalog");
-                  useCatalogFiltersStore
-                    .getState()
-                    .setSelectedCategoryId(category.id);
-                  // Скроллим к началу каталога
-                  setTimeout(() => {
-                    document.getElementById("catalog-section")?.scrollIntoView({
-                      behavior: "smooth",
-                    });
-                  }, 100);
-                }}
-              >
-                <h3 className="text-lg font-bold text-gray-900 mb-2">
-                  {category.name}
-                </h3>
-                <p className="text-sm text-gray-500">
-                  {categoryProducts.length} товаров
-                </p>
-              </div>
-            );
-          })}
-        </div>
+        {categories.length === 0 ? (
+          <div className="text-center py-12 px-4 text-gray-500">
+            <p className="text-base font-medium">Категорий пока нет</p>
+            <p className="text-sm mt-1">
+              {hasAccess
+                ? "Добавьте категорию в редакторе позиции"
+                : "Категории появятся скоро"}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            {categories.map((category) => {
+              const categoryProducts = products.filter(
+                (p) => p.categoryId === category.id,
+              );
+              return (
+                <div
+                  key={category.id}
+                  className="bg-card-white rounded-[1.25rem] p-6 shadow-soft border border-transparent hover:border-brand-yellow/30 transition-all cursor-pointer"
+                  onClick={() => {
+                    if (business?.id) {
+                      setCatalogMode("catalog");
+                      setSelectedCategoryId(category.id);
+                    }
+                    // Скроллим к началу каталога
+                    setTimeout(() => {
+                      document
+                        .getElementById("catalog-section")
+                        ?.scrollIntoView({
+                          behavior: "smooth",
+                        });
+                    }, 100);
+                  }}
+                >
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">
+                    {category.name}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {categoryProducts.length} товаров
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   }
@@ -186,30 +285,115 @@ export function Catalog({ categories, products }: CatalogProps) {
       <CategoryList categories={categories} />
 
       {/* Переключение вида и заголовок */}
-      <div className="flex items-center justify-between mt-[5px] mb-2.5 px-1">
-        <h2 className="text-xl font-bold text-gray-900">
+      <div className="flex items-center justify-between gap-2 mt-[5px] mb-2.5 px-1 min-w-0">
+        <h2 className="text-xl font-bold text-gray-900 truncate min-w-0">
           {getHeaderTitle()}
         </h2>
-        <ViewToggle />
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {hasAccess && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleExport}
+              disabled={isExporting || !business?.id}
+              className="gap-1.5 text-gray-600 shrink-0"
+            >
+              <FileDown className="w-4 h-4" />
+              {isExporting ? "Экспорт…" : "Экспорт в Excel"}
+            </Button>
+          )}
+          <ViewToggle />
+        </div>
       </div>
 
       {/* Список товаров */}
       <div className="mt-2.5">
         {filteredProducts.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <p>Товары не найдены</p>
+          <div className="text-center py-12 px-4">
+            {products.length === 0 ? (
+              <div className="space-y-4">
+                <p className="text-base font-medium text-gray-700">
+                  {hasAccess
+                    ? "Настройте витрину и добавьте товары"
+                    : "Товары появятся скоро"}
+                </p>
+                {hasAccess && (openProfileEditor || openProductEditor || openBulkImport) ? (
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center items-center flex-wrap">
+                    {openProfileEditor && (
+                      <Button
+                        onClick={openProfileEditor}
+                        variant="outline"
+                        className="w-full sm:w-auto rounded-xl border-2 border-gray-200 gap-2"
+                      >
+                        <Pencil className="w-4 h-4" />
+                        Логотип и обложка
+                      </Button>
+                    )}
+                    {openProductEditor && (
+                      <Button
+                        onClick={() => openProductEditor()}
+                        className="w-full sm:w-auto rounded-xl bg-brand-yellow text-brand-yellow-foreground hover:bg-brand-yellow/90 gap-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Добавить позицию
+                      </Button>
+                    )}
+                    {openBulkImport && (
+                      <Button
+                        onClick={openBulkImport}
+                        variant="outline"
+                        className="w-full sm:w-auto rounded-xl border-2 border-gray-200 gap-2"
+                      >
+                        <FileSpreadsheet className="w-4 h-4" />
+                        Импорт
+                      </Button>
+                    )}
+                  </div>
+                ) : hasAccess ? (
+                  <p className="text-sm text-gray-500">Используйте кнопки выше для настройки</p>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">Товары не найдены</p>
+            )}
           </div>
+        ) : hasAccess && business ? (
+          <SortableCatalogGrid
+            products={filteredProducts}
+            allProducts={productsOrdered}
+            viewMode={viewMode}
+            businessId={business.id}
+            businessSlug={business.slug}
+            onEdit={openProductEditor ? (id) => openProductEditor(id) : undefined}
+            onHide={hideProduct ? (id) => hideProduct(id) : undefined}
+            onRestore={restoreProduct ? (id) => restoreProduct(id) : undefined}
+            setOptimisticOrderIds={setOptimisticOrderIds}
+            pendingOrderIdsRef={pendingOrderIdsRef}
+          />
         ) : (
           <div
             className={
-              viewMode === "grid" ? "grid grid-cols-2 gap-4 mt-2.5 pb-4" : "space-y-4 mt-2.5"
+              viewMode === "grid"
+                ? "grid grid-cols-2 gap-4 mt-2.5 pb-4"
+                : "space-y-4 mt-2.5"
             }
           >
-            {filteredProducts.map((product) => (
+            {filteredProducts.map((product, index) => (
               <ProductCard
                 key={product.id}
                 product={product}
                 viewMode={viewMode}
+                showAdminActions={hasAccess}
+                imagePriority={index === 0}
+                onEdit={
+                  hasAccess && openProductEditor
+                    ? () => openProductEditor(product.id)
+                    : undefined
+                }
+                onHide={
+                  hasAccess && product.isActive ? () => hideProduct?.(product.id) : undefined
+                }
+                onRestore={hasAccess ? () => restoreProduct?.(product.id) : undefined}
               />
             ))}
           </div>

@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Route handler для динамического favicon.ico
  * Определяет slug из referer и возвращает соответствующий логотип

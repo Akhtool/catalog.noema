@@ -3,15 +3,17 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { ShoppingCart } from "lucide-react"
-import { useCartStore, useCartHydration } from "@/store/cart"
+import { useCartHydration, useCartTotalQuantity } from "@/store/cart"
+import { useCurrentBusinessStore } from "@/store/current-business"
 import { CartDrawer } from "./cart-drawer"
 import { Badge } from "@/components/ui/badge"
 
 export function CartButton() {
   const [isOpen, setIsOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
-  useCartHydration() // Восстанавливаем корзину из localStorage
-  const totalQuantity = useCartStore((state) => state.getTotalQuantity())
+  useCartHydration()
+  const business = useCurrentBusinessStore((s) => s.business)
+  const totalQuantity = useCartTotalQuantity(business?.id ?? null)
 
   // Предотвращаем ошибку гидратации, показывая Badge только после монтирования на клиенте
   useEffect(() => {

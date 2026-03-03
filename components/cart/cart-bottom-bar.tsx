@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { ShoppingBag, Search } from "lucide-react"
-import { useCartStore, useCartHydration } from "@/store/cart"
+import { useCartHydration, useCartTotalQuantity } from "@/store/cart"
+import { useCurrentBusinessStore } from "@/store/current-business"
 import { CartDrawer } from "./cart-drawer"
+import { CartFlyLayer } from "./cart-fly-layer"
 
 /**
  * Обработчик клика по кнопке поиска
@@ -32,8 +34,9 @@ const handleSearchClick = () => {
 export function CartBottomBar() {
   const [isOpen, setIsOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
-  useCartHydration() // Восстанавливаем корзину из localStorage
-  const totalQuantity = useCartStore((state) => state.getTotalQuantity())
+  useCartHydration()
+  const business = useCurrentBusinessStore((s) => s.business)
+  const totalQuantity = useCartTotalQuantity(business?.id ?? null)
 
   // Предотвращаем ошибку гидратации, показывая данные корзины только после монтирования на клиенте
   useEffect(() => {
@@ -42,8 +45,9 @@ export function CartBottomBar() {
 
   return (
     <>
+      <CartFlyLayer />
       <div
-        className={`fixed bottom-0 left-0 right-0 z-40 bg-dark-nav pb-safe-sm pt-3 px-6 rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.1)] transition-all duration-500 ease-in-out ${
+        className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-40 bg-dark-nav pb-safe-sm pt-3 px-6 rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.1)] transition-all duration-500 ease-in-out ${
           isOpen ? "translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
         }`}
         style={{
@@ -66,11 +70,12 @@ export function CartBottomBar() {
             onClick={() => setIsOpen(true)}
             className="flex flex-col items-center gap-1 text-brand-yellow flex-1 relative"
             aria-label="Корзина"
+            data-cart-target="true"
           >
             <div className="relative">
               <ShoppingBag className="h-6 w-6" />
               {isMounted && totalQuantity > 0 && (
-                <div className="absolute -top-1 -right-1 bg-brand-yellow text-black text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center border border-dark-nav">
+                <div className="absolute -top-1 -right-1 bg-brand-yellow text-brand-yellow-foreground text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center border border-dark-nav">
                   {totalQuantity > 99 ? "99+" : totalQuantity}
                 </div>
               )}

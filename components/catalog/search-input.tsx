@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, SlidersHorizontal, X } from "lucide-react";
-import { useCatalogFiltersStore } from "@/store/catalog-filters";
+import { useFiltersForBusiness } from "@/store/catalog-filters";
+import { useCurrentBusinessStore } from "@/store/current-business";
 import { Button } from "@/components/ui/button";
 import { FiltersSheet } from "./filters-sheet";
 import { Category, Product } from "@/types";
@@ -14,7 +15,9 @@ interface SearchInputProps {
 }
 
 export function SearchInput({ categories, products }: SearchInputProps) {
-  const { searchQuery, setSearchQuery, resetFilters, hasActiveFilters } = useCatalogFiltersStore();
+  const business = useCurrentBusinessStore((s) => s.business);
+  const { searchQuery, setSearchQuery, resetFilters, hasActiveFilters } =
+    useFiltersForBusiness(business?.id ?? null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const hasFilters = hasActiveFilters();
 
@@ -26,7 +29,7 @@ export function SearchInput({ categories, products }: SearchInputProps) {
           <Input
             id="search-input"
             type="search"
-            placeholder="Поиск товаров..."
+            placeholder="Поиск..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-gray-50 border-none rounded-xl pl-12 py-3.5 text-[16px] font-medium focus:ring-2 focus:ring-brand-yellow focus:bg-white transition-all placeholder-gray-400"
@@ -56,6 +59,7 @@ export function SearchInput({ categories, products }: SearchInputProps) {
         onOpenChange={setIsFiltersOpen}
         categories={categories}
         products={products}
+        businessId={business?.id ?? ""}
       />
     </>
   );

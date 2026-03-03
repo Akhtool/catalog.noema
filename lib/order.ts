@@ -41,20 +41,27 @@ export function generateOrderMessage(order: Order): string {
 
   lines.push('');
 
-  // Итого
-  lines.push(`*Итого:* ${formatPrice(order.totalPrice)}`);
+  // Итого: при скидке — подытог, скидка, итог (subtotal/discountAmount могут быть из createOrder)
+  const discountAmount = typeof order.discountAmount === 'number' ? order.discountAmount : 0;
+  const subtotal = typeof order.subtotal === 'number' ? order.subtotal : order.items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const hasDiscount = discountAmount > 0;
+  if (hasDiscount) {
+    lines.push(`*Подытог:* ${formatPrice(subtotal)}`);
+    lines.push(`*Скидка по промокоду:* −${formatPrice(discountAmount)}`);
+    lines.push(`*Итого:* ${formatPrice(order.totalPrice)}`);
+  } else {
+    lines.push(`*Итого:* ${formatPrice(order.totalPrice)}`);
+  }
   lines.push(`*Количество товаров:* ${order.totalQuantity} шт.`);
 
-  // Комментарий, если есть
-  if (order.comment) {
-    lines.push('');
-    lines.push(`*Комментарий:* ${order.comment}`);
-  }
-
-  // Промокод, если есть
   if (order.promoCode) {
     lines.push('');
     lines.push(`*Промокод:* ${order.promoCode}`);
+  }
+
+  if (order.comment) {
+    lines.push('');
+    lines.push(`*Комментарий:* ${order.comment}`);
   }
 
   // Способ получения заказа
@@ -66,10 +73,18 @@ export function generateOrderMessage(order: Order): string {
       "dine-in": "В зале",
     };
     lines.push(`*Способ получения:* ${deliveryLabels[order.deliveryType] || order.deliveryType}`);
-    
-    // Адрес доставки, если выбран способ доставки
     if (order.deliveryType === "delivery" && order.deliveryAddress) {
       lines.push(`*Адрес доставки:* ${order.deliveryAddress}`);
+    }
+    // Точка/филиал для самовывоза и «В зале»
+    if (
+      (order.deliveryType === "pickup" || order.deliveryType === "dine-in") &&
+      order.selectedPoint
+    ) {
+      lines.push(`*Филиал:* ${order.selectedPoint.title}`);
+      if (order.selectedPoint.address) {
+        lines.push(`*Адрес:* ${order.selectedPoint.address}`);
+      }
     }
   }
 
@@ -122,39 +137,49 @@ export function createTelegramLink(username: string, message: string): string {
 }
 
 /**
- * Возвращает ссылку для связи с бизнесом
- * Приоритет: WhatsApp > Telegram > телефон
+ * Возвращает WhatsApp-номер для заказа по приоритету:
+ * 1) selectedPoint.whatsapp (при pickup/dine-in, если у точки свой WA)
+ * 2) business.whatsappDelivery / whatsappPickup / whatsappDineIn (по deliveryType)
+ * 3) business.whatsapp (fallback)
+ */
+export function resolveWhatsappForOrder(business: Business, order: Order): string | null {
+  if (order.selectedPoint?.whatsapp) return order.selectedPoint.whatsapp;
+  const fallback = business.whatsapp ?? null;
+  switch (order.deliveryType) {
+    case 'delivery':
+      return business.whatsappDelivery ?? fallback;
+    case 'pickup':
+      return business.whatsappPickup ?? fallback;
+    case 'dine-in':
+      return business.whatsappDineIn ?? fallback;
+    default:
+      return fallback;
+  }
+}
+
+/**
+ * Возвращает ссылку для связи с бизнесом (или с точкой, если выбрана и у неё есть контакты).
+ * Приоритет: выбранная точка (WhatsApp > Telegram > телефон) → контакты бизнеса.
+ * WhatsApp: resolveWhatsappForOrder (номер по способу или fallback).
  */
 export function getOrderContactLink(
   business: Business,
   order: Order
 ): { url: string; type: 'whatsapp' | 'telegram' | 'phone' } {
   const message = generateOrderMessage(order);
+  const phone = order.selectedPoint?.phone ?? business.phone ?? null;
+  const whatsapp = resolveWhatsappForOrder(business, order);
+  const telegram = order.selectedPoint?.telegram ?? business.telegram ?? null;
 
-  // Приоритет: WhatsApp
-  if (business.whatsapp) {
-    return {
-      url: createWhatsAppLink(business.whatsapp, message),
-      type: 'whatsapp',
-    };
+  if (whatsapp) {
+    return { url: createWhatsAppLink(whatsapp, message), type: 'whatsapp' };
+  }
+  if (telegram) {
+    return { url: createTelegramLink(telegram, message), type: 'telegram' };
+  }
+  if (phone) {
+    return { url: createPhoneLink(phone), type: 'phone' };
   }
 
-  // Fallback: Telegram
-  if (business.telegram) {
-    return {
-      url: createTelegramLink(business.telegram, message),
-      type: 'telegram',
-    };
-  }
-
-  // Fallback: телефон
-  if (business.phone) {
-    return {
-      url: createPhoneLink(business.phone),
-      type: 'phone',
-    };
-  }
-
-  // Если нет ни WhatsApp, ни Telegram, ни телефона
   throw new Error('У бизнеса нет контактов для связи');
 }

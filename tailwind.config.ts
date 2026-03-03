@@ -18,6 +18,22 @@ const config = {
       },
     },
     extend: {
+      /** Шрифты сдвинуты на одну позицию вниз (уменьшены по всему приложению). */
+      fontSize: {
+        xs: ["0.75rem", { lineHeight: "1rem" }],
+        sm: ["0.75rem", { lineHeight: "1rem" }],
+        base: ["0.875rem", { lineHeight: "1.25rem" }],
+        lg: ["1rem", { lineHeight: "1.5rem" }],
+        xl: ["1.125rem", { lineHeight: "1.75rem" }],
+        "2xl": ["1.25rem", { lineHeight: "1.75rem" }],
+        "3xl": ["1.5rem", { lineHeight: "2rem" }],
+        "4xl": ["1.875rem", { lineHeight: "2.25rem" }],
+        "5xl": ["2.25rem", { lineHeight: "2.5rem" }],
+        "6xl": ["3rem", { lineHeight: "1" }],
+        "7xl": ["3.75rem", { lineHeight: "1" }],
+        "8xl": ["4.5rem", { lineHeight: "1" }],
+        "9xl": ["6rem", { lineHeight: "1" }],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -52,7 +68,8 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        "brand-yellow": "#ffd600",
+        "brand-yellow": "hsl(var(--brand-yellow) / <alpha-value>)",
+        "brand-yellow-foreground": "hsl(var(--brand-yellow-foreground) / <alpha-value>)",
         "background-light": "#F9FAFB",
         "card-white": "#FFFFFF",
         "dark-nav": "#1A1A1A",
@@ -65,7 +82,7 @@ const config = {
       boxShadow: {
         'soft': '0 10px 40px -10px rgba(0,0,0,0.05)',
         'card': '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
-        'yellow-glow': '0 4px 20px -2px rgba(255, 214, 0, 0.4)',
+        'yellow-glow': '0 4px 20px -2px hsl(var(--brand-yellow) / 0.4)',
       },
       keyframes: {
         "accordion-down": {

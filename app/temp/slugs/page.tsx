@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import Link from 'next/link'
+import { buildBusinessCatalogUrl } from '@/lib/host'
 
 type TabType = 'business' | 'category' | 'product'
 
@@ -430,7 +431,7 @@ export default function SlugsPage() {
                   onChange={(e) =>
                     setCategoryForm({ ...categoryForm, business_id: e.target.value })
                   }
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-[16px]"
                   required
                   disabled={submitting}
                 >
@@ -510,7 +511,7 @@ export default function SlugsPage() {
                   onChange={(e) => {
                     setProductForm({ ...productForm, business_id: e.target.value, category_id: '' })
                   }}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-[16px]"
                   required
                   disabled={submitting}
                 >
@@ -529,7 +530,7 @@ export default function SlugsPage() {
                   onChange={(e) =>
                     setProductForm({ ...productForm, category_id: e.target.value })
                   }
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-[16px]"
                   required
                   disabled={submitting || !productForm.business_id}
                 >
@@ -674,7 +675,7 @@ export default function SlugsPage() {
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="font-semibold text-lg">{business.name}</h3>
                           <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                            /{business.slug}
+                            {buildBusinessCatalogUrl(business.slug)}
                           </span>
                         </div>
                         {business.description && (
@@ -684,7 +685,7 @@ export default function SlugsPage() {
                           Создан: {new Date(business.created_at).toLocaleString('ru-RU')}
                         </p>
                       </div>
-                      <Link href={`/${business.slug}`}>
+                      <Link href={buildBusinessCatalogUrl(business.slug)} target="_blank" rel="noreferrer">
                         <Button variant="outline" size="sm">
                           Открыть
                         </Button>

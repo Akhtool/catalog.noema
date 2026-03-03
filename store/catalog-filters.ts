@@ -1,6 +1,7 @@
 /**
- * Zustand store для фильтров каталога
+ * Zustand store для фильтров каталога (отдельные на каждый бизнес)
  * Client-side only, без серверной логики
+ * Основан на /docs/per-business-state-fix-plan.md этап 3
  */
 
 import { create } from 'zustand'
@@ -8,8 +9,7 @@ import { create } from 'zustand'
 export type ViewMode = 'grid' | 'list'
 export type CatalogMode = 'catalog' | 'categories'
 
-interface CatalogFiltersStore {
-  // State
+export interface CatalogFiltersState {
   searchQuery: string
   selectedCategoryId: string | null
   selectedBrands: string[]
@@ -19,22 +19,9 @@ interface CatalogFiltersStore {
   showDiscounted: boolean
   viewMode: ViewMode
   catalogMode: CatalogMode
-
-  // Actions
-  setSearchQuery: (query: string) => void
-  setSelectedCategoryId: (categoryId: string | null) => void
-  toggleBrand: (brand: string) => void
-  setPriceRange: (min: number | null, max: number | null) => void
-  setShowPopular: (show: boolean) => void
-  setShowDiscounted: (show: boolean) => void
-  setViewMode: (mode: ViewMode) => void
-  setCatalogMode: (mode: CatalogMode) => void
-  resetFilters: () => void
-  hasActiveFilters: () => boolean
 }
 
-export const useCatalogFiltersStore = create<CatalogFiltersStore>((set, get) => ({
-  // Initial state
+const DEFAULT_FILTERS: CatalogFiltersState = {
   searchQuery: '',
   selectedCategoryId: null,
   selectedBrands: [],
@@ -44,45 +31,153 @@ export const useCatalogFiltersStore = create<CatalogFiltersStore>((set, get) => 
   showDiscounted: false,
   viewMode: 'grid',
   catalogMode: 'catalog',
+}
 
-  // Actions
-  setSearchQuery: (query: string) => set({ searchQuery: query }),
-  setSelectedCategoryId: (categoryId: string | null) =>
-    set({ selectedCategoryId: categoryId }),
-  toggleBrand: (brand: string) =>
+interface CatalogFiltersStore {
+  filtersByBusinessId: Record<string, CatalogFiltersState>
+
+  setSearchQuery: (businessId: string, query: string) => void
+  setSelectedCategoryId: (businessId: string, categoryId: string | null) => void
+  toggleBrand: (businessId: string, brand: string) => void
+  setPriceRange: (businessId: string, min: number | null, max: number | null) => void
+  setShowPopular: (businessId: string, show: boolean) => void
+  setShowDiscounted: (businessId: string, show: boolean) => void
+  setViewMode: (businessId: string, mode: ViewMode) => void
+  setCatalogMode: (businessId: string, mode: CatalogMode) => void
+  resetFilters: (businessId: string) => void
+  hasActiveFilters: (businessId: string) => boolean
+}
+
+function getSlice(
+  state: { filtersByBusinessId: Record<string, CatalogFiltersState> },
+  businessId: string
+): CatalogFiltersState {
+  return state.filtersByBusinessId[businessId] ?? DEFAULT_FILTERS
+}
+
+export const useCatalogFiltersStore = create<CatalogFiltersStore>((set, get) => ({
+  filtersByBusinessId: {},
+
+  setSearchQuery: (businessId, query) =>
     set((state) => ({
-      selectedBrands: state.selectedBrands.includes(brand)
-        ? state.selectedBrands.filter((b) => b !== brand)
-        : [brand], // Заменяем весь список на один выбранный бренд
+      filtersByBusinessId: {
+        ...state.filtersByBusinessId,
+        [businessId]: { ...getSlice(state, businessId), searchQuery: query },
+      },
     })),
-  setPriceRange: (min: number | null, max: number | null) =>
-    set({ minPrice: min, maxPrice: max }),
-  setShowPopular: (show: boolean) => set({ showPopular: show }),
-  setShowDiscounted: (show: boolean) => set({ showDiscounted: show }),
-  setViewMode: (mode: ViewMode) => set({ viewMode: mode }),
-  setCatalogMode: (mode: CatalogMode) => set({ catalogMode: mode }),
-  resetFilters: () =>
-    set({
-      searchQuery: '',
-      selectedCategoryId: null,
-      selectedBrands: [],
-      minPrice: null,
-      maxPrice: null,
-      showPopular: false,
-      showDiscounted: false,
-      viewMode: 'grid',
-      catalogMode: 'catalog',
+
+  setSelectedCategoryId: (businessId, categoryId) =>
+    set((state) => ({
+      filtersByBusinessId: {
+        ...state.filtersByBusinessId,
+        [businessId]: { ...getSlice(state, businessId), selectedCategoryId: categoryId },
+      },
+    })),
+
+  toggleBrand: (businessId, brand) =>
+    set((state) => {
+      const slice = getSlice(state, businessId)
+      const selectedBrands = slice.selectedBrands.includes(brand)
+        ? slice.selectedBrands.filter((b) => b !== brand)
+        : [brand]
+      return {
+        filtersByBusinessId: {
+          ...state.filtersByBusinessId,
+          [businessId]: { ...slice, selectedBrands },
+        },
+      }
     }),
-  hasActiveFilters: () => {
-    const state = get()
+
+  setPriceRange: (businessId, min, max) =>
+    set((state) => ({
+      filtersByBusinessId: {
+        ...state.filtersByBusinessId,
+        [businessId]: { ...getSlice(state, businessId), minPrice: min, maxPrice: max },
+      },
+    })),
+
+  setShowPopular: (businessId, show) =>
+    set((state) => ({
+      filtersByBusinessId: {
+        ...state.filtersByBusinessId,
+        [businessId]: { ...getSlice(state, businessId), showPopular: show },
+      },
+    })),
+
+  setShowDiscounted: (businessId, show) =>
+    set((state) => ({
+      filtersByBusinessId: {
+        ...state.filtersByBusinessId,
+        [businessId]: { ...getSlice(state, businessId), showDiscounted: show },
+      },
+    })),
+
+  setViewMode: (businessId, mode) =>
+    set((state) => ({
+      filtersByBusinessId: {
+        ...state.filtersByBusinessId,
+        [businessId]: { ...getSlice(state, businessId), viewMode: mode },
+      },
+    })),
+
+  setCatalogMode: (businessId, mode) =>
+    set((state) => ({
+      filtersByBusinessId: {
+        ...state.filtersByBusinessId,
+        [businessId]: { ...getSlice(state, businessId), catalogMode: mode },
+      },
+    })),
+
+  resetFilters: (businessId) =>
+    set((state) => ({
+      filtersByBusinessId: {
+        ...state.filtersByBusinessId,
+        [businessId]: DEFAULT_FILTERS,
+      },
+    })),
+
+  hasActiveFilters: (businessId) => {
+    const slice = getSlice(get(), businessId)
     return (
-      state.searchQuery.trim() !== '' ||
-      state.selectedCategoryId !== null ||
-      state.selectedBrands.length > 0 ||
-      state.minPrice !== null ||
-      state.maxPrice !== null ||
-      state.showPopular ||
-      state.showDiscounted
+      slice.searchQuery.trim() !== '' ||
+      slice.selectedCategoryId !== null ||
+      slice.selectedBrands.length > 0 ||
+      slice.minPrice !== null ||
+      slice.maxPrice !== null ||
+      slice.showPopular ||
+      slice.showDiscounted
     )
   },
 }))
+
+/** Хук: фильтры для конкретного бизнеса */
+export function useFiltersForBusiness(businessId: string | null) {
+  const slice = useCatalogFiltersStore((s) =>
+    businessId ? (s.filtersByBusinessId[businessId] ?? DEFAULT_FILTERS) : DEFAULT_FILTERS
+  )
+  const setSearchQuery = useCatalogFiltersStore((s) => s.setSearchQuery)
+  const setSelectedCategoryId = useCatalogFiltersStore((s) => s.setSelectedCategoryId)
+  const toggleBrand = useCatalogFiltersStore((s) => s.toggleBrand)
+  const setPriceRange = useCatalogFiltersStore((s) => s.setPriceRange)
+  const setShowPopular = useCatalogFiltersStore((s) => s.setShowPopular)
+  const setShowDiscounted = useCatalogFiltersStore((s) => s.setShowDiscounted)
+  const setViewMode = useCatalogFiltersStore((s) => s.setViewMode)
+  const setCatalogMode = useCatalogFiltersStore((s) => s.setCatalogMode)
+  const resetFilters = useCatalogFiltersStore((s) => s.resetFilters)
+  const hasActiveFilters = useCatalogFiltersStore((s) => s.hasActiveFilters)
+
+  return {
+    ...slice,
+    setSearchQuery: (q: string) => businessId && setSearchQuery(businessId, q),
+    setSelectedCategoryId: (id: string | null) => businessId && setSelectedCategoryId(businessId, id),
+    toggleBrand: (b: string) => businessId && toggleBrand(businessId, b),
+    setPriceRange: (min: number | null, max: number | null) =>
+      businessId && setPriceRange(businessId, min, max),
+    setShowPopular: (show: boolean) => businessId && setShowPopular(businessId, show),
+    setShowDiscounted: (show: boolean) => businessId && setShowDiscounted(businessId, show),
+    setViewMode: (mode: ViewMode) => businessId && setViewMode(businessId, mode),
+    setCatalogMode: (mode: CatalogMode) => businessId && setCatalogMode(businessId, mode),
+    resetFilters: () => businessId && resetFilters(businessId),
+    hasActiveFilters: () => (businessId ? hasActiveFilters(businessId) : false),
+  }
+}

@@ -1,13 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Sheet,
   SheetContent,
   SheetTitle,
 } from "@/components/ui/sheet"
 import { X } from "lucide-react"
-import { useCatalogFiltersStore } from "@/store/catalog-filters"
+import { useFiltersForBusiness } from "@/store/catalog-filters"
 import { Category, Product } from "@/types"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,7 @@ interface FiltersSheetProps {
   onOpenChange: (open: boolean) => void
   categories: Category[]
   products: Product[]
+  businessId: string
 }
 
 export function FiltersSheet({
@@ -25,6 +26,7 @@ export function FiltersSheet({
   onOpenChange,
   categories,
   products,
+  businessId,
 }: FiltersSheetProps) {
   const {
     selectedCategoryId,
@@ -39,7 +41,7 @@ export function FiltersSheet({
     setShowPopular,
     setShowDiscounted,
     resetFilters,
-  } = useCatalogFiltersStore()
+  } = useFiltersForBusiness(businessId || null)
 
   // Получаем уникальные бренды из товаров
   const brands = Array.from(
@@ -48,8 +50,10 @@ export function FiltersSheet({
 
   // Вычисляем минимальную и максимальную цены
   const prices = products.map((p) => p.price)
-  const minProductPrice = Math.min(...prices)
-  const maxProductPrice = Math.max(...prices)
+  const minProductPrice =
+    prices.length > 0 ? Math.min(...prices) : 0
+  const maxProductPrice =
+    prices.length > 0 ? Math.max(...prices) : 0
 
   const [localMinPrice, setLocalMinPrice] = useState(
     minPrice?.toString() || ""
@@ -57,6 +61,13 @@ export function FiltersSheet({
   const [localMaxPrice, setLocalMaxPrice] = useState(
     maxPrice?.toString() || ""
   )
+
+  useEffect(() => {
+    if (open) {
+      setLocalMinPrice(minPrice?.toString() || "")
+      setLocalMaxPrice(maxPrice?.toString() || "")
+    }
+  }, [open, minPrice, maxPrice])
 
   const handleApplyPriceFilter = () => {
     const min = localMinPrice ? parseFloat(localMinPrice) : null
@@ -84,26 +95,31 @@ export function FiltersSheet({
         showCloseButton={false}
         style={sheetStyle}
       >
-        {/* Индикатор свайпа */}
+        {/* Шапка: полоска свайпа и крестик в одной строке у верхнего края */}
+        <header
+          {...dragHandlers}
+          className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-gray-100 cursor-grab active:cursor-grabbing touch-none select-none"
+        >
+          <div className="w-8 flex-shrink-0" aria-hidden />
+          <div className="flex-1 flex items-center justify-center min-w-0 py-0.5">
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+          </div>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0 touch-manipulation"
+            aria-label="Закрыть фильтры"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </header>
+
+        {/* Заголовок — свайп вниз тоже закрывает */}
         <div
           {...dragHandlers}
-          className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none"
+          className="px-6 pt-4 pb-4 border-b cursor-grab active:cursor-grabbing touch-none select-none"
         >
-          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
-        </div>
-
-        {/* Заголовок с кнопкой закрытия */}
-        <div className="px-6 pt-3 pb-4 border-b">
-          <div className="flex items-center justify-between mb-2">
-            <SheetTitle className="text-xl font-bold">Фильтры</SheetTitle>
-            <button
-              onClick={() => onOpenChange(false)}
-              className="rounded-full w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors"
-              aria-label="Закрыть фильтры"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
+          <SheetTitle className="text-xl font-bold">Фильтры</SheetTitle>
         </div>
 
         {/* Содержимое фильтров */}
@@ -119,7 +135,7 @@ export function FiltersSheet({
                 onClick={() => setSelectedCategoryId(null)}
                 className={`w-full text-left px-4 py-2 rounded-lg border transition-colors ${
                   selectedCategoryId === null
-                    ? "bg-brand-yellow border-brand-yellow text-black font-medium"
+                    ? "bg-brand-yellow border-brand-yellow text-brand-yellow-foreground font-medium"
                     : "bg-white border-gray-200 hover:border-gray-300"
                 }`}
               >
@@ -131,7 +147,7 @@ export function FiltersSheet({
                   onClick={() => setSelectedCategoryId(category.id)}
                   className={`w-full text-left px-4 py-2 rounded-lg border transition-colors ${
                     selectedCategoryId === category.id
-                      ? "bg-brand-yellow border-brand-yellow text-black font-medium"
+                      ? "bg-brand-yellow border-brand-yellow text-brand-yellow-foreground font-medium"
                       : "bg-white border-gray-200 hover:border-gray-300"
                   }`}
                 >
@@ -152,7 +168,7 @@ export function FiltersSheet({
                     onClick={() => toggleBrand(brand)}
                     className={`w-full text-left px-4 py-2 rounded-lg border transition-colors ${
                       selectedBrands.includes(brand)
-                        ? "bg-brand-yellow border-brand-yellow text-black font-medium"
+                        ? "bg-brand-yellow border-brand-yellow text-brand-yellow-foreground font-medium"
                         : "bg-white border-gray-200 hover:border-gray-300"
                     }`}
                   >
@@ -193,7 +209,7 @@ export function FiltersSheet({
               </div>
               <Button
                 onClick={handleApplyPriceFilter}
-                className="mt-6 bg-brand-yellow hover:bg-brand-yellow/90 text-black font-medium"
+                className="mt-6 bg-brand-yellow hover:bg-brand-yellow/90 text-brand-yellow-foreground font-medium"
               >
                 Применить
               </Button>
@@ -208,7 +224,7 @@ export function FiltersSheet({
                 onClick={() => setShowPopular(!showPopular)}
                 className={`w-full text-left px-4 py-2 rounded-lg border transition-colors ${
                   showPopular
-                    ? "bg-brand-yellow border-brand-yellow text-black font-medium"
+                    ? "bg-brand-yellow border-brand-yellow text-brand-yellow-foreground font-medium"
                     : "bg-white border-gray-200 hover:border-gray-300"
                 }`}
               >
@@ -218,7 +234,7 @@ export function FiltersSheet({
                 onClick={() => setShowDiscounted(!showDiscounted)}
                 className={`w-full text-left px-4 py-2 rounded-lg border transition-colors ${
                   showDiscounted
-                    ? "bg-brand-yellow border-brand-yellow text-black font-medium"
+                    ? "bg-brand-yellow border-brand-yellow text-brand-yellow-foreground font-medium"
                     : "bg-white border-gray-200 hover:border-gray-300"
                 }`}
               >
@@ -239,7 +255,7 @@ export function FiltersSheet({
           </Button>
           <Button
             onClick={() => onOpenChange(false)}
-            className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-black font-bold"
+            className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-brand-yellow-foreground font-bold"
           >
             Применить
           </Button>

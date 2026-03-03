@@ -1,10 +1,12 @@
 "use client";
 
 import { Grid3x3, List } from "lucide-react";
-import { useCatalogFiltersStore } from "@/store/catalog-filters";
+import { useFiltersForBusiness } from "@/store/catalog-filters";
+import { useCurrentBusinessStore } from "@/store/current-business";
 
 export function ViewToggle() {
-  const { viewMode, setViewMode } = useCatalogFiltersStore();
+  const business = useCurrentBusinessStore((s) => s.business);
+  const { viewMode, setViewMode } = useFiltersForBusiness(business?.id ?? null);
 
   return (
     <div className="flex gap-2">
