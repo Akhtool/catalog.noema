@@ -1,4 +1,4 @@
-// app/[slug]/page.tsx
+﻿// app/[slug]/page.tsx
 import { supabase } from "@/lib/supabase";
 import { createServerClient } from "@/lib/supabase-server";
 import { notFound } from "next/navigation";
@@ -272,7 +272,7 @@ export default async function Page({ params }: PageProps) {
   }));
 
   const productsTyped: Product[] = (products || []).map((prod) => {
-    // Изображения из product_image по position (data-model.md)
+    // Изображения из product_image по position (reference/data-model.md)
     const productImages = (prod.product_image ?? []) as { url: string; position: number }[];
     const images = productImages
       .sort((a, b) => a.position - b.position)
@@ -494,3 +494,7 @@ export default async function Page({ params }: PageProps) {
     </>
   );
 }
+
+
+
+

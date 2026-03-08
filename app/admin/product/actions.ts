@@ -20,6 +20,46 @@ async function ensureBusinessAccess(
   return !!data;
 }
 
+async function validateProductRelationsBelongToBusiness(
+  supabase: Awaited<ReturnType<typeof createServerClient>>,
+  businessId: string,
+  payload: Pick<ProductUpsertPayload, "categoryId" | "brandId">
+): Promise<{ error?: string }> {
+  const { data: category, error: categoryError } = await supabase
+    .from("category")
+    .select("business_id")
+    .eq("id", payload.categoryId)
+    .maybeSingle();
+
+  if (categoryError || !category) {
+    return { error: "Категория не найдена" };
+  }
+
+  if (category.business_id !== businessId) {
+    return { error: "Категория не принадлежит этому бизнесу" };
+  }
+
+  if (!payload.brandId) {
+    return {};
+  }
+
+  const { data: brand, error: brandError } = await supabase
+    .from("brand")
+    .select("business_id")
+    .eq("id", payload.brandId)
+    .maybeSingle();
+
+  if (brandError || !brand) {
+    return { error: "Бренд не найден" };
+  }
+
+  if (brand.business_id !== businessId) {
+    return { error: "Бренд не принадлежит этому бизнесу" };
+  }
+
+  return {};
+}
+
 /** Элемент изображения товара для редактора */
 export interface ProductImageForEdit {
   id: string;
@@ -546,6 +586,15 @@ export async function createProduct(
     return { error: "Укажите корректную цену" };
   }
 
+  const relationValidation = await validateProductRelationsBelongToBusiness(
+    supabase,
+    businessId,
+    payload
+  );
+  if (relationValidation.error) {
+    return { error: relationValidation.error };
+  }
+
   const { data: maxOrderRow } = await supabase
     .from("product")
     .select("order")
@@ -639,6 +688,15 @@ export async function updateProduct(
   const price = Number(payload.price);
   if (Number.isNaN(price) || price < 0) {
     return { error: "Укажите корректную цену" };
+  }
+
+  const relationValidation = await validateProductRelationsBelongToBusiness(
+    supabase,
+    product.business_id,
+    payload
+  );
+  if (relationValidation.error) {
+    return { error: relationValidation.error };
   }
 
   const hasDiscount = payload.hasDiscount ?? false;

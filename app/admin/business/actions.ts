@@ -155,8 +155,7 @@ export async function saveImageUrl(
   }
 
   // Проверяем доступ к бизнесу
-  const userBusinessId = await getBusinessId(supabase, user.id)
-  if (!userBusinessId || userBusinessId !== businessId) {
+  if (!(await userHasAccessToBusinessId(supabase, user.id, businessId))) {
     return { error: 'Нет доступа к этому бизнесу' }
   }
 

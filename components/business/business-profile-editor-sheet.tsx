@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import { updateBusiness, saveImageUrl } from '@/app/admin/business/actions'
 import { supabase } from '@/lib/supabase'
@@ -215,6 +215,22 @@ interface LocationFormErrors {
   telegram?: string
 }
 
+/** Снапшот полей формы для сравнения «ничего не изменено» */
+type FormSnapshot = {
+  name: string
+  description: string
+  phone: string
+  whatsapp: string
+  whatsapp_delivery: string
+  whatsapp_pickup: string
+  whatsapp_dine_in: string
+  telegram: string
+  logoUrl: string | null
+  coverUrl: string | null
+  themeBrandHsl: string | null
+  themeBrandForeground: ThemeBrandForeground | null
+}
+
 /**
  * Слайдер редактирования профиля бизнеса
  * Открывается снизу страницы
@@ -272,6 +288,9 @@ export function BusinessProfileEditorSheet({
   const previousPickupPointsLengthRef = useRef((business.pickupPoints ?? []).length)
   const themeScopeSnapshotRef = useRef<ThemeScopeSnapshot | null>(null)
   const skipRestoreOnCloseRef = useRef(false)
+  const formRef = useRef<HTMLFormElement>(null)
+  const initialSnapshotRef = useRef<FormSnapshot | null>(null)
+  const [isDirty, setIsDirty] = useState(false)
 
   const initialBrandRgbFromBusiness =
     business.themeBrandHsl ? hslTripleToRgb(business.themeBrandHsl) : null
@@ -284,6 +303,79 @@ export function BusinessProfileEditorSheet({
     business.themeBrandForeground ??
       (initialBrandRgbFromBusiness ? pickForeground(initialBrandRgbFromBusiness) : null)
   )
+
+  const buildInitialSnapshot = useCallback((): FormSnapshot => {
+    return {
+      name: business.name,
+      description: business.description ?? '',
+      phone: business.phone ?? '',
+      whatsapp: business.whatsapp ?? '',
+      whatsapp_delivery: business.whatsappDelivery ?? '',
+      whatsapp_pickup: business.whatsappPickup ?? '',
+      whatsapp_dine_in: business.whatsappDineIn ?? '',
+      telegram: business.telegram ?? '',
+      logoUrl: business.logoUrl ?? null,
+      coverUrl: business.coverUrl ?? null,
+      themeBrandHsl: business.themeBrandHsl ?? null,
+      themeBrandForeground:
+        business.themeBrandForeground ??
+        (initialBrandRgbFromBusiness ? pickForeground(initialBrandRgbFromBusiness) : null),
+    }
+  }, [business, initialBrandRgbFromBusiness])
+
+  const checkDirty = useCallback(() => {
+    const init = initialSnapshotRef.current
+    if (!init) return
+    const form = formRef.current
+    if (!form) {
+      setIsDirty(false)
+      return
+    }
+    const fd = new FormData(form)
+    const str = (v: FormDataEntryValue | null) => (v == null ? '' : String(v).trim())
+    const current: FormSnapshot = {
+      name: str(fd.get('name')),
+      description: str(fd.get('description')),
+      phone: str(fd.get('phone')),
+      whatsapp: str(fd.get('whatsapp')),
+      whatsapp_delivery: str(fd.get('whatsapp_delivery')),
+      whatsapp_pickup: str(fd.get('whatsapp_pickup')),
+      whatsapp_dine_in: str(fd.get('whatsapp_dine_in')),
+      telegram: str(fd.get('telegram')),
+      logoUrl,
+      coverUrl,
+      themeBrandHsl,
+      themeBrandForeground,
+    }
+    const dirty =
+      current.name !== init.name ||
+      current.description !== init.description ||
+      current.phone !== init.phone ||
+      current.whatsapp !== init.whatsapp ||
+      current.whatsapp_delivery !== init.whatsapp_delivery ||
+      current.whatsapp_pickup !== init.whatsapp_pickup ||
+      current.whatsapp_dine_in !== init.whatsapp_dine_in ||
+      current.telegram !== init.telegram ||
+      (current.logoUrl ?? '') !== (init.logoUrl ?? '') ||
+      (current.coverUrl ?? '') !== (init.coverUrl ?? '') ||
+      (current.themeBrandHsl ?? '') !== (init.themeBrandHsl ?? '') ||
+      (current.themeBrandForeground ?? '') !== (init.themeBrandForeground ?? '')
+    setIsDirty(dirty)
+  }, [logoUrl, coverUrl, themeBrandHsl, themeBrandForeground])
+
+  useEffect(() => {
+    if (!open) {
+      initialSnapshotRef.current = null
+      return
+    }
+    initialSnapshotRef.current = buildInitialSnapshot()
+    setIsDirty(false)
+  }, [open, business.id, buildInitialSnapshot])
+
+  useEffect(() => {
+    if (!open) return
+    checkDirty()
+  }, [open, logoUrl, coverUrl, themeBrandHsl, themeBrandForeground, checkDirty])
 
   function getThemeScopeEl(): HTMLElement | null {
     return document.documentElement
@@ -809,7 +901,13 @@ export function BusinessProfileEditorSheet({
         </div>
 
         {/* Форма: прокручиваемая область + панель сохранения у нижнего края */}
-        <form onSubmit={handleSubmit} className="flex flex-1 flex-col min-h-0">
+        <form
+          ref={formRef}
+          onSubmit={handleSubmit}
+          onInput={checkDirty}
+          onChange={checkDirty}
+          className="flex flex-1 flex-col min-h-0"
+        >
           <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4" style={scrollableStyle}>
             {message && (
               <div
@@ -1749,7 +1847,7 @@ export function BusinessProfileEditorSheet({
             <Button
               type="submit"
               size="lg"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !isDirty}
               className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-brand-yellow-foreground font-normal text-base py-6 rounded-lg"
             >
               {isSubmitting ? (

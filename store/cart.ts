@@ -1,6 +1,6 @@
-/**
+﻿/**
  * Zustand store для корзины (отдельная на каждый бизнес)
- * Основан на /docs/data-model.md, /docs/per-business-state-fix-plan.md
+ * Основан на /docs/reference/data-model.md, /docs/plans/per-business-state-fix-plan.md
  * Client-side only, без серверной логики
  */
 
@@ -558,3 +558,6 @@ export function useCartHydration() {
   }, []);
   return isHydrated;
 }
+
+
+

@@ -1,201 +1,162 @@
----
-name: project-rules
-description: This is a new rule
----
-
-# Overview
-
-# Cursor Rules for Catalog Project
-
-## 1. Источники истины
-
-Перед написанием или изменением любого кода ОБЯЗАТЕЛЬНО учитывать:
-- /docs/product-contract.md
-- /docs/data-model.md
-
-Если предлагаемая логика или код противоречат этим документам — код ЗАПРЕЩЁН.
-
+﻿---
+name: catalog-noema-rules
+description: Compact project rules for catalog.noema
 ---
 
-## 2. Запрещённые действия
+# Catalog Noema Rules
 
-Cursor НЕ ИМЕЕТ ПРАВА:
+## 1. Source of truth
 
-- добавлять новый функционал, которого нет в product-contract.md;
-- реализовывать онлайн-оплаты;
-- добавлять регистрацию или аккаунты клиентов;
-- сохранять корзину или заказы в базе данных;
-- добавлять CRM, доставку, складской учёт;
-- создавать роли пользователей;
-- придумывать абстракции «на будущее»;
-- усложнять архитектуру без прямого указания.
+Before changing behavior, align with:
 
-Если функциональность относится к V2+ — НЕ РЕАЛИЗОВЫВАТЬ.
+- `docs/reference/product-contract.md`
+- `docs/reference/data-model.md`
+- `docs/README.md`
 
----
+If the requested change conflicts with them, do not silently implement it.
 
-## 3. Принципы разработки
+## 2. Product scope
 
-- Продукт mobile-first.
-- Простота важнее универсальности.
-- Явная логика лучше абстракций.
-- Минимальное количество слоёв.
-- Один источник истины для состояния.
-- UI не должен содержать бизнес-логику.
+Do not add unless explicitly approved:
 
----
+- online payments;
+- customer accounts;
+- order persistence in DB;
+- CRM, marketplace, warehouse logic;
+- delivery as backend workflow;
+- microservices or custom backend outside current stack.
 
-## 4. Порядок реализации
+Cart and order remain client-side in V1.
 
-При разработке НУЖНО придерживаться следующего порядка:
+## 3. Architecture boundaries
 
-1. Модель данных (types / interfaces)
-2. Client-side store (корзина, фильтры)
-3. Бизнес-логика (расчёты, генерация заказа)
-4. Интеграции (WhatsApp, телефон)
-5. UI-компоненты
-6. Стили и анимации
+- `app/` routes, pages, metadata, server actions, route handlers
+- `components/` UI and interaction wiring
+- `store/` client-side state only
+- `lib/` domain logic, mapping, infra helpers
+- `types/` domain contracts
+- `migrations/` schema and RLS
 
-НАРУШЕНИЕ порядка запрещено без явного запроса.
+Do not put business rules into UI.
+Do not duplicate domain logic across layers.
 
----
+## 4. Multi-tenant safety
 
-## 5. Работа с корзиной и заказом
+This is a multi-tenant project by business and subdomain.
 
-- Cart и Order существуют ТОЛЬКО на клиенте.
-- Никаких API-запросов для корзины.
-- Никакого сохранения заказов на сервере.
-- Order используется только для генерации сообщения.
+Never allow one business to read or mutate another business's data.
+Never trust `businessId`, `productId`, `categoryId`, `brandId`, or `slug` from the client without server verification.
+Always verify access on the server through `business_user` or equivalent ownership logic.
 
----
+Be careful when changing:
 
-## 6. Backend и Supabase
+- `middleware.ts`
+- `lib/host.ts`
+- `app/[slug]/page.tsx`
+- `app/admin/*/actions.ts`
 
-- Supabase используется ТОЛЬКО для:
-  - Business
-  - BusinessLocation (филиалы/точки для самовывоза и «В зале»)
-  - Category
-  - Product
-  - хранения изображений
+## 5. Supabase rules
 
-- Запрещено:
-  - добавлять таблицы заказов;
-  - добавлять таблицы клиентов;
-  - добавлять сложную серверную бизнес-логику.
+Use the correct client:
 
----
+- `lib/supabase.ts` for public/anon reads and client auth flows
+- `lib/supabase-server.ts` for authenticated server-side work
+- `lib/supabase-admin.ts` only when bypassing RLS is truly necessary
 
-## 7. Структура проекта
+Do not add new client-side writes to core tables like:
 
-Cursor ОБЯЗАН соблюдать существующую структуру проекта.
-Запрещено:
-- создавать новые корневые папки без запроса;
-- перемещать файлы без указания;
-- дублировать логику в разных местах.
+- `business`
+- `category`
+- `product`
+- `brand`
+- `business_user`
 
-Рекомендуемая структура:
+All access-sensitive mutations should go through server-side code.
 
-/app  
-/components  
-/store  
-/lib  
-/types  
-/docs  
+## 6. Client vs server
 
----
+Default to server components.
+Use `"use client"` only when browser interaction is actually needed.
 
-## 8. Код-стайл
+Client components must not contain database permission logic.
+Client components must not be the source of truth for business rules.
 
-- TypeScript обязателен.
-- Явные типы предпочтительнее inferred.
-- Маленькие функции (до 30–40 строк).
-- Без магических чисел и строк.
-- Комментарии — только если логика неочевидна.
+## 7. Data boundary
 
----
+Database rows are snake_case.
+App domain types are camelCase.
 
-## 9. UI и компоненты
+Map data at the boundary.
+Do not spread raw Supabase row shapes deep into UI code.
 
-- Компоненты должны быть максимально dumb.
-- Никакой бизнес-логики внутри UI.
-- Состояние берётся из store или props.
-- Повторяющиеся элементы выносить в компоненты.
+Reuse domain types from `types/index.ts`.
+Do not create parallel type systems for the same entities.
 
----
+## 8. Server actions
 
-## 10. Работа с Cursor
+In server actions:
 
-- Писать код небольшими, изолированными шагами.
-- Не генерировать файлы «на всякий случай».
-- Не переписывать существующий код без причины.
-- При сомнении — задавать вопрос, а не делать допущение.
+- validate input early;
+- resolve user early;
+- verify business access early;
+- keep permission checks explicit;
+- revalidate only needed paths.
 
----
+If touching large files like:
 
-## 11. Изменения и расширения
+- `app/admin/product/actions.ts`
+- `app/admin/business/actions.ts`
+- `components/business/business-profile-editor-sheet.tsx`
 
-Любое расширение функциональности требует:
-1. Обновления product-contract.md
-2. Обновления data-model.md
-3. Явного подтверждения на реализацию
+prefer extracting helpers instead of growing them further.
 
-Без этого изменения запрещены.
+## 9. Public catalog invariants
 
----
+Core files:
 
-## 12. Главный принцип
+- `app/[slug]/page.tsx`
+- `components/catalog/*`
+- `components/cart/*`
+- `store/cart.ts`
+- `store/catalog-filters.ts`
+- `lib/order.ts`
+- `lib/promo.ts`
 
-Этот проект — продукт, а не эксперимент.
-Любой код должен:
-- соответствовать контракту;
-- решать конкретную задачу;
-- быть простым и поддерживаемым.
+Preserve:
 
-## 13. Технологический стек (обязателен)
+- mobile-first catalog behavior;
+- client-side cart and order flow;
+- deterministic search/filter/cart logic;
+- per-business promo isolation.
 
-Cursor ОБЯЗАН использовать следующий стек:
+Do not introduce server order processing unless explicitly requested.
 
-### Frontend
-- Next.js (App Router)
-- TypeScript
-- Tailwind CSS
-- shadcn/ui + Radix UI
+## 10. Temporary code
 
-### State Management
-- Zustand
+Do not add new debug/admin/temp routes to production routing unless explicitly requested.
+Do not leave temporary internal tools exposed by URL.
 
-### Backend / BaaS
-- Supabase (PostgreSQL + Storage)
+## 11. State management
 
-### Orders
-- Формируются строго на клиенте
-- Отправка через WhatsApp deep-link или телефон
-- Без серверной логики заказов
+Use Zustand as the global client state layer.
+Do not introduce Redux or another state library.
+Keep per-business state isolated by `businessId`.
 
-### Hosting
-- VPS или выбранный хостинг (Next.js)
+## 12. Change discipline
 
----
+Prefer small, explicit changes.
+Do not do broad rewrites when a narrow fix is enough.
+Do not add abstractions for future use.
+If a change affects product scope, data model, or architecture expectations, update docs.
 
-## 14. Запрещённые технологии
+## 13. Non-negotiable principle
 
-Cursor ЗАПРЕЩЕНО использовать без явного указания:
+Every change must be:
 
-- Redux / Redux Toolkit
-- Firebase
-- GraphQL
-- Express / NestJS / Fastify
-- собственный backend API
-- микросервисы
-- WebSockets
-- server-side order processing
-- ORM вне Supabase
+- product-aligned;
+- tenant-safe;
+- security-aware;
+- simple enough to maintain through AI-assisted development.
 
----
 
-## 15. Принципы использования стека
 
-- Использовать Server Components по умолчанию.
-- Client Components только при необходимости (cart, filters).
-- Не добавлять state management без причины.
-- Не предлагать альтернативы стеку без запроса.
