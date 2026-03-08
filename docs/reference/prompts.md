@@ -1,4 +1,4 @@
-# 🧠 Cursor Prompts — Catalog Platform (V2)
+﻿# 🧠 Cursor Prompts — Catalog Platform (V2)
 
 > Принципы для ВСЕХ промптов:
 > - НЕ дублировать Public UI

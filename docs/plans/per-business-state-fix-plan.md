@@ -1,10 +1,10 @@
-# План разделения состояния по бизнесам
+﻿# План разделения состояния по бизнесам
 
 Состояние, которое должно быть **отдельным для каждого бизнеса**, сейчас общее на всё приложение. При переходе между витринами (A → B) данные A «утекают» в контекст B: скидки, фильтры, точки доставки, нумерация заказов.
 
 План рассчитан на пошаговое выполнение. Каждый этап — отдельный запрос к Cursor. Выполняй по порядку.
 
-**Предварительно:** обновить `docs/product-contract.md` и `docs/data-model.md` — явно зафиксировать, что корзина, фильтры и нумерация заказов привязаны к бизнесу.
+**Предварительно:** обновить `docs/reference/product-contract.md` и `docs/reference/data-model.md` — явно зафиксировать, что корзина, фильтры и нумерация заказов привязаны к бизнесу.
 
 ---
 
@@ -150,4 +150,7 @@ interface CartSlice {
 | `components/catalog/*` (catalog.tsx, filters-sheet, search-input, category-list, view-toggle, catalog-mode-toggle) | 3 |
 | `components/cart/*` | 1, 4, 5 |
 | `components/catalog/product-card.tsx`, `product-detail-card.tsx` | 1 |
-| `docs/product-contract.md`, `docs/data-model.md` | предварительно |
+| `docs/reference/product-contract.md`, `docs/reference/data-model.md` | предварительно |
+
+
+

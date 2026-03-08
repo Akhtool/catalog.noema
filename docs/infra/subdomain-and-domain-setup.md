@@ -1,6 +1,6 @@
-# Домен catlg.ru и поддомены [client].catlg.ru
+﻿# Домен catlg.ru и поддомены [client].catlg.ru
 
-Инструкция по привязке домена SpaceWeb к **VPS** и реализации адресов вида `[client].catlg.ru`. Деплой приложения на VPS описан в `docs/vps-deploy-ubuntu.md`. Код парсинга поддоменов пишется в Cursor по шагам ниже.
+Инструкция по привязке домена SpaceWeb к **VPS** и реализации адресов вида `[client].catlg.ru`. Деплой приложения на VPS описан в `docs/infra/vps-deploy-ubuntu.md`. Код парсинга поддоменов пишется в Cursor по шагам ниже.
 
 ---
 
@@ -38,7 +38,7 @@ IP сервера вы получили при покупке VPS. Он пона
 
 - Обновление DNS обычно 5–30 минут, иногда до 24–48 часов.
 - С вашей машины: `nslookup catlg.ru`, `nslookup test.catlg.ru` — должны резолвиться в `<IP_VPS>`.
-- SSL (HTTPS) настраивается на VPS через Certbot — см. `docs/vps-deploy-ubuntu.md`, раздел 12.
+- SSL (HTTPS) настраивается на VPS через Certbot — см. `docs/infra/vps-deploy-ubuntu.md`, раздел 12.
 
 ---
 
@@ -114,8 +114,8 @@ IP сервера вы получили при покупке VPS. Он пона
 
 ## Часть 4. Чек-лист
 
-- [ ] DNS в SpaceWeb: A @ → IP VPS; A www → IP VPS; A * → IP VPS (wildcard). См. также `docs/vps-deploy-ubuntu.md`, раздел 11.
-- [ ] На VPS: Nginx принимает catlg.ru, www.catlg.ru, \*.catlg.ru и проксирует с сохранением заголовка Host (см. vps-deploy-ubuntu.md, раздел 10).
+- [ ] DNS в SpaceWeb: A @ → IP VPS; A www → IP VPS; A * → IP VPS (wildcard). См. также `docs/infra/vps-deploy-ubuntu.md`, раздел 11.
+- [ ] На VPS: Nginx принимает catlg.ru, www.catlg.ru, \*.catlg.ru и проксирует с сохранением заголовка Host (см. infra/vps-deploy-ubuntu.md, раздел 10).
 - [ ] Выбрано место извлечения поддомена (middleware).
 - [ ] Реализован парсинг host → slug с учётом catlg.ru, www.
 - [ ] Реализована передача slug в страницу каталога (rewrite без редиректа).
@@ -139,3 +139,5 @@ IP сервера вы получили при покупке VPS. Он пона
 5. «Не использовать `acme.localhost`, тестировать поддомены через hosts.»
 
 Файл конфигурации middleware: **middleware.ts** в корне проекта (если его ещё нет — создать). Домен продакшена вынести в константу (например, в `.env` или в конфиг), чтобы не хардкодить `catlg.ru` в нескольких местах.
+
+

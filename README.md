@@ -1,4 +1,4 @@
-# catalog-noema
+﻿# catalog-noema
 
 SaaS-каталог для бизнеса. Контекст продукта и архитектура — [docs/README.md](docs/README.md).
 
@@ -18,7 +18,7 @@ SaaS-каталог для бизнеса. Контекст продукта и 
 127.0.0.1 crusty.catlg.ru
 ```
 
-Без этих записей `http://crusty.catlg.ru:3000` не откроется. Подробнее: [docs/subdomain-and-domain-setup.md](docs/subdomain-and-domain-setup.md) (Часть 3).
+Без этих записей `http://crusty.catlg.ru:3000` не откроется. Подробнее: [docs/infra/subdomain-and-domain-setup.md](docs/infra/subdomain-and-domain-setup.md) (Часть 3).
 
 ### Запуск
 
@@ -32,4 +32,8 @@ npm run dev
 
 Переменные окружения — см. `.env.local` (Supabase).
 
-**Онбординг:** открывать только по ссылке с ключом: `/onboarding?key=<ONBOARDING_ACCESS_KEY>`. Подробнее: [docs/business-onboarding-plan.md](docs/business-onboarding-plan.md).
+**Онбординг:** открывать только по ссылке с ключом: `/onboarding?key=<ONBOARDING_ACCESS_KEY>`. Подробнее: [docs/plans/business-onboarding-plan.md](docs/plans/business-onboarding-plan.md).
+
+
+
+

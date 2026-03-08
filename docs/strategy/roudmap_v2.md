@@ -1,4 +1,4 @@
-# 📍 ROADMAP V2 — Catalog Platform (Admin-first, UI Overlay)
+﻿# 📍 ROADMAP V2 — Catalog Platform (Admin-first, UI Overlay)
 
 ## 🧠 Базовые принципы проекта (ОБЯЗАТЕЛЬНО)
 
@@ -47,7 +47,7 @@
 - Soft delete (`is_active`)
 - Внешние ключи и индексы
 - Триггеры `updated_at`
-- `data-model.md`
+- `reference/data-model.md`
 - `v2_data_model.sql`
 
 📌 UI на этом этапе **НЕ ДЕЛАЕТСЯ**.
@@ -319,4 +319,7 @@
 
 ### 🔜 Следующие этапы
 - ЭТАП 10 — V3 (ПОЗЖЕ)
+
+
+
 

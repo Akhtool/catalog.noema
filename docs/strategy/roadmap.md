@@ -1,4 +1,4 @@
-# Roadmap проекта
+﻿# Roadmap проекта
 
 ## Фаза 1. Базовая инфраструктура проекта
 
@@ -47,7 +47,7 @@
 **Prompt:**
 
 ```
-На основе data-model.md создай SQL-схему для Supabase: business, category, product. Без таблиц заказов и клиентов.
+На основе reference/data-model.md создай SQL-схему для Supabase: business, category, product. Без таблиц заказов и клиентов.
 ```
 
 ### 2.3 RLS (без фанатизма)
@@ -72,7 +72,7 @@
 **Prompt:**
 
 ```
-Создай TypeScript типы в папке /types на основе data-model.md. Никакой логики, только типы.
+Создай TypeScript типы в папке /types на основе reference/data-model.md. Никакой логики, только типы.
 ```
 
 ### 3.2 Supabase queries
@@ -97,7 +97,7 @@
 **Prompt:**
 
 ```
-Создай zustand store для корзины на основе data-model.md. Корзина должна быть client-side.
+Создай zustand store для корзины на основе reference/data-model.md. Корзина должна быть client-side.
 ```
 
 ### 4.2 Логика заказа
@@ -192,3 +192,5 @@
 - [ ] Тексты (онбординг)
 - [ ] Тест с реальным бизнесом
 - [ ] Сбор обратной связи
+
+

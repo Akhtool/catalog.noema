@@ -1,4 +1,4 @@
-# Деплой catalog.noema на VPS (Ubuntu 24.04 LTS) — Next.js + Nginx + SSL
+﻿# Деплой catalog.noema на VPS (Ubuntu 24.04 LTS) — Next.js + Nginx + SSL
 
 Эта инструкция рассчитана на ситуацию: вы давно не деплоили “на голый сервер”, у вас **Next.js (Node.js)**, и внешние сервисы (**Supabase**) уже хостят базу/хранилище.
 
@@ -362,7 +362,7 @@ curl -I http://<IP_СЕРВЕРА>
 
 ## 11) DNS: домен указывает на VPS
 
-Настройка DNS выполняется у регистратора домена (например, SpaceWeb). Подробная схема записей и чек-лист — в `docs/subdomain-and-domain-setup.md` (Часть 1).
+Настройка DNS выполняется у регистратора домена (например, SpaceWeb). Подробная схема записей и чек-лист — в `docs/infra/subdomain-and-domain-setup.md` (Часть 1).
 
 Минимально:
 - `A` запись: `@` → `<IP_СЕРВЕРА>`
@@ -557,9 +557,12 @@ sudo systemctl status catalog-noema --no-pager
 
 ## Примечание про поддомены `[slug].catlg.ru`
 
-Полная схема: DNS в SpaceWeb → VPS, логика поддоменов в коде — в `docs/subdomain-and-domain-setup.md`.
+Полная схема: DNS в SpaceWeb → VPS, логика поддоменов в коде — в `docs/infra/subdomain-and-domain-setup.md`.
 
 На VPS важно:
 - Nginx принимает wildcard host (`*.catlg.ru`) и проксирует дальше, **сохраняя `Host`**:
   - `proxy_set_header Host $host;`
-- Приложение (middleware/layout) парсит `Host` → `slug` (см. subdomain-and-domain-setup.md, Часть 2).
+- Приложение (middleware/layout) парсит `Host` → `slug` (см. infra/subdomain-and-domain-setup.md, Часть 2).
+
+
+
