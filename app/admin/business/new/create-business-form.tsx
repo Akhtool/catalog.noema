@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { createBusiness } from './actions'
-import { buildBusinessCatalogUrl } from '@/lib/host'
+import { resolveBusinessHomeRedirect } from '@/lib/auth-redirect'
+import { buildBusinessCatalogUrl, normalizeHost } from '@/lib/host'
 
 type Message =
   | { type: 'success'; text: string; slug: string }
@@ -49,9 +50,11 @@ export function CreateBusinessForm() {
 
       // После создания бизнеса переходим сразу на поддомен каталога.
       window.location.replace(
-        buildBusinessCatalogUrl(result.slug, {
+        resolveBusinessHomeRedirect({
+          slug: result.slug,
           protocol: window.location.protocol,
-          port: window.location.port,
+          port: window.location.port || null,
+          host: normalizeHost(window.location.host) ?? '',
         })
       )
     } catch {

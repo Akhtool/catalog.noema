@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createServerClient } from '@/lib/supabase-server'
 import { getRedirectAfterLogin } from './actions'
+import { isBusinessSubdomainHost, normalizeHost } from '@/lib/host'
 import { LoginForm } from './login-form'
 
 /**
@@ -8,6 +10,11 @@ import { LoginForm } from './login-form'
  * Если пользователь уже авторизован → редирект в админ-зону
  */
 export default async function LoginPage() {
+  const host = normalizeHost((await headers()).get('host'))
+  if (!host || !isBusinessSubdomainHost(host)) {
+    redirect('/')
+  }
+
   const supabase = await createServerClient()
   const {
     data: { user },

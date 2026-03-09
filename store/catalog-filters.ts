@@ -1,7 +1,7 @@
-/**
+﻿/**
  * Zustand store для фильтров каталога (отдельные на каждый бизнес)
  * Client-side only, без серверной логики
- * Основан на /docs/per-business-state-fix-plan.md этап 3
+ * Основан на /docs/plans/per-business-state-fix-plan.md этап 3
  */
 
 import { create } from 'zustand'
@@ -181,3 +181,5 @@ export function useFiltersForBusiness(businessId: string | null) {
     hasActiveFilters: () => (businessId ? hasActiveFilters(businessId) : false),
   }
 }
+
+

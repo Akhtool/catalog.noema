@@ -1,0 +1,16 @@
+---
+name: supabase-and-security
+description: Security-critical Supabase rules for catalog.noema
+---
+
+# Supabase And Security Rules
+
+- `lib/supabase.ts` is for public/anon reads and client auth flows. Do not add new client-side writes to core tables: `business`, `category`, `product`, `brand`, `business_user`.
+- Access-sensitive mutations must go through server-side code with `lib/supabase-server.ts`.
+- Never trust `businessId`, `productId`, `categoryId`, `brandId`, `locationId`, or `slug` from the client without server-side verification.
+- Always verify that the current user has access to the target business before mutating business-scoped data.
+- Tenant isolation is mandatory: one business must never read or mutate another business's data.
+- Use `lib/supabase-admin.ts` only when bypassing RLS is truly necessary. Keep its scope minimal.
+- Never move service-role logic into client code.
+- Do not add temp/debug/admin routes that directly mutate core data from client-side code.
+- If a change touches `middleware.ts`, `lib/host.ts`, `app/[slug]/page.tsx`, or `app/admin/*/actions.ts`, treat it as security-sensitive.

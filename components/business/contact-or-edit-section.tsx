@@ -7,6 +7,7 @@ import { useProfileEditor, useProductEditor } from "./profile-editor-context";
 import { Business } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Pencil, Plus } from "lucide-react";
+import { hasAnyOrderContact } from "@/lib/order";
 
 const ADMIN_BUTTON_BASE =
   "w-full h-12 px-5 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2.5";
@@ -31,6 +32,7 @@ export function ContactOrEditSection({ business, initialHasAccess = null }: Cont
   const [hasAccess, setHasAccess] = useState<boolean | null>(initialHasAccess ?? null);
   const openEditor = useProfileEditor();
   const openProductEditor = useProductEditor();
+  const hasOrderContactsConfigured = hasAnyOrderContact(business);
 
   useEffect(() => {
     async function checkAccess() {
@@ -53,6 +55,11 @@ export function ContactOrEditSection({ business, initialHasAccess = null }: Cont
   if (hasAccess === true && (openEditor || openProductEditor)) {
     return (
       <div className="px-3 my-2.5 space-y-2.5">
+        {!hasOrderContactsConfigured && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Чтобы принять первый заказ, добавьте WhatsApp, Telegram или телефон в настройках профиля.
+          </div>
+        )}
         {openEditor && (
           <Button onClick={openEditor} className={EDIT_PROFILE_CLASS}>
             <Pencil className="w-5 h-5 text-gray-600" />

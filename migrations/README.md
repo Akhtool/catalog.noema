@@ -1,6 +1,6 @@
 # Миграции базы данных
 
-Этот каталог содержит SQL-миграции для обновления схемы базы данных Supabase.
+Этот каталог содержит SQL-миграции для схемы Supabase.
 
 ## Применение миграций
 
@@ -11,47 +11,58 @@
 3. Скопируйте содержимое нужного SQL-файла
 4. Вставьте в редактор и нажмите **Run**
 
-### Через Supabase CLI (рекомендуется для продакшена)
+### Через Supabase CLI
 
 ```bash
-# Применить конкретную миграцию
+# Выполнить конкретную миграцию
 supabase db execute -f migrations/add_working_hours_to_business.sql
 
 # Применить все миграции по порядку
 supabase db push
 ```
 
-## Текущие миграции
+## Классификация миграций
 
-### Обязательные миграции для V2
+### Обязательные для текущей схемы приложения
 
-1. `v2_data_model.sql` - базовая модель данных V2
-2. `v2_auth.sql` - настройки аутентификации
-3. `v2_create_business_bucket.sql` - хранилище для изображений бизнеса
-4. `v2_storage_policies.sql` - политики доступа к хранилищу
-5. `add_delivery_fields_to_business.sql` - поля доставки (delivery_regions, city_delivery)
-6. `add_working_hours_to_business.sql` - поле для часов работы
+1. `v2_data_model.sql`
+2. `v2_auth.sql`
+3. `v2_create_business_bucket.sql`
+4. `v2_storage_policies.sql`
+5. `add_delivery_fields_to_business.sql`
+6. `add_delivery_types_to_business.sql`
+7. `add_business_location.sql`
+8. `add_business_location_is_active.sql`
+9. `add_product_subtitle.sql`
+10. `add_product_order.sql`
+11. `add_product_discount.sql`
+12. `add_reorder_products_rpc.sql`
+13. `add_whatsapp_per_delivery_type.sql`
+14. `add_business_theme_brand.sql`
+15. `add_promo_to_business.sql`
+16. `add_working_hours_to_business.sql`
 
-### Опциональные миграции
+### Security hotfixes
 
-- `add_business_location.sql` - таблица филиалов/точек
-- `add_business_theme_brand.sql` - кастомные цвета темы
-- `add_product_discount.sql` - система скидок
-- `add_whatsapp_per_delivery_type.sql` - отдельные WhatsApp для способов доставки
-- `add_promo_to_business.sql` - поля промокода (один активный на бизнес)
+- `enable_rls_policies_for_admin.sql`
+- `enable_rls_policies_for_admin_safe.sql`
+- `product_storage_policies.sql`
+- `supabase/migrations/20250307_remove_public_write_rls.sql`
+- `supabase/migrations/ROLLBACK_20250307_remove_public_write_rls.sql`
 
-## Важные замечания
+### Legacy / rollback / historical reference
 
-- **Всегда делайте бэкап** перед применением миграций
-- Миграции используют `IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` для безопасности
-- Применяйте миграции по порядку (сначала базовые, затем дополнительные)
-- После применения миграции проверьте работу приложения
+- `rollback_v2_changes.sql`
 
-## Откат изменений
+Примечание:
 
-Для отката V2-миграций используйте:
-```bash
-supabase db execute -f migrations/rollback_v2_changes.sql
-```
+- `rollback_v2_changes.sql` является устаревшим частичным rollback раннего V2;
+- он не покрывает все февральские и мартовские изменения текущей схемы и не должен считаться полным rollback для текущего состояния проекта.
 
-⚠️ **Внимание:** Откат удаляет данные! Используйте только в dev-окружении.
+## Важные правила
+
+- всегда делайте backup перед применением миграций;
+- миграции должны идти по порядку;
+- каждое runtime-изменение схемы должно иметь отдельную миграцию в репозитории;
+- после изменения схемы нужно проверить актуальность [docs/reference/data-model.md](../docs/reference/data-model.md);
+- правила ведения миграций зафиксированы в [docs/reference/migration-rules.md](../docs/reference/migration-rules.md).

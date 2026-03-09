@@ -30,7 +30,9 @@ import {
   createPhoneLink,
   resolveWhatsappForOrder,
   getOrderContactLink,
+  hasAnyOrderContact,
 } from "@/lib/order";
+import { trackClientEvent } from "@/lib/client-observability";
 import { validatePromo } from "@/lib/promo";
 import { useSheetDrag } from "@/lib/useSheetDrag";
 
@@ -89,6 +91,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   const subtotal = getSubtotal();
   const discountAmount = getDiscountAmount();
   const totalPrice = getTotalPrice();
+  const hasOrderContactsConfigured = business ? hasAnyOrderContact(business) : false;
 
   // Промо считаем действительным только для текущего бизнеса (на случай старых данных / краевых случаев)
   const isPromoForCurrentBusiness =
@@ -197,6 +200,10 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
 
   const handleCheckout = () => {
     if (!business) return;
+    if (!hasOrderContactsConfigured) {
+      toast.error("Бизнес ещё не настроил контакты для приёма заказов");
+      return;
+    }
     if (!orderNumber) generateOrderNumber(business.id);
     const order = createOrderFromCart(business.id, business.pickupPoints);
     try {
@@ -211,6 +218,13 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   const handleSelectContact = (type: SuccessChannel) => {
     if (!business) return;
     const num = orderNumber ?? generateOrderNumber(business.id);
+    trackClientEvent("order_sent", {
+      businessId: business.id,
+      orderNumber: num,
+      channel: type,
+      itemsCount: items.length,
+      totalPrice,
+    });
     setSuccessState({ channel: type, orderNumber: num });
     setCountdownSeconds(COUNTDOWN_SECONDS);
     setIsCheckoutOpen(false);
@@ -289,6 +303,11 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
             >
               Открыть сейчас
             </Button>
+            {!hasOrderContactsConfigured && (
+              <p className="text-sm text-amber-700">
+                Заказы пока недоступны: бизнесу нужно добавить WhatsApp, Telegram или телефон.
+              </p>
+            )}
           </div>
         )}
 
@@ -536,7 +555,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
               size="lg"
               className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-brand-yellow-foreground font-normal text-base py-6 rounded-lg"
               onClick={handleCheckout}
-              disabled={!business}
+              disabled={!business || !hasOrderContactsConfigured}
             >
               Оформить заказ
             </Button>

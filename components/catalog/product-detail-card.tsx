@@ -208,6 +208,12 @@ export function ProductDetailCard({
           className="h-[90vh] max-h-[90vh] rounded-t-[2rem] p-0 flex flex-col overflow-hidden border-0"
           showCloseButton={false}
           style={sheetStyle}
+          onInteractOutside={(e) => {
+            if (lightboxOpen) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (lightboxOpen) e.preventDefault();
+          }}
         >
           {/* Скрытый заголовок для доступности */}
           <SheetTitle className="sr-only">{product.name}</SheetTitle>
@@ -443,7 +449,13 @@ export function ProductDetailCard({
       </Sheet>
 
       {lightboxOpen && lightboxSlides.length > 0 && (
-        <Lightbox
+        <>
+          <style>{`
+            .yarl__root {
+              pointer-events: auto !important;
+            }
+          `}</style>
+          <Lightbox
           open={lightboxOpen}
           close={() => setLightboxOpen(false)}
           slides={lightboxSlides}
@@ -460,6 +472,7 @@ export function ProductDetailCard({
             buttonNext: () => null,
           }}
         />
+        </>
       )}
     </>
   );

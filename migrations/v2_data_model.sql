@@ -1,7 +1,7 @@
--- Миграция: V2 Data Model
+﻿-- Миграция: V2 Data Model
 -- Дата: 2026-01-26
 -- Описание: Создание новых таблиц и обновление существующих для V2 админки
--- Основано на docs/data-model.md
+-- Основано на docs/reference/data-model.md
 
 -- ============================================================================
 -- 1. Создание новых таблиц
@@ -152,3 +152,6 @@ COMMENT ON COLUMN business_user.role IS 'Роль: owner (владелец) ил
 
 COMMENT ON COLUMN product.subtitle IS 'Подзаголовок товара (размер, объём, вариант)';
 COMMENT ON COLUMN product.brand_id IS 'Связь с брендом (опционально)';
+
+
+

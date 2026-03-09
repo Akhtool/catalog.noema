@@ -1,30 +1,86 @@
-"use server";
+﻿"use server";
 
 import { createServerClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
-import { revalidatePath } from "next/cache";
+import { logServerError, trackServerEvent } from "@/lib/observability";
+import {
+  getAuthenticatedUser,
+  userHasAccessToBusinessId,
+} from "../_lib/access-control";
+import {
+  validateProductPayloadBasics as validateProductPayloadBasicsGuard,
+  validateProductRelationsBelongToBusiness as validateProductRelationsGuard,
+} from "./product-guards";
+import {
+  getAccessibleProductBusinessId,
+  revalidateProductPaths,
+} from "./product-action-helpers";
+import {
+  createProductsBulk as createProductsBulkAction,
+  getProductsForExport as getProductsForExportAction,
+} from "./product-bulk-actions";
+import type {
+  BulkCreateResult,
+  BulkProductItem,
+  ProductForExport,
+} from "./product-bulk-actions";
+import {
+  deleteProductImage as deleteProductImageAction,
+  reorderProductImages as reorderProductImagesAction,
+  uploadProductImage as uploadProductImageAction,
+} from "./product-image-actions";
+import type { ProductImageForEdit } from "./product-image-actions";
+export type { ProductImageForEdit } from "./product-image-actions";
+export type {
+  BulkCreateResult,
+  BulkProductItem,
+  ProductForExport,
+} from "./product-bulk-actions";
 
-/** Проверяет, что пользователь имеет доступ (owner/admin) к бизнесу */
-async function ensureBusinessAccess(
+async function validateProductRelationsBelongToBusiness(
   supabase: Awaited<ReturnType<typeof createServerClient>>,
-  userId: string,
-  businessId: string
-): Promise<boolean> {
-  const { data } = await supabase
-    .from("business_user")
-    .select("business_id")
-    .eq("business_id", businessId)
-    .eq("user_id", userId)
-    .in("role", ["owner", "admin"])
-    .single();
-  return !!data;
+  businessId: string,
+  payload: Pick<ProductUpsertPayload, "categoryId" | "brandId">
+): Promise<{ error?: string }> {
+  return validateProductRelationsGuard(supabase, businessId, payload);
 }
 
-/** Элемент изображения товара для редактора */
-export interface ProductImageForEdit {
-  id: string;
-  url: string;
-  position: number;
+function validateProductPayloadBasics(
+  payload: Pick<ProductUpsertPayload, "name" | "categoryId" | "price">
+): { name?: string; price?: number; error?: string } {
+  return validateProductPayloadBasicsGuard({
+    name: payload.name,
+    categoryId: payload.categoryId,
+    price: payload.price,
+  });
+}
+
+function buildProductWritePayload(
+  payload: ProductUpsertPayload,
+  normalized: { name: string; price: number }
+) {
+  const hasDiscount = payload.hasDiscount ?? false;
+  const originalPrice =
+    hasDiscount &&
+    payload.originalPrice != null &&
+    payload.originalPrice > normalized.price
+      ? payload.originalPrice
+      : null;
+
+  return {
+    category_id: payload.categoryId,
+    brand_id: payload.brandId ?? null,
+    name: normalized.name,
+    subtitle: payload.subtitle?.trim() || null,
+    description: payload.description?.trim() || null,
+    price: normalized.price,
+    has_discount: hasDiscount,
+    original_price: originalPrice,
+    discount_date_from: payload.discountDateFrom ?? null,
+    discount_date_to: payload.discountDateTo ?? null,
+    in_stock: payload.inStock ?? true,
+    is_active: payload.isActive ?? false,
+  };
 }
 
 /** Данные товара для редактирования (из БД) */
@@ -65,9 +121,7 @@ export async function getProduct(
   }
 
   const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser(supabase);
 
   if (!user) {
     return { error: "Не авторизован" };
@@ -91,11 +145,7 @@ export async function getProduct(
     return { error: "Товар не найден" };
   }
 
-  const hasAccess = await ensureBusinessAccess(
-    supabase,
-    user.id,
-    row.business_id
-  );
+  const hasAccess = await userHasAccessToBusinessId(supabase, user.id, row.business_id);
   if (!hasAccess) {
     return { error: "Нет доступа к этому товару" };
   }
@@ -176,6 +226,20 @@ export interface ProductUpsertPayload {
   isActive?: boolean;
 }
 
+export async function getProductsForExport(
+  businessId: string
+): Promise<{ data?: ProductForExport[]; error?: string }> {
+  return getProductsForExportAction(businessId);
+}
+
+export async function createProductsBulk(
+  businessId: string,
+  items: BulkProductItem[],
+  businessSlug?: string
+): Promise<{ data?: BulkCreateResult; error?: string }> {
+  return createProductsBulkAction(businessId, items, businessSlug);
+}
+
 /**
  * Сбрасывает истёкшие скидки: price = original_price, has_discount = false.
  * Вызывается при загрузке каталога. Использует admin-клиент (без авторизации).
@@ -225,293 +289,6 @@ export async function expireProductDiscounts(
   return { expired };
 }
 
-/** Элемент для массового импорта (по имени категории/бренда) */
-export interface BulkProductItem {
-  name: string;
-  categoryName: string;
-  price: number;
-  subtitle?: string | null;
-  description?: string | null;
-  brandName?: string | null;
-  inStock?: boolean;
-}
-
-/** Элемент для экспорта (по имени категории/бренда) */
-export interface ProductForExport {
-  name: string;
-  categoryName: string;
-  price: number;
-  subtitle: string | null;
-  description: string | null;
-  brandName: string | null;
-  inStock: boolean;
-}
-
-/**
- * Возвращает товары бизнеса для экспорта в Excel (с именами категорий и брендов).
- */
-export async function getProductsForExport(
-  businessId: string
-): Promise<{ data?: ProductForExport[]; error?: string }> {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { error: "Не авторизован" };
-  }
-
-  const hasAccess = await ensureBusinessAccess(supabase, user.id, businessId);
-  if (!hasAccess) {
-    return { error: "Нет доступа к этому бизнесу" };
-  }
-
-  const { data: rows, error } = await supabase
-    .from("product")
-    .select("name, subtitle, description, price, in_stock, category(name), brand(name)")
-    .eq("business_id", businessId)
-    .order("order", { ascending: true })
-    .order("id", { ascending: true });
-
-  if (error) {
-    console.error("getProductsForExport error:", error);
-    return { error: "Ошибка загрузки товаров" };
-  }
-
-  const getCatName = (r: (typeof rows)[0]) => {
-    const c = r.category as { name?: string } | { name?: string }[] | null;
-    if (Array.isArray(c)) return c[0]?.name ?? "";
-    return c?.name ?? "";
-  };
-  const getBrandName = (r: (typeof rows)[0]) => {
-    const b = r.brand as { name?: string } | { name?: string }[] | null;
-    if (Array.isArray(b)) return b[0]?.name ?? "";
-    return b?.name ?? "";
-  };
-
-  const data: ProductForExport[] = (rows ?? []).map((r) => ({
-    name: r.name ?? "",
-    categoryName: getCatName(r),
-    price: Number(r.price) ?? 0,
-    subtitle: r.subtitle?.trim() || null,
-    description: r.description?.trim() || null,
-    brandName: getBrandName(r)?.trim() || null,
-    inStock: r.in_stock ?? true,
-  }));
-
-  return { data };
-}
-
-/** Результат массового создания */
-export interface BulkCreateResult {
-  created: number;
-  errors: { row: number; message: string }[];
-}
-
-/**
- * Массовое создание товаров. Категории и бренды по имени;
- * при отсутствии создаются автоматически.
- */
-export async function createProductsBulk(
-  businessId: string,
-  items: BulkProductItem[],
-  businessSlug?: string
-): Promise<{ data?: BulkCreateResult; error?: string }> {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { error: "Не авторизован" };
-  }
-
-  const hasAccess = await ensureBusinessAccess(supabase, user.id, businessId);
-  if (!hasAccess) {
-    return { error: "Нет доступа к этому бизнесу" };
-  }
-
-  const result: BulkCreateResult = { created: 0, errors: [] };
-
-  const { data: categories } = await supabase
-    .from("category")
-    .select("id, name")
-    .eq("business_id", businessId);
-  const categoryByName = new Map<string, string>(
-    (categories ?? []).map((c) => [c.name.toLowerCase().trim(), c.id])
-  );
-
-  const { data: brands } = await supabase
-    .from("brand")
-    .select("id, name")
-    .eq("business_id", businessId)
-    .eq("is_active", true);
-  const brandByName = new Map<string, string>(
-    (brands ?? []).map((b) => [b.name.toLowerCase().trim(), b.id])
-  );
-
-  const { data: maxOrderRow } = await supabase
-    .from("product")
-    .select("order")
-    .eq("business_id", businessId)
-    .order("order", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  let nextOrder = (maxOrderRow?.order ?? -1) + 1;
-
-  const toInsert: {
-    business_id: string;
-    category_id: string;
-    brand_id: string | null;
-    name: string;
-    subtitle: string | null;
-    description: string | null;
-    price: number;
-    has_discount: boolean;
-    original_price: number | null;
-    discount_date_from: null;
-    discount_date_to: null;
-    in_stock: boolean;
-    is_active: boolean;
-    order: number;
-  }[] = [];
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    const rowNum = i + 2;
-
-    const name = item.name?.trim();
-    if (!name) {
-      result.errors.push({ row: rowNum, message: "Название обязательно" });
-      continue;
-    }
-    if (name.length > 70) {
-      result.errors.push({
-        row: rowNum,
-        message: "Название не более 70 символов",
-      });
-      continue;
-    }
-
-    const catName = item.categoryName?.trim();
-    if (!catName) {
-      result.errors.push({ row: rowNum, message: "Категория обязательна" });
-      continue;
-    }
-
-    let categoryId = categoryByName.get(catName.toLowerCase());
-    if (!categoryId) {
-      const { data: newCat, error: catErr } = await supabase
-        .from("category")
-        .insert({
-          business_id: businessId,
-          name: catName,
-          order: 9999,
-          is_active: true,
-        })
-        .select("id")
-        .single();
-      if (catErr || !newCat?.id) {
-        result.errors.push({
-          row: rowNum,
-          message: "Ошибка создания категории",
-        });
-        continue;
-      }
-      const newCategoryId = newCat.id as string;
-      categoryId = newCategoryId;
-      categoryByName.set(catName.toLowerCase(), newCategoryId);
-    }
-
-    const price = Number(item.price);
-    if (Number.isNaN(price) || price < 0) {
-      result.errors.push({ row: rowNum, message: "Укажите корректную цену" });
-      continue;
-    }
-
-    let brandId: string | null = null;
-    if (item.brandName?.trim()) {
-      const bName = item.brandName.trim().toLowerCase();
-      brandId = brandByName.get(bName) ?? null;
-      if (!brandId) {
-        const { data: newBrand, error: brandErr } = await supabase
-          .from("brand")
-          .insert({
-            business_id: businessId,
-            name: item.brandName!.trim(),
-            is_active: true,
-          })
-          .select("id")
-          .single();
-        if (!brandErr && newBrand?.id) {
-          const newBrandId = newBrand.id as string;
-          brandId = newBrandId;
-          brandByName.set(bName, newBrandId);
-        }
-      }
-    }
-
-    const subtitle = item.subtitle?.trim() || null;
-    if (subtitle && subtitle.length > 60) {
-      result.errors.push({
-        row: rowNum,
-        message: "Подзаголовок не более 60 символов",
-      });
-      continue;
-    }
-
-    const description = item.description?.trim() || null;
-    if (description && description.length > 2000) {
-      result.errors.push({
-        row: rowNum,
-        message: "Описание не более 2000 символов",
-      });
-      continue;
-    }
-
-    toInsert.push({
-      business_id: businessId,
-      category_id: categoryId,
-      brand_id: brandId,
-      name,
-      subtitle: subtitle || null,
-      description: description || null,
-      price,
-      has_discount: false,
-      original_price: null,
-      discount_date_from: null,
-      discount_date_to: null,
-      in_stock: item.inStock ?? true,
-      is_active: true,
-      order: nextOrder++,
-    });
-  }
-
-  if (toInsert.length === 0) {
-    revalidatePath("/admin/business");
-    if (businessSlug) revalidatePath(`/${businessSlug}`);
-    return { data: result };
-  }
-
-  const { data: inserted, error: insertError } = await supabase
-    .from("product")
-    .insert(toInsert)
-    .select("id");
-
-  if (insertError) {
-    console.error("createProductsBulk insert error:", insertError);
-    return { error: "Ошибка сохранения товаров" };
-  }
-
-  result.created = inserted?.length ?? 0;
-
-  revalidatePath("/admin/business");
-  if (businessSlug) revalidatePath(`/${businessSlug}`);
-
-  return { data: result };
-}
-
 /**
  * Создаёт товар.
  */
@@ -521,29 +298,31 @@ export async function createProduct(
   businessSlug?: string
 ): Promise<{ data?: { id: string }; error?: string }> {
   const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser(supabase);
 
   if (!user) {
     return { error: "Не авторизован" };
   }
 
-  const hasAccess = await ensureBusinessAccess(supabase, user.id, businessId);
+  const hasAccess = await userHasAccessToBusinessId(supabase, user.id, businessId);
   if (!hasAccess) {
     return { error: "Нет доступа к этому бизнесу" };
   }
 
-  const name = payload.name?.trim();
-  if (!name) {
-    return { error: "Название обязательно" };
+  const basics = validateProductPayloadBasics(payload);
+  if (basics.error) {
+    return { error: basics.error };
   }
-  if (!payload.categoryId) {
-    return { error: "Выберите категорию" };
-  }
-  const price = Number(payload.price);
-  if (Number.isNaN(price) || price < 0) {
-    return { error: "Укажите корректную цену" };
+  const name = basics.name!;
+  const price = basics.price!;
+
+  const relationValidation = await validateProductRelationsBelongToBusiness(
+    supabase,
+    businessId,
+    payload
+  );
+  if (relationValidation.error) {
+    return { error: relationValidation.error };
   }
 
   const { data: maxOrderRow } = await supabase
@@ -555,40 +334,36 @@ export async function createProduct(
     .maybeSingle();
   const nextOrder = (maxOrderRow?.order ?? -1) + 1;
 
-  const hasDiscount = payload.hasDiscount ?? false;
-  const originalPrice =
-    hasDiscount && payload.originalPrice != null && payload.originalPrice > price
-      ? payload.originalPrice
-      : null;
+  const productWritePayload = buildProductWritePayload(payload, { name, price });
 
   const { data: row, error } = await supabase
     .from("product")
     .insert({
       business_id: businessId,
-      category_id: payload.categoryId,
-      brand_id: payload.brandId ?? null,
-      name,
-      subtitle: payload.subtitle?.trim() || null,
-      description: payload.description?.trim() || null,
-      price,
-      has_discount: hasDiscount,
-      original_price: originalPrice,
-      discount_date_from: payload.discountDateFrom || null,
-      discount_date_to: payload.discountDateTo || null,
-      in_stock: payload.inStock ?? true,
-      is_active: payload.isActive ?? false,
+      ...productWritePayload,
       order: nextOrder,
     })
     .select("id")
     .single();
 
   if (error) {
-    console.error("createProduct error:", error);
+    logServerError("product.create", error, {
+      businessId,
+      businessSlug: businessSlug ?? null,
+      categoryId: payload.categoryId,
+      brandId: payload.brandId ?? null,
+    });
     return { error: "Ошибка создания товара" };
   }
 
-  revalidatePath("/admin/business");
-  if (businessSlug) revalidatePath(`/${businessSlug}`);
+  revalidateProductPaths(businessSlug);
+  if (payload.isActive ?? false) {
+    trackServerEvent("catalog_published", {
+      businessId,
+      productId: row.id,
+      source: "create_product",
+    });
+  }
 
   return { data: { id: row.id } };
 }
@@ -602,76 +377,62 @@ export async function updateProduct(
   businessSlug?: string
 ): Promise<{ data?: { id: string }; error?: string }> {
   const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser(supabase);
 
   if (!user) {
     return { error: "Не авторизован" };
   }
 
-  const { data: product } = await supabase
-    .from("product")
-    .select("business_id")
-    .eq("id", productId)
-    .single();
-
-  if (!product) {
-    return { error: "Товар не найден" };
-  }
-
-  const hasAccess = await ensureBusinessAccess(
+  const productAccess = await getAccessibleProductBusinessId(
     supabase,
     user.id,
-    product.business_id
+    productId
   );
-  if (!hasAccess) {
-    return { error: "Нет доступа к этому товару" };
+  if (productAccess.error) {
+    return { error: productAccess.error };
+  }
+  const businessId = productAccess.businessId!;
+
+  const basics = validateProductPayloadBasics(payload);
+  if (basics.error) {
+    return { error: basics.error };
+  }
+  const name = basics.name!;
+  const price = basics.price!;
+
+  const relationValidation = await validateProductRelationsBelongToBusiness(
+    supabase,
+    businessId,
+    payload
+  );
+  if (relationValidation.error) {
+    return { error: relationValidation.error };
   }
 
-  const name = payload.name?.trim();
-  if (!name) {
-    return { error: "Название обязательно" };
-  }
-  if (!payload.categoryId) {
-    return { error: "Выберите категорию" };
-  }
-  const price = Number(payload.price);
-  if (Number.isNaN(price) || price < 0) {
-    return { error: "Укажите корректную цену" };
-  }
-
-  const hasDiscount = payload.hasDiscount ?? false;
-  const originalPrice =
-    hasDiscount && payload.originalPrice != null && payload.originalPrice > price
-      ? payload.originalPrice
-      : null;
+  const productWritePayload = buildProductWritePayload(payload, { name, price });
 
   const { error: updateError } = await supabase
     .from("product")
-    .update({
-      category_id: payload.categoryId,
-      brand_id: payload.brandId ?? null,
-      name,
-      subtitle: payload.subtitle?.trim() || null,
-      description: payload.description?.trim() || null,
-      price,
-      has_discount: hasDiscount,
-      original_price: originalPrice,
-      discount_date_from: payload.discountDateFrom ?? null,
-      discount_date_to: payload.discountDateTo ?? null,
-      in_stock: payload.inStock ?? true,
-      is_active: payload.isActive ?? false,
-    })
+    .update(productWritePayload)
     .eq("id", productId);
 
   if (updateError) {
-    console.error("updateProduct error:", updateError);
+    logServerError("product.update", updateError, {
+      productId,
+      businessId,
+      businessSlug: businessSlug ?? null,
+    });
     return { error: "Ошибка сохранения товара" };
   }
 
-  revalidatePath("/admin/business");
-  if (businessSlug) revalidatePath(`/${businessSlug}`);
+  revalidateProductPaths(businessSlug);
+  if (payload.isActive ?? false) {
+    trackServerEvent("catalog_published", {
+      businessId,
+      productId,
+      source: "update_product",
+    });
+  }
 
   return { data: { id: productId } };
 }
@@ -684,31 +445,19 @@ export async function deleteProduct(
   businessSlug?: string
 ): Promise<{ error?: string }> {
   const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser(supabase);
 
   if (!user) {
     return { error: "Не авторизован" };
   }
 
-  const { data: product } = await supabase
-    .from("product")
-    .select("business_id")
-    .eq("id", productId)
-    .single();
-
-  if (!product) {
-    return { error: "Товар не найден" };
-  }
-
-  const hasAccess = await ensureBusinessAccess(
+  const productAccess = await getAccessibleProductBusinessId(
     supabase,
     user.id,
-    product.business_id
+    productId
   );
-  if (!hasAccess) {
-    return { error: "Нет доступа к этому товару" };
+  if (productAccess.error) {
+    return { error: productAccess.error };
   }
 
   const { error: deleteError } = await supabase
@@ -721,8 +470,7 @@ export async function deleteProduct(
     return { error: "Ошибка удаления товара" };
   }
 
-  revalidatePath("/admin/business");
-  if (businessSlug) revalidatePath(`/${businessSlug}`);
+  revalidateProductPaths(businessSlug);
 
   return {};
 }
@@ -735,31 +483,19 @@ export async function restoreProduct(
   businessSlug?: string
 ): Promise<{ error?: string }> {
   const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser(supabase);
 
   if (!user) {
     return { error: "Не авторизован" };
   }
 
-  const { data: product } = await supabase
-    .from("product")
-    .select("business_id")
-    .eq("id", productId)
-    .single();
-
-  if (!product) {
-    return { error: "Товар не найден" };
-  }
-
-  const hasAccess = await ensureBusinessAccess(
+  const productAccess = await getAccessibleProductBusinessId(
     supabase,
     user.id,
-    product.business_id
+    productId
   );
-  if (!hasAccess) {
-    return { error: "Нет доступа к этому товару" };
+  if (productAccess.error) {
+    return { error: productAccess.error };
   }
 
   const { error: updateError } = await supabase
@@ -768,12 +504,19 @@ export async function restoreProduct(
     .eq("id", productId);
 
   if (updateError) {
-    console.error("restoreProduct error:", updateError);
+    logServerError("product.restore", updateError, {
+      productId,
+      businessSlug: businessSlug ?? null,
+    });
     return { error: "Ошибка восстановления товара" };
   }
 
-  revalidatePath("/admin/business");
-  if (businessSlug) revalidatePath(`/${businessSlug}`);
+  revalidateProductPaths(businessSlug);
+  trackServerEvent("catalog_published", {
+    businessId: productAccess.businessId ?? null,
+    productId,
+    source: "restore_product",
+  });
 
   return {};
 }
@@ -787,15 +530,13 @@ export async function reorderProducts(
   businessSlug?: string
 ): Promise<{ error?: string }> {
   const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser(supabase);
 
   if (!user) {
     return { error: "Не авторизован" };
   }
 
-  const hasAccess = await ensureBusinessAccess(supabase, user.id, businessId);
+  const hasAccess = await userHasAccessToBusinessId(supabase, user.id, businessId);
   if (!hasAccess) {
     return { error: "Нет доступа к этому бизнесу" };
   }
@@ -809,248 +550,31 @@ export async function reorderProducts(
     return { error: "Ошибка изменения порядка товаров" };
   }
 
-  revalidatePath("/admin/business");
-  if (businessSlug) revalidatePath(`/${businessSlug}`);
+  revalidateProductPaths(businessSlug);
 
   return {};
 }
 
-const PRODUCT_IMAGE_MAX_COUNT = 12;
-const PRODUCT_IMAGE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
-
-/**
- * Загружает изображение товара в Storage и создаёт запись в product_image.
- */
 export async function uploadProductImage(
   productId: string,
   formData: FormData,
   businessSlug?: string
 ): Promise<{ data?: ProductImageForEdit; error?: string }> {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { error: "Не авторизован" };
-  }
-
-  const { data: product } = await supabase
-    .from("product")
-    .select("business_id")
-    .eq("id", productId)
-    .single();
-
-  if (!product) {
-    return { error: "Товар не найден" };
-  }
-
-  const hasAccess = await ensureBusinessAccess(
-    supabase,
-    user.id,
-    product.business_id
-  );
-  if (!hasAccess) {
-    return { error: "Нет доступа к этому товару" };
-  }
-
-  const file = formData.get("file") as File | null;
-  if (!file || !file.size) {
-    return { error: "Файл не выбран" };
-  }
-  if (!file.type.startsWith("image/")) {
-    return { error: "Файл должен быть изображением" };
-  }
-  if (file.size > PRODUCT_IMAGE_MAX_SIZE_BYTES) {
-    return { error: "Размер файла не должен превышать 5 МБ" };
-  }
-
-  const { count } = await supabase
-    .from("product_image")
-    .select("id", { count: "exact", head: true })
-    .eq("product_id", productId);
-  if ((count ?? 0) >= PRODUCT_IMAGE_MAX_COUNT) {
-    return { error: `Максимум ${PRODUCT_IMAGE_MAX_COUNT} фото на товар` };
-  }
-
-  const ext = file.name.split(".").pop() || "jpg";
-  const filePath = `${productId}/${crypto.randomUUID()}.${ext}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from("product")
-    .upload(filePath, file, { contentType: file.type, upsert: false, cacheControl: 'public, max-age=31536000, immutable' });
-
-  if (uploadError) {
-    console.error("uploadProductImage storage error:", uploadError);
-    return { error: "Ошибка загрузки изображения" };
-  }
-
-  const { data: urlData } = supabase.storage
-    .from("product")
-    .getPublicUrl(filePath);
-
-  if (!urlData?.publicUrl) {
-    return { error: "Не удалось получить URL изображения" };
-  }
-
-  const { data: maxPos } = await supabase
-    .from("product_image")
-    .select("position")
-    .eq("product_id", productId)
-    .order("position", { ascending: false })
-    .limit(1)
-    .single();
-
-  const position = (maxPos?.position ?? -1) + 1;
-
-  const { data: inserted, error: insertError } = await supabase
-    .from("product_image")
-    .insert({
-      product_id: productId,
-      url: urlData.publicUrl,
-      position,
-    })
-    .select("id, url, position")
-    .single();
-
-  if (insertError) {
-    console.error("uploadProductImage insert error:", insertError);
-    return { error: "Ошибка сохранения записи об изображении" };
-  }
-
-  revalidatePath("/admin/business");
-  if (businessSlug) revalidatePath(`/${businessSlug}`);
-
-  return {
-    data: {
-      id: inserted.id,
-      url: inserted.url,
-      position: inserted.position,
-    },
-  };
+  return uploadProductImageAction(productId, formData, businessSlug);
 }
 
-/**
- * Удаляет изображение товара из product_image и при возможности из Storage.
- */
 export async function deleteProductImage(
   imageId: string,
   businessSlug?: string
 ): Promise<{ error?: string }> {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { error: "Не авторизован" };
-  }
-
-  const { data: row } = await supabase
-    .from("product_image")
-    .select("product_id, url")
-    .eq("id", imageId)
-    .single();
-
-  if (!row) {
-    return { error: "Изображение не найдено" };
-  }
-
-  const { data: product } = await supabase
-    .from("product")
-    .select("business_id")
-    .eq("id", row.product_id)
-    .single();
-
-  if (!product) {
-    return { error: "Товар не найден" };
-  }
-
-  const hasAccess = await ensureBusinessAccess(
-    supabase,
-    user.id,
-    product.business_id
-  );
-  if (!hasAccess) {
-    return { error: "Нет доступа к этому товару" };
-  }
-
-  try {
-    const url = new URL(row.url);
-    const pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/product\/(.+)/);
-    if (pathMatch?.[1]) {
-      await supabase.storage.from("product").remove([pathMatch[1]]);
-    }
-  } catch {
-    // игнорируем ошибки удаления из Storage
-  }
-
-  const { error: deleteError } = await supabase
-    .from("product_image")
-    .delete()
-    .eq("id", imageId);
-
-  if (deleteError) {
-    console.error("deleteProductImage error:", deleteError);
-    return { error: "Ошибка удаления изображения" };
-  }
-
-  revalidatePath("/admin/business");
-  if (businessSlug) revalidatePath(`/${businessSlug}`);
-
-  return {};
+  return deleteProductImageAction(imageId, businessSlug);
 }
 
-/**
- * Меняет порядок изображений товара по переданному списку id (индекс = position).
- */
 export async function reorderProductImages(
   productId: string,
   orderedIds: string[],
   businessSlug?: string
 ): Promise<{ error?: string }> {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { error: "Не авторизован" };
-  }
-
-  const { data: product } = await supabase
-    .from("product")
-    .select("business_id")
-    .eq("id", productId)
-    .single();
-
-  if (!product) {
-    return { error: "Товар не найден" };
-  }
-
-  const hasAccess = await ensureBusinessAccess(
-    supabase,
-    user.id,
-    product.business_id
-  );
-  if (!hasAccess) {
-    return { error: "Нет доступа к этому товару" };
-  }
-
-  for (let i = 0; i < orderedIds.length; i++) {
-    const { error } = await supabase
-      .from("product_image")
-      .update({ position: i })
-      .eq("id", orderedIds[i])
-      .eq("product_id", productId);
-    if (error) {
-      console.error("reorderProductImages error:", error);
-      return { error: "Ошибка изменения порядка фото" };
-    }
-  }
-
-  revalidatePath("/admin/business");
-  if (businessSlug) revalidatePath(`/${businessSlug}`);
-
-  return {};
+  return reorderProductImagesAction(productId, orderedIds, businessSlug);
 }
+

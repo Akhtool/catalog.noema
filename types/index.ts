@@ -1,6 +1,6 @@
-/**
+﻿/**
  * TypeScript типы для модели данных каталога
- * Основаны на /docs/data-model.md
+ * Основаны на /docs/reference/data-model.md
  * Никакой логики, только типы
  */
 
@@ -243,3 +243,6 @@ export interface Order {
   selectedPoint: BusinessLocation | null;
   createdAt: string; // timestamp (ISO string)
 }
+
+
+

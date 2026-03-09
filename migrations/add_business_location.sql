@@ -1,6 +1,6 @@
--- Миграция: таблица business_location (филиалы/точки для самовывоза и «В зале»)
+﻿-- Миграция: таблица business_location (филиалы/точки для самовывоза и «В зале»)
 -- Дата: 2026-02-03
--- Основано на docs/data-model.md
+-- Основано на docs/reference/data-model.md
 -- Выполнить вручную в Supabase SQL Editor после применения v2_data_model.sql и v2_auth.sql
 
 -- ============================================================================
@@ -74,3 +74,6 @@ WITH CHECK (
       AND business_user.role IN ('owner', 'admin')
   )
 );
+
+
+

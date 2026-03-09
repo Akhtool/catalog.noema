@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createServerClient } from '@/lib/supabase-server'
 import { LogoutButton } from '@/components/admin/logout-button'
+import { isBusinessSubdomainHost, normalizeHost } from '@/lib/host'
 
 /**
  * Layout для admin-зоны с проверкой авторизации
@@ -11,6 +13,11 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
+  const host = normalizeHost((await headers()).get('host'))
+  if (!host || !isBusinessSubdomainHost(host)) {
+    redirect('/')
+  }
+
   const supabase = await createServerClient()
   const {
     data: { user },

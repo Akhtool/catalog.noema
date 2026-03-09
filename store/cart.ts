@@ -1,6 +1,6 @@
-/**
+﻿/**
  * Zustand store для корзины (отдельная на каждый бизнес)
- * Основан на /docs/data-model.md, /docs/per-business-state-fix-plan.md
+ * Основан на /docs/reference/data-model.md, /docs/plans/per-business-state-fix-plan.md
  * Client-side only, без серверной логики
  */
 
@@ -16,6 +16,7 @@ import type {
   BusinessLocation,
   BusinessPromo,
 } from '@/types';
+import { trackClientEvent } from '@/lib/client-observability';
 import { validatePromo, calculatePromoDiscount } from '@/lib/promo';
 
 const EMPTY_SLICE: CartSlice = {
@@ -267,6 +268,12 @@ export const useCartStore = create<CartStore>()(
               [businessId]: { ...slice, items: nextItems },
             },
           };
+        });
+
+        trackClientEvent('product_added_to_cart', {
+          businessId: product.businessId,
+          productId: product.id,
+          productName: product.name,
         });
       },
 
@@ -558,3 +565,6 @@ export function useCartHydration() {
   }, []);
   return isHydrated;
 }
+
+
+
