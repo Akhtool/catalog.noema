@@ -1,4 +1,4 @@
-﻿# Деплой catalog.noema на VPS (Ubuntu 24.04 LTS) — Next.js + Nginx + SSL
+# Деплой catalog.noema на VPS (Ubuntu 24.04 LTS) — Next.js + Nginx + SSL
 
 Эта инструкция рассчитана на ситуацию: вы давно не деплоили “на голый сервер”, у вас **Next.js (Node.js)**, и внешние сервисы (**Supabase**) уже хостят базу/хранилище.
 
@@ -552,6 +552,40 @@ sudo systemctl status catalog-noema --no-pager
   - периодически: `sudo apt update && sudo apt upgrade -y`
 - Логи приложения:
   - `sudo journalctl -u catalog-noema -f`
+
+---
+
+## 16) Автодеплой при push (GitHub Actions)
+
+При push в ветку `main` workflow из `.github/workflows/deploy.yml` подключается по SSH к VPS и выполняет рутину из раздела 13.
+
+### 16.1. Секреты репозитория (Settings → Secrets and variables → Actions)
+
+- `VPS_HOST` — IP или hostname сервера
+- `VPS_USER` — пользователь SSH (например `deploy`)
+- `VPS_SSH_KEY` — содержимое приватного SSH-ключа (целиком, с заголовками `-----BEGIN ... KEY-----` и `-----END ... KEY-----`)
+- `VPS_SSH_PORT` — (опционально) порт SSH, по умолчанию 22
+
+Рекомендуется отдельный ключ только для деплоя: `ssh-keygen -t ed25519 -C "github-deploy" -f deploy_key -N ""`; публичный ключ добавить в `~/.ssh/authorized_keys` пользователя `deploy` на VPS.
+
+### 16.2. Sudo без пароля для deploy
+
+Пользователь `deploy` должен иметь право без пароля выполнять `systemctl restart` и `systemctl status` для сервиса. На VPS:
+
+```bash
+sudo visudo
+```
+
+Добавьте строки (после существующих правил):
+
+```
+deploy ALL=(ALL) NOPASSWD: /bin/systemctl restart catalog-noema
+deploy ALL=(ALL) NOPASSWD: /bin/systemctl status catalog-noema
+```
+
+### 16.3. Ручной запуск
+
+В GitHub: **Actions** → **Deploy to VPS** → **Run workflow**.
 
 ---
 

@@ -1,50 +1,17 @@
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
+import { ACCESS_TOKEN_COOKIE_NAME, REFRESH_TOKEN_COOKIE_NAME } from '@/lib/auth-cookies'
+
 /**
  * Создаёт server-side Supabase клиент для проверки авторизации
  * Используется в Server Components и Server Actions
  */
 export async function createServerClient() {
   const cookieStore = await cookies()
-  
-  // Получаем все cookies
   const allCookies = cookieStore.getAll()
-  
-  // Ищем Supabase auth token в cookies
-  let accessToken: string | undefined
-  let refreshToken: string | undefined
-  
-  // Проверяем наши установленные cookies
-  const accessTokenCookie = cookieStore.get('sb-access-token')
-  const refreshTokenCookie = cookieStore.get('sb-refresh-token')
-  
-  if (accessTokenCookie) {
-    accessToken = accessTokenCookie.value
-  }
-  
-  if (refreshTokenCookie) {
-    refreshToken = refreshTokenCookie.value
-  }
-  
-  // Если не нашли в наших cookies, ищем в стандартных Supabase cookies
-  if (!accessToken || !refreshToken) {
-    for (const cookie of allCookies) {
-      if (cookie.name.includes('sb-') && cookie.name.includes('auth-token')) {
-        try {
-          const tokenData = JSON.parse(decodeURIComponent(cookie.value))
-          accessToken = tokenData?.access_token || accessToken
-          refreshToken = tokenData?.refresh_token || refreshToken
-          break
-        } catch {
-          // Если не JSON, пробуем как прямой токен
-          if (!accessToken) {
-            accessToken = cookie.value
-          }
-        }
-      }
-    }
-  }
+  const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE_NAME)?.value
+  const refreshToken = cookieStore.get(REFRESH_TOKEN_COOKIE_NAME)?.value
   
   // Формируем строку Cookie для заголовков
   const cookieString = allCookies
@@ -65,7 +32,6 @@ export async function createServerClient() {
     }
   )
   
-  // Если нашли токен, устанавливаем сессию
   if (accessToken && refreshToken) {
     await client.auth.setSession({
       access_token: accessToken,

@@ -46,6 +46,17 @@ function extractProductStoragePath(publicUrl: string): string | null {
   }
 }
 
+async function cleanupUploadedProductImage(
+  supabase: Awaited<ReturnType<typeof createServerClient>>,
+  filePath: string
+) {
+  try {
+    await supabase.storage.from("product").remove([filePath]);
+  } catch {
+    // Ignore storage cleanup failures.
+  }
+}
+
 export async function uploadProductImage(
   productId: string,
   formData: FormData,
@@ -97,6 +108,7 @@ export async function uploadProductImage(
   const { data: urlData } = supabase.storage.from("product").getPublicUrl(filePath);
 
   if (!urlData?.publicUrl) {
+    await cleanupUploadedProductImage(supabase, filePath);
     return { error: "Не удалось получить URL изображения" };
   }
 
@@ -122,6 +134,7 @@ export async function uploadProductImage(
 
   if (insertError) {
     console.error("uploadProductImage insert error:", insertError);
+    await cleanupUploadedProductImage(supabase, filePath);
     return { error: "Ошибка сохранения записи об изображении" };
   }
 
@@ -211,11 +224,35 @@ export async function reorderProductImages(
     return { error: productAccess.error };
   }
 
-  for (let i = 0; i < orderedIds.length; i++) {
+  const normalizedIds = orderedIds.filter(Boolean);
+  const uniqueIds = new Set(normalizedIds);
+  if (normalizedIds.length === 0 || uniqueIds.size !== normalizedIds.length) {
+    return { error: "Некорректный список изображений для сортировки" };
+  }
+
+  const { data: existingImages, error: existingImagesError } = await supabase
+    .from("product_image")
+    .select("id")
+    .eq("product_id", productId);
+
+  if (existingImagesError) {
+    console.error("reorderProductImages validate error:", existingImagesError);
+    return { error: "Ошибка проверки изображений" };
+  }
+
+  const existingIds = new Set((existingImages ?? []).map((image) => image.id));
+  if (
+    existingIds.size !== normalizedIds.length ||
+    normalizedIds.some((imageId) => !existingIds.has(imageId))
+  ) {
+    return { error: "Некорректный список изображений для сортировки" };
+  }
+
+  for (let i = 0; i < normalizedIds.length; i++) {
     const { error } = await supabase
       .from("product_image")
       .update({ position: i })
-      .eq("id", orderedIds[i])
+      .eq("id", normalizedIds[i])
       .eq("product_id", productId);
     if (error) {
       console.error("reorderProductImages error:", error);

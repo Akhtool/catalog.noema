@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Product } from "@/types";
@@ -17,6 +17,14 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+
+function getActionErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
 
 interface ProductCardProps {
   product: Product;
@@ -71,10 +79,9 @@ export function ProductCard({
   const addItem = useCartStore((state) => state.addItem);
   const increaseQuantity = useCartStore((state) => state.increaseQuantity);
   const decreaseQuantity = useCartStore((state) => state.decreaseQuantity);
-  const cartItems = useCartStore((state) => state.getItems(product.businessId));
-
-  const cartItem = cartItems.find((item) => item.productId === product.id);
-  const quantity = cartItem?.quantity || 0;
+  const quantity = useCartStore((state) =>
+    state.getItemQuantity(product.businessId, product.id)
+  );
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -138,8 +145,8 @@ export function ProductCard({
       await Promise.resolve(onHide());
       setOptimisticallyHidden(true);
       toast.success("Товар скрыт из каталога");
-    } catch {
-      toast.error("Не удалось скрыть товар");
+    } catch (error) {
+      toast.error(getActionErrorMessage(error, "Не удалось скрыть товар"));
     } finally {
       setActionInProgress(false);
     }
@@ -153,8 +160,8 @@ export function ProductCard({
       await Promise.resolve(onRestore());
       setOptimisticallyRestored(true);
       toast.success("Товар снова отображается в каталоге");
-    } catch {
-      toast.error("Не удалось вернуть товар в каталог");
+    } catch (error) {
+      toast.error(getActionErrorMessage(error, "Не удалось вернуть товар в каталог"));
     } finally {
       setActionInProgress(false);
     }

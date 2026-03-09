@@ -37,10 +37,11 @@ supabase db push
 10. `add_product_order.sql`
 11. `add_product_discount.sql`
 12. `add_reorder_products_rpc.sql`
-13. `add_whatsapp_per_delivery_type.sql`
-14. `add_business_theme_brand.sql`
-15. `add_promo_to_business.sql`
-16. `add_working_hours_to_business.sql`
+13. `add_create_business_with_owner_rpc.sql`
+14. `add_whatsapp_per_delivery_type.sql`
+15. `add_business_theme_brand.sql`
+16. `add_promo_to_business.sql`
+17. `add_working_hours_to_business.sql`
 
 ### Security hotfixes
 

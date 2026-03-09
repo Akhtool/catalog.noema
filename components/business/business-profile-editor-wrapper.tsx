@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { Business } from "@/types";
 import { ProfileEditorContext } from "./profile-editor-context";
@@ -70,7 +70,10 @@ export function BusinessProfileEditorWrapper({
 
   const handleDeleteProduct = useCallback(
     async (productId: string) => {
-      await deleteProductAction(productId, business.slug);
+      const result = await deleteProductAction(productId, business.slug);
+      if (result.error) {
+        throw new Error(result.error);
+      }
       router.refresh();
     },
     [business.slug, router]
@@ -78,7 +81,10 @@ export function BusinessProfileEditorWrapper({
 
   const handleRestoreProduct = useCallback(
     async (productId: string) => {
-      await restoreProductAction(productId, business.slug);
+      const result = await restoreProductAction(productId, business.slug);
+      if (result.error) {
+        throw new Error(result.error);
+      }
       router.refresh();
     },
     [business.slug, router]

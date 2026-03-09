@@ -541,9 +541,32 @@ export async function reorderProducts(
     return { error: "Нет доступа к этому бизнесу" };
   }
 
+  const normalizedIds = orderedProductIds.filter(Boolean);
+  const uniqueIds = new Set(normalizedIds);
+  if (normalizedIds.length === 0 || uniqueIds.size !== normalizedIds.length) {
+    return { error: "Некорректный список товаров для сортировки" };
+  }
+
+  const { data: existingProducts, error: existingProductsError } = await supabase
+    .from("product")
+    .select("id")
+    .eq("business_id", businessId);
+  if (existingProductsError) {
+    console.error("reorderProducts validate error:", existingProductsError);
+    return { error: "Ошибка проверки порядка товаров" };
+  }
+
+  const existingIds = new Set((existingProducts ?? []).map((product) => product.id));
+  if (
+    existingIds.size !== normalizedIds.length ||
+    normalizedIds.some((productId) => !existingIds.has(productId))
+  ) {
+    return { error: "Некорректный список товаров для сортировки" };
+  }
+
   const { error } = await supabase.rpc("reorder_products", {
     p_business_id: businessId,
-    p_ordered_ids: orderedProductIds,
+    p_ordered_ids: normalizedIds,
   });
   if (error) {
     console.error("reorderProducts error:", error);

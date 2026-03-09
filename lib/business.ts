@@ -10,7 +10,6 @@ import { createServerClient } from '@/lib/supabase-server'
 
 const MIN_SLUG_LENGTH = 3
 const MAX_SLUG_LENGTH = 64
-const OWNER_ROLE = 'owner' as const
 const MAX_SLUG_ATTEMPTS = 10
 
 export type CreateBusinessResult =
@@ -79,14 +78,19 @@ export async function createBusiness(formData: FormData): Promise<CreateBusiness
     return { error: 'Не удалось подобрать уникальный slug. Попробуйте другой.' }
   }
 
-  const { data: business, error: businessError } = await admin
-    .from('business')
-    .insert({ name, slug: uniqueSlug })
-    .select('id, slug')
-    .single()
+  const { data: createdBusiness, error: createBusinessError } = await admin.rpc(
+    'create_business_with_owner',
+    {
+      p_name: name,
+      p_slug: uniqueSlug,
+      p_user_id: user.id,
+    }
+  )
 
-  if (businessError || !business) {
-    logServerError('business.create.insert', businessError, {
+  const business = Array.isArray(createdBusiness) ? createdBusiness[0] : createdBusiness
+
+  if (createBusinessError || !business) {
+    logServerError('business.create.rpc', createBusinessError, {
       name,
       slug: uniqueSlug,
       userId: user.id,
@@ -94,30 +98,12 @@ export async function createBusiness(formData: FormData): Promise<CreateBusiness
     return { error: 'Ошибка создания бизнеса' }
   }
 
-  const { error: linkError } = await admin.from('business_user').insert({
-    business_id: business.id,
-    user_id: user.id,
-    role: OWNER_ROLE,
-  })
-
-  if (linkError) {
-    logServerError('business.create.link-owner', linkError, {
-      businessId: business.id,
-      slug: business.slug,
-      userId: user.id,
-    })
-    return {
-      error:
-        'Бизнес создан, но не удалось привязать пользователя. Обратитесь к администратору.',
-    }
-  }
-
-  revalidatePath(`/${business.slug}`)
+  revalidatePath(`/${business.business_slug}`)
   trackServerEvent('business_created', {
-    businessId: business.id,
-    slug: business.slug,
+    businessId: business.business_id,
+    slug: business.business_slug,
     userId: user.id,
   })
 
-  return { success: true, slug: business.slug }
+  return { success: true, slug: business.business_slug }
 }

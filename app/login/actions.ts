@@ -3,36 +3,25 @@
 import { createServerClient } from '@/lib/supabase-server'
 import { cookies, headers } from 'next/headers'
 import { getBusinessSlugForUser, resolveRedirectAfterLogin } from '@/lib/auth-redirect'
-import { getRootDomain, normalizeHost } from '@/lib/host'
+import { clearServerSessionCookies, writeServerSessionCookies } from '@/lib/auth-cookies'
+import { normalizeHost } from '@/lib/host'
 
 /**
  * Устанавливает сессию на сервере через токены
  */
 export async function setServerSession(accessToken: string, refreshToken: string) {
   const cookieStore = await cookies()
-  const host = normalizeHost((await headers()).get('host'))
-  const root = getRootDomain()
-  const cookieDomain = host && (host === root || host.endsWith(`.${root}`)) ? `.${root}` : undefined
-  
-  // Устанавливаем cookies для сессии
-  cookieStore.set('sb-access-token', accessToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    domain: cookieDomain,
-    maxAge: 60 * 60 * 24 * 7, // 7 дней
-  })
-  
-  cookieStore.set('sb-refresh-token', refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    domain: cookieDomain,
-    maxAge: 60 * 60 * 24 * 30, // 30 дней
-  })
-  
+  const host = (await headers()).get('host')
+
+  writeServerSessionCookies(
+    cookieStore,
+    {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    },
+    host
+  )
+
   return { success: true }
 }
 
@@ -106,10 +95,9 @@ export async function getRedirectAfterLogin(): Promise<string> {
  */
 export async function logout() {
   const cookieStore = await cookies()
-  
-  // Очищаем cookies сессии
-  cookieStore.delete('sb-access-token')
-  cookieStore.delete('sb-refresh-token')
+  const host = (await headers()).get('host')
+
+  clearServerSessionCookies(cookieStore, host)
   
   // Очищаем сессию Supabase на сервере
   const supabase = await createServerClient()

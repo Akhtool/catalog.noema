@@ -5,13 +5,13 @@ import { revalidatePath } from 'next/cache'
 import {
   getAccessibleEntityBusinessId,
   getAuthenticatedUser,
-  getFirstBusinessIdForUser,
   userHasAccessToBusinessId,
 } from '../_lib/access-control'
 import {
+  assertBusinessMatchesCurrentHost,
   buildBusinessUpdatePayload,
+  getAccessibleCurrentBusinessContext,
   revalidateBusinessPath,
-  resolveBusinessIdForUpdate as resolveBusinessIdForUpdateHelper,
 } from './business-action-helpers'
 
 /** Загружает первый доступный бизнес текущего пользователя. */
@@ -23,10 +23,11 @@ export async function getBusiness() {
     return { error: 'Не авторизован' }
   }
 
-  const businessId = await getBusinessId(supabase, user.id)
-  if (!businessId) {
-    return { error: 'Бизнес не найден' }
+  const currentBusiness = await getAccessibleCurrentBusinessContext(supabase, user.id)
+  if (currentBusiness.error) {
+    return { error: currentBusiness.error }
   }
+  const businessId = currentBusiness.data!.businessId
 
   // Загружаем данные бизнеса.
   const { data: business, error } = await supabase
@@ -40,20 +41,6 @@ export async function getBusiness() {
   }
 
   return { data: business }
-}
-
-/** Возвращает ID первого бизнеса пользователя. */
-async function getBusinessId(supabase: Awaited<ReturnType<typeof createServerClient>>, userId: string) {
-  return getFirstBusinessIdForUser(supabase, userId)
-}
-
-/** Определяет businessId для обновления из формы или из первого бизнеса пользователя. */
-async function resolveBusinessIdForUpdate(
-  supabase: Awaited<ReturnType<typeof createServerClient>>,
-  userId: string,
-  formBusinessId: string | null
-): Promise<string | null> {
-  return resolveBusinessIdForUpdateHelper(supabase, userId, formBusinessId)
 }
 
 /**
@@ -72,23 +59,16 @@ export async function checkBusinessAccess(slug: string): Promise<{
     return { hasAccess: false, error: 'Не авторизован' }
   }
 
-  // Получаем бизнес по slug.
-  const { data: business, error: businessError } = await supabase
-    .from('business')
-    .select('id')
-    .eq('slug', slug)
-    .single()
-
-  if (businessError || !business) {
-    return { hasAccess: false, error: 'Бизнес не найден' }
+  const currentBusiness = await getAccessibleCurrentBusinessContext(supabase, user.id)
+  if (currentBusiness.error) {
+    return { hasAccess: false, error: currentBusiness.error }
   }
 
-  const hasAccess = await userHasAccessToBusinessId(supabase, user.id, business.id)
-  if (!hasAccess) {
-    return { hasAccess: false, businessId: business.id }
+  if (currentBusiness.data!.slug !== slug) {
+    return { hasAccess: false, error: 'Текущий домен не соответствует бизнесу' }
   }
 
-  return { hasAccess: true, businessId: business.id }
+  return { hasAccess: true, businessId: currentBusiness.data!.businessId }
 }
 
 /**
@@ -111,6 +91,11 @@ export async function saveImageUrl(
   // Проверяем доступ к бизнесу.
   if (!(await userHasAccessToBusinessId(supabase, user.id, businessId))) {
     return { error: 'Нет доступа к этому бизнесу' }
+  }
+
+  const hostScopeCheck = await assertBusinessMatchesCurrentHost(supabase, businessId)
+  if (hostScopeCheck.error) {
+    return { error: hostScopeCheck.error }
   }
 
   // Получаем старое изображение для удаления.
@@ -174,10 +159,15 @@ export async function updateBusiness(formData: FormData) {
     return { error: 'Не авторизован' }
   }
 
+  const currentBusiness = await getAccessibleCurrentBusinessContext(supabase, user.id)
+  if (currentBusiness.error) {
+    return { error: currentBusiness.error }
+  }
+  const businessId = currentBusiness.data!.businessId
+
   const formBusinessId = normalizeString(formData.get('business_id') as string) || null
-  const businessId = await resolveBusinessIdForUpdate(supabase, user.id, formBusinessId)
-  if (!businessId) {
-    return { error: 'Бизнес не найден' }
+  if (formBusinessId && formBusinessId !== businessId) {
+    return { error: 'Нельзя изменять бизнес вне текущего домена' }
   }
 
   const { name, payload } = buildBusinessUpdatePayload(formData)
@@ -232,6 +222,12 @@ export async function createLocation(
   if (!(await userHasAccessToBusinessId(supabase, user.id, businessId))) {
     return { error: 'Нет доступа к этому бизнесу' }
   }
+
+  const hostScopeCheck = await assertBusinessMatchesCurrentHost(supabase, businessId)
+  if (hostScopeCheck.error) {
+    return { error: hostScopeCheck.error }
+  }
+
   const title = (data.title ?? '').trim()
   if (!title) return { error: 'Название точки обязательно' }
 
@@ -284,6 +280,11 @@ export async function updateLocation(
   if (locationAccess.error) return { error: locationAccess.error }
   const businessId = locationAccess.businessId!
 
+  const hostScopeCheck = await assertBusinessMatchesCurrentHost(supabase, businessId)
+  if (hostScopeCheck.error) {
+    return { error: hostScopeCheck.error }
+  }
+
   const title = (data.title ?? '').trim()
   if (!title) return { error: 'Название точки обязательно' }
 
@@ -330,6 +331,11 @@ export async function deleteLocation(locationId: string) {
   )
   if (locationAccess.error) return { error: locationAccess.error }
   const businessId = locationAccess.businessId!
+
+  const hostScopeCheck = await assertBusinessMatchesCurrentHost(supabase, businessId)
+  if (hostScopeCheck.error) {
+    return { error: hostScopeCheck.error }
+  }
 
   const { error } = await supabase.from('business_location').delete().eq('id', locationId)
   if (error) {

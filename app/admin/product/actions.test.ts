@@ -46,9 +46,12 @@ function createProductSupabase(options?: {
   maxOrder?: number | null;
   insertError?: unknown;
   updateError?: unknown;
+  existingProductIds?: string[];
+  reorderRpcError?: unknown;
 }) {
   let insertedPayload: Record<string, unknown> | null = null;
   let updatedPayload: Record<string, unknown> | null = null;
+  let reorderRpcPayload: Record<string, unknown> | null = null;
 
   const supabase = {
     from(table: string) {
@@ -87,6 +90,19 @@ function createProductSupabase(options?: {
 
           if (columns === "id") {
             return {
+              eq(column: string, value: unknown) {
+                if (column === "business_id") {
+                  expect(value).toBeDefined();
+                  return Promise.resolve({
+                    data: (options?.existingProductIds ?? ["product-1", "product-2"]).map((id) => ({
+                      id,
+                    })),
+                    error: null,
+                  });
+                }
+
+                throw new Error(`Unexpected product.id.eq call: ${column}`);
+              },
               async single() {
                 return { data: { id: "product-1" }, error: options?.insertError ?? null };
               },
@@ -119,12 +135,18 @@ function createProductSupabase(options?: {
         },
       };
     },
+    rpc(name: string, payload: Record<string, unknown>) {
+      expect(name).toBe("reorder_products");
+      reorderRpcPayload = payload;
+      return Promise.resolve({ error: options?.reorderRpcError ?? null });
+    },
   };
 
   return {
     supabase,
     getInsertedPayload: () => insertedPayload,
     getUpdatedPayload: () => updatedPayload,
+    getReorderRpcPayload: () => reorderRpcPayload,
   };
 }
 
@@ -261,5 +283,20 @@ describe("product actions", () => {
       is_active: true,
     });
     expect(mockRevalidateProductPaths).toHaveBeenCalledWith("acme");
+  });
+
+  it("rejects reorderProducts when the client sends an incomplete product id list", async () => {
+    const supabaseState = createProductSupabase({
+      existingProductIds: ["product-1", "product-2"],
+    });
+    mockCreateServerClient.mockResolvedValue(supabaseState.supabase);
+    mockGetAuthenticatedUser.mockResolvedValue({ id: "user-1" });
+    mockUserHasAccessToBusinessId.mockResolvedValue(true);
+
+    const { reorderProducts } = await import("./actions");
+    const result = await reorderProducts("business-1", ["product-1"], "acme");
+
+    expect(result).toEqual({ error: "Некорректный список товаров для сортировки" });
+    expect(supabaseState.getReorderRpcPayload()).toBeNull();
   });
 });
