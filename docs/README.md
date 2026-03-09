@@ -174,6 +174,8 @@ V2+ (только после стабильного релиза):
 Любые изменения требуют обновления:
 - `reference/product-contract.md`
 - `reference/data-model.md`
+- `reference/routing-rules.md`
+- `reference/core-scope.md`
 - данного документа.
 
 ---

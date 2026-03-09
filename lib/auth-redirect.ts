@@ -2,6 +2,8 @@ import type { createServerClient } from '@/lib/supabase-server'
 import { buildBusinessCatalogUrl, getRootDomain } from '@/lib/host'
 
 type ServerClient = Awaited<ReturnType<typeof createServerClient>>
+export const AUTHENTICATED_NO_BUSINESS_REDIRECT = '/admin/business/new'
+export const AUTHENTICATED_WITH_BUSINESS_REDIRECT = '/'
 
 /**
  * Возвращает slug бизнеса, к которому привязан пользователь (первый найденный).
@@ -41,6 +43,38 @@ export function buildBusinessRedirectUrl(options: {
   return buildBusinessCatalogUrl(options.slug, {
     protocol: options.protocol,
     port: options.port,
+  })
+}
+
+export function resolveBusinessHomeRedirect(options: {
+  slug: string
+  protocol: string
+  port: string | null
+  host: string
+}): string {
+  return (
+    buildBusinessRedirectUrl({
+      slug: options.slug,
+      protocol: options.protocol,
+      port: options.port,
+      host: options.host,
+    }) ?? AUTHENTICATED_WITH_BUSINESS_REDIRECT
+  )
+}
+
+export function resolveRedirectAfterLogin(options: {
+  slug: string | null
+  protocol: string
+  port: string | null
+  host: string
+}): string {
+  if (!options.slug) return AUTHENTICATED_NO_BUSINESS_REDIRECT
+
+  return resolveBusinessHomeRedirect({
+    slug: options.slug,
+    protocol: options.protocol,
+    port: options.port,
+    host: options.host,
   })
 }
 

@@ -51,6 +51,11 @@ export function getSlugFromSubdomain(hostname: string): string | null {
   return slug ? slug : null
 }
 
+/** True when request host belongs to a business subdomain like `acme.catlg.ru`. */
+export function isBusinessSubdomainHost(hostname: string): boolean {
+  return getSlugFromSubdomain(hostname) != null
+}
+
 /**
  * Собирает публичный URL каталога по slug: `https://{slug}.catlg.ru`.
  * В dev можно передать `protocol/port`, чтобы получить, например, `http://crusty.catlg.ru:3000`.

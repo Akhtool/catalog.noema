@@ -16,6 +16,7 @@ import type {
   BusinessLocation,
   BusinessPromo,
 } from '@/types';
+import { trackClientEvent } from '@/lib/client-observability';
 import { validatePromo, calculatePromoDiscount } from '@/lib/promo';
 
 const EMPTY_SLICE: CartSlice = {
@@ -267,6 +268,12 @@ export const useCartStore = create<CartStore>()(
               [businessId]: { ...slice, items: nextItems },
             },
           };
+        });
+
+        trackClientEvent('product_added_to_cart', {
+          businessId: product.businessId,
+          productId: product.id,
+          productName: product.name,
         });
       },
 

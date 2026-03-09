@@ -29,10 +29,12 @@ npm run dev
 
 - Главная: `http://catlg.ru:3000`
 - Каталог (пример): `http://crusty.catlg.ru:3000`
+- Вход владельца бизнеса: `http://crusty.catlg.ru:3000/login`
 
 Переменные окружения — см. `.env.local` (Supabase).
 
 **Онбординг:** открывать только по ссылке с ключом: `/onboarding?key=<ONBOARDING_ACCESS_KEY>`. Подробнее: [docs/plans/business-onboarding-plan.md](docs/plans/business-onboarding-plan.md).
+Правила маршрутов: [docs/reference/routing-rules.md](docs/reference/routing-rules.md).
 
 
 

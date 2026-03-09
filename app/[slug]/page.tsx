@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import Image from "next/image";
 import { ContactOrEditSection } from "@/components/business/contact-or-edit-section";
+import { CatalogOpenTracker } from "@/components/analytics/catalog-open-tracker";
 import { Catalog } from "@/components/catalog/catalog";
 import { BusinessProvider } from "@/components/business-provider";
 import { CartBottomBar } from "@/components/cart/cart-bottom-bar";
@@ -323,6 +324,7 @@ export default async function Page({ params }: PageProps) {
   return (
     <>
       {themeCss ? <style>{themeCss}</style> : null}
+      <CatalogOpenTracker businessId={businessTyped.id} slug={businessTyped.slug} />
       <BusinessProvider business={businessTyped}>
         <BusinessProfileEditorWrapper business={businessTyped} initialHasAccess={isAdmin}>
           {/* Баннер: обложка + логотип или плейсхолдеры при первом заходе */}

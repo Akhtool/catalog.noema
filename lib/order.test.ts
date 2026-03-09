@@ -6,6 +6,7 @@ import {
   createWhatsAppLink,
   generateOrderMessage,
   getOrderContactLink,
+  hasAnyOrderContact,
   parseDeliveryTypes,
   resolveWhatsappForOrder,
 } from "@/lib/order";
@@ -109,5 +110,26 @@ describe("order utils", () => {
     expect(getOrderContactLink(business, order)).toMatchObject({
       type: "whatsapp",
     });
+  });
+
+  it("detects whether the business has at least one contact for orders", () => {
+    expect(hasAnyOrderContact(business)).toBe(true);
+
+    expect(
+      hasAnyOrderContact({
+        ...business,
+        phone: null,
+        whatsapp: null,
+        telegram: null,
+        pickupPoints: [
+          {
+            ...business.pickupPoints![0],
+            phone: null,
+            whatsapp: null,
+            telegram: null,
+          },
+        ],
+      }),
+    ).toBe(false);
   });
 });

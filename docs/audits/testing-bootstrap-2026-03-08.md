@@ -46,11 +46,44 @@
   - tenant guard for `categoryId`
   - tenant guard for `brandId`
   - positive same-business create/edit path
+- `app/admin/_lib/access-control.test.ts`
+  - shared owner/admin access primitives
+  - entity -> business resolution
+  - not-found and wrong-business guard paths
+
+### Auth and onboarding
+
+- `lib/auth-redirect.test.ts`
+  - resolve first linked business slug after login
+  - allow redirect only inside the root-domain zone
+- `lib/business.test.ts`
+  - reject unauthenticated business creation
+  - create business with unique slug fallback
+  - create owner link and revalidate the new catalog
+  - surface owner-link failure as a user-facing error
+
+### Admin server actions
+
+- `app/admin/product/actions.test.ts`
+  - reject create without auth
+  - create product with normalized write payload
+  - update product through resolved business access
+- `app/admin/business/actions.test.ts`
+  - check owner/admin access by business slug
+  - return business id on denied access
+  - update location through shared location access guard
+- `app/admin/category/actions.test.ts`
+  - create category with next order
+  - update category through shared access guard
+  - block delete when related products exist
+- `app/admin/brand/actions.test.ts`
+  - create brand with normalized payload
+  - update brand through shared access guard
+  - deactivate related products before delete
 
 ## Not covered yet
 
-- admin access tests are still missing;
-- product create/edit tests are still missing;
+- some negative/error branches in admin actions are still missing;
 - no heavy UI or e2e layer was added yet.
 
 ## Manual commands

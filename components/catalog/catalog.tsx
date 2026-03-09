@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { Category, Product } from "@/types";
 import { isDiscountActive } from "@/lib/discount";
+import { hasAnyOrderContact } from "@/lib/order";
 import { useFiltersForBusiness } from "@/store/catalog-filters";
 import { useCurrentBusinessStore } from "@/store/current-business";
 import {
@@ -19,7 +20,7 @@ import { SearchInput } from "./search-input";
 import { ViewToggle } from "./view-toggle";
 import { ProductCard } from "./product-card";
 import { Button } from "@/components/ui/button";
-import { FileSpreadsheet, FileDown, Pencil, Plus } from "lucide-react";
+import { CheckCircle2, CircleAlert, FileSpreadsheet, FileDown, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { getProductsForExport } from "@/app/admin/product/actions";
 
@@ -60,6 +61,7 @@ export function Catalog({ categories, products }: CatalogProps) {
     null,
   );
   const [isExporting, setIsExporting] = useState(false);
+  const hasOrderContactsConfigured = business ? hasAnyOrderContact(business) : false;
 
   async function handleExport() {
     if (!business?.id || !business?.slug) return;
@@ -317,6 +319,39 @@ export function Catalog({ categories, products }: CatalogProps) {
                     ? "Настройте витрину и добавьте товары"
                     : "Товары появятся скоро"}
                 </p>
+                {hasAccess && (
+                  <div className="mx-auto max-w-xl rounded-[1.25rem] border border-gray-200 bg-white p-4 text-left shadow-soft">
+                    <p className="text-sm font-semibold text-gray-900">
+                      Что нужно сделать дальше
+                    </p>
+                    <div className="mt-3 space-y-2 text-sm">
+                      <div className="flex items-start gap-2">
+                        {hasOrderContactsConfigured ? (
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 text-green-600" />
+                        ) : (
+                          <CircleAlert className="mt-0.5 h-4 w-4 text-amber-600" />
+                        )}
+                        <span className="text-gray-700">
+                          {hasOrderContactsConfigured
+                            ? "Контакты для приёма заказов уже настроены"
+                            : "Добавьте WhatsApp, Telegram или телефон в профиле бизнеса"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <CircleAlert className="mt-0.5 h-4 w-4 text-amber-600" />
+                        <span className="text-gray-700">
+                          Добавьте первую позицию. Категорию можно создать прямо в редакторе товара.
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <CircleAlert className="mt-0.5 h-4 w-4 text-amber-600" />
+                        <span className="text-gray-700">
+                          После этого проверьте первый тестовый заказ как обычный клиент.
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {hasAccess && (openProfileEditor || openProductEditor || openBulkImport) ? (
                   <div className="flex flex-col sm:flex-row gap-3 justify-center items-center flex-wrap">
                     {openProfileEditor && (

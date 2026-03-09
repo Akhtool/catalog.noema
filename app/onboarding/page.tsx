@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createServerClient } from '@/lib/supabase-server'
-import { getBusinessSlugForUser } from '@/lib/auth-redirect'
-import { buildBusinessCatalogUrl } from '@/lib/host'
+import { getBusinessSlugForUser, resolveBusinessHomeRedirect } from '@/lib/auth-redirect'
+import { normalizeHost } from '@/lib/host'
 import { OnboardingForm } from './onboarding-form'
 
 const ONBOARDING_ACCESS_KEY = process.env.ONBOARDING_ACCESS_KEY?.trim()
@@ -15,12 +16,10 @@ export default async function OnboardingPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
-  if (ONBOARDING_ACCESS_KEY) {
-    const params = await searchParams
-    const key = typeof params?.key === 'string' ? params.key : undefined
-    if (key !== ONBOARDING_ACCESS_KEY) {
-      redirect('/login')
-    }
+  const params = await searchParams
+  const key = typeof params?.key === 'string' ? params.key : undefined
+  if (!ONBOARDING_ACCESS_KEY || key !== ONBOARDING_ACCESS_KEY) {
+    redirect('/')
   }
 
   const supabase = await createServerClient()
@@ -31,7 +30,21 @@ export default async function OnboardingPage({
   if (user) {
     const slug = await getBusinessSlugForUser(supabase, user.id)
     if (slug) {
-      redirect(buildBusinessCatalogUrl(slug))
+      const headerStore = await headers()
+      const hostRaw = headerStore.get('host')
+      const host = normalizeHost(hostRaw) ?? ''
+      const forwardedProto = headerStore.get('x-forwarded-proto')?.split(',')[0]?.trim()
+      const protocol = forwardedProto || (process.env.NODE_ENV === 'production' ? 'https' : 'http')
+      const port = process.env.NODE_ENV === 'production' ? null : '3000'
+
+      redirect(
+        resolveBusinessHomeRedirect({
+          slug,
+          protocol,
+          port,
+          host,
+        })
+      )
     }
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB] px-4">

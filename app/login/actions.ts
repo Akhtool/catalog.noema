@@ -2,7 +2,7 @@
 
 import { createServerClient } from '@/lib/supabase-server'
 import { cookies, headers } from 'next/headers'
-import { buildBusinessRedirectUrl, getBusinessSlugForUser } from '@/lib/auth-redirect'
+import { getBusinessSlugForUser, resolveRedirectAfterLogin } from '@/lib/auth-redirect'
 import { getRootDomain, normalizeHost } from '@/lib/host'
 
 /**
@@ -69,7 +69,7 @@ export async function ensureProfileAfterAuth() {
   return { success: true }
 }
 
-const FALLBACK_REDIRECT = '/'
+const ANONYMOUS_REDIRECT = '/'
 
 /**
  * Возвращает URL для редиректа после входа.
@@ -81,10 +81,9 @@ export async function getRedirectAfterLogin(): Promise<string> {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) return FALLBACK_REDIRECT
+  if (!user) return ANONYMOUS_REDIRECT
 
   const slug = await getBusinessSlugForUser(supabase, user.id)
-  if (!slug) return FALLBACK_REDIRECT
 
   const hostRaw = (await headers()).get('host')
   const host = normalizeHost(hostRaw) ?? ''
@@ -93,14 +92,12 @@ export async function getRedirectAfterLogin(): Promise<string> {
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
   const port = process.env.NODE_ENV === 'production' ? null : '3000'
 
-  return (
-    buildBusinessRedirectUrl({
-      slug,
-      protocol,
-      port,
-      host,
-    }) ?? FALLBACK_REDIRECT
-  )
+  return resolveRedirectAfterLogin({
+    slug,
+    protocol,
+    port,
+    host,
+  })
 }
 
 /**

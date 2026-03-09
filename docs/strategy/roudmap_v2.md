@@ -68,7 +68,7 @@
   - owner/admin write
 - Проверка доступа через `EXISTS`
 - `v2_auth.sql`
-- Guard на `/admin`
+- Guard на tenant-admin маршруты под бизнес-поддоменом
 
 📌 Безопасность считается зафиксированной.  
 📌 RLS меняется ТОЛЬКО через новые миграции.
@@ -254,9 +254,10 @@
 - Реализованы роли: `owner`, `admin`
 - Настроены RLS политики (public read, owner/admin write)
 - Реализована проверка доступа через `EXISTS`
-- Добавлен guard на `/admin` (редирект неавторизованных на `/login`)
+- Tenant-admin вход переведён на `{slug}.catlg.ru/login`
+- Root-domain `catlg.ru/admin` зарезервирован под будущую платформенную админку команды
 - Миграция: `migrations/v2_auth.sql`
-- UI: `/app/login`, `/app/signup`, `/app/admin`
+- UI: `app/login`, `app/signup`, `app/admin`
 
 **ЭТАП 3 — Business Admin Overlay** ✅ ЗАВЕРШЁН
 

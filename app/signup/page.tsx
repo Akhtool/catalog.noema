@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation'
 
 /**
- * Единая точка входа — онбординг (регистрация + создание бизнеса).
- * Редирект на /onboarding.
+ * Public self-service signup is disabled.
+ * Root-domain /signup redirects to the landing page.
  */
 export default function SignupPage() {
-  redirect('/onboarding')
+  redirect('/')
 }

@@ -152,6 +152,17 @@ export function resolveWhatsappForOrder(business: Business, order: Order): strin
   }
 }
 
+/** Returns true when the business has at least one configured contact channel for orders. */
+export function hasAnyOrderContact(business: Business): boolean {
+  if (business.phone || business.whatsapp || business.telegram) {
+    return true;
+  }
+
+  return (business.pickupPoints ?? []).some(
+    (point) => point.isActive && (point.phone || point.whatsapp || point.telegram),
+  );
+}
+
 /** Returns the best available contact link for the order. */
 export function getOrderContactLink(
   business: Business,
