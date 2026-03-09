@@ -1,26 +1,14 @@
 "use server";
 
+import {
+  getAccessibleEntityBusinessId,
+  getAuthenticatedUser,
+  userHasAccessToBusinessId,
+} from "@/app/admin/_lib/access-control";
 import { createServerClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import type { Category } from "@/types";
 
-/** Проверяет, что пользователь имеет доступ (owner/admin) к бизнесу */
-async function ensureBusinessAccess(
-  supabase: Awaited<ReturnType<typeof createServerClient>>,
-  userId: string,
-  businessId: string
-): Promise<boolean> {
-  const { data } = await supabase
-    .from("business_user")
-    .select("business_id")
-    .eq("business_id", businessId)
-    .eq("user_id", userId)
-    .in("role", ["owner", "admin"])
-    .single();
-  return !!data;
-}
-
-/** Преобразует строку категории из БД в тип Category */
 function mapRowToCategory(row: {
   id: string;
   business_id: string;
@@ -41,25 +29,18 @@ function mapRowToCategory(row: {
   };
 }
 
-/**
- * Возвращает список категорий бизнеса.
- * @param businessId — ID бизнеса
- * @param activeOnly — если true, только активные (для выбора в товаре)
- */
 export async function getCategories(
   businessId: string,
   activeOnly = false
 ): Promise<{ data?: Category[]; error?: string }> {
   const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser(supabase);
 
   if (!user) {
     return { error: "Не авторизован" };
   }
 
-  const hasAccess = await ensureBusinessAccess(supabase, user.id, businessId);
+  const hasAccess = await userHasAccessToBusinessId(supabase, user.id, businessId);
   if (!hasAccess) {
     return { error: "Нет доступа к этому бизнесу" };
   }
@@ -86,24 +67,19 @@ export async function getCategories(
   return { data };
 }
 
-/**
- * Создаёт категорию для бизнеса. order = max(order)+1 среди активных категорий.
- */
 export async function createCategory(
   businessId: string,
   name: string,
   businessSlug?: string
 ): Promise<{ data?: Category; error?: string }> {
   const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser(supabase);
 
   if (!user) {
     return { error: "Не авторизован" };
   }
 
-  const hasAccess = await ensureBusinessAccess(supabase, user.id, businessId);
+  const hasAccess = await userHasAccessToBusinessId(supabase, user.id, businessId);
   if (!hasAccess) {
     return { error: "Нет доступа к этому бизнесу" };
   }
@@ -145,40 +121,28 @@ export async function createCategory(
   return { data: mapRowToCategory(row) };
 }
 
-/**
- * Обновляет название или порядок категории.
- */
 export async function updateCategory(
   categoryId: string,
   payload: { name?: string },
   businessSlug?: string
 ): Promise<{ error?: string }> {
   const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser(supabase);
 
   if (!user) {
     return { error: "Не авторизован" };
   }
 
-  const { data: category } = await supabase
-    .from("category")
-    .select("business_id")
-    .eq("id", categoryId)
-    .single();
-
-  if (!category) {
-    return { error: "Категория не найдена" };
-  }
-
-  const hasAccess = await ensureBusinessAccess(
+  const categoryAccess = await getAccessibleEntityBusinessId(
     supabase,
     user.id,
-    category.business_id
+    "category",
+    categoryId,
+    "Категория не найдена",
+    "Нет доступа к этой категории"
   );
-  if (!hasAccess) {
-    return { error: "Нет доступа к этой категории" };
+  if (categoryAccess.error) {
+    return { error: categoryAccess.error };
   }
 
   const updateData: Record<string, unknown> = {};
@@ -208,38 +172,26 @@ export async function updateCategory(
   return {};
 }
 
-/**
- * Возвращает количество товаров в категории (для модалки удаления).
- */
 export async function getProductCountByCategory(
   categoryId: string
 ): Promise<{ count?: number; error?: string }> {
   const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser(supabase);
 
   if (!user) {
     return { error: "Не авторизован" };
   }
 
-  const { data: category } = await supabase
-    .from("category")
-    .select("business_id")
-    .eq("id", categoryId)
-    .single();
-
-  if (!category) {
-    return { error: "Категория не найдена" };
-  }
-
-  const hasAccess = await ensureBusinessAccess(
+  const categoryAccess = await getAccessibleEntityBusinessId(
     supabase,
     user.id,
-    category.business_id
+    "category",
+    categoryId,
+    "Категория не найдена",
+    "Нет доступа к этой категории"
   );
-  if (!hasAccess) {
-    return { error: "Нет доступа к этой категории" };
+  if (categoryAccess.error) {
+    return { error: categoryAccess.error };
   }
 
   const { data: products, error } = await supabase
@@ -255,42 +207,28 @@ export async function getProductCountByCategory(
   return { count: products?.length ?? 0 };
 }
 
-/**
- * Удаляет категорию.
- * Без галочки «удалить связанные товары»: удалить можно только если в категории нет товаров.
- * С галочкой: товары в этой категории деактивируются (is_active = false), затем категория удаляется.
- */
 export async function deleteCategory(
   categoryId: string,
   deleteRelatedProducts: boolean,
   businessSlug?: string
 ): Promise<{ error?: string }> {
   const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser(supabase);
 
   if (!user) {
     return { error: "Не авторизован" };
   }
 
-  const { data: category } = await supabase
-    .from("category")
-    .select("business_id")
-    .eq("id", categoryId)
-    .single();
-
-  if (!category) {
-    return { error: "Категория не найдена" };
-  }
-
-  const hasAccess = await ensureBusinessAccess(
+  const categoryAccess = await getAccessibleEntityBusinessId(
     supabase,
     user.id,
-    category.business_id
+    "category",
+    categoryId,
+    "Категория не найдена",
+    "Нет доступа к этой категории"
   );
-  if (!hasAccess) {
-    return { error: "Нет доступа к этой категории" };
+  if (categoryAccess.error) {
+    return { error: categoryAccess.error };
   }
 
   if (deleteRelatedProducts) {
