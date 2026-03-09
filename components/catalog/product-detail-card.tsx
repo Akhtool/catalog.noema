@@ -120,10 +120,9 @@ export function ProductDetailCard({
   const addItem = useCartStore((state) => state.addItem);
   const increaseQuantity = useCartStore((state) => state.increaseQuantity);
   const decreaseQuantity = useCartStore((state) => state.decreaseQuantity);
-  const cartItems = useCartStore((state) => state.getItems(product.businessId));
-
-  const cartItem = cartItems.find((item) => item.productId === product.id);
-  const quantity = cartItem?.quantity || 0;
+  const quantity = useCartStore((state) =>
+    state.getItemQuantity(product.businessId, product.id)
+  );
 
   const handleAddToCart = (e: React.MouseEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();

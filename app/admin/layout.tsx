@@ -1,8 +1,10 @@
+import React from 'react'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
+
 import { createServerClient } from '@/lib/supabase-server'
 import { LogoutButton } from '@/components/admin/logout-button'
-import { isBusinessSubdomainHost, normalizeHost } from '@/lib/host'
+import { isRootDomainHost, normalizeHost } from '@/lib/host'
 
 /**
  * Layout для admin-зоны с проверкой авторизации
@@ -14,7 +16,7 @@ export default async function AdminLayout({
   children: React.ReactNode
 }) {
   const host = normalizeHost((await headers()).get('host'))
-  if (!host || !isBusinessSubdomainHost(host)) {
+  if (!host || !isRootDomainHost(host)) {
     redirect('/')
   }
 

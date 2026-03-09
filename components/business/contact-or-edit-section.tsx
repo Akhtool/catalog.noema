@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { checkBusinessAccess } from "@/app/admin/business/actions";
 import { ContactButton } from "@/components/contact-button";
 import { useProfileEditor, useProductEditor } from "./profile-editor-context";

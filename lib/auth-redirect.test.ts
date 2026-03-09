@@ -91,7 +91,7 @@ describe("auth redirect helpers", () => {
     vi.unstubAllEnvs();
   });
 
-  it("routes authenticated users without a business to business creation", () => {
+  it("routes authenticated users without a business to the catalog root", () => {
     expect(
       resolveRedirectAfterLogin({
         slug: null,

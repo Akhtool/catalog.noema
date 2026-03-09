@@ -86,6 +86,18 @@ describe("cart store", () => {
     expect(store.getDiscountAmount("business-2")).toBe(0);
   });
 
+  it("returns quantity only for the requested product without reading the whole list in UI selectors", () => {
+    const store = useCartStore.getState();
+
+    store.addItem(makeProduct({ id: "product-1" }));
+    store.addItem(makeProduct({ id: "product-1" }));
+    store.addItem(makeProduct({ id: "product-2", name: "Latte" }));
+
+    expect(store.getItemQuantity("business-1", "product-1")).toBe(2);
+    expect(store.getItemQuantity("business-1", "product-2")).toBe(1);
+    expect(store.getItemQuantity("business-1", "missing-product")).toBe(0);
+  });
+
   it("clears promo data when the last item is removed", () => {
     const store = useCartStore.getState();
 

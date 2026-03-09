@@ -2,7 +2,7 @@ import type { createServerClient } from '@/lib/supabase-server'
 import { buildBusinessCatalogUrl, getRootDomain } from '@/lib/host'
 
 type ServerClient = Awaited<ReturnType<typeof createServerClient>>
-export const AUTHENTICATED_NO_BUSINESS_REDIRECT = '/admin/business/new'
+export const AUTHENTICATED_NO_BUSINESS_REDIRECT = '/'
 export const AUTHENTICATED_WITH_BUSINESS_REDIRECT = '/'
 
 /**

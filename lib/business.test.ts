@@ -40,12 +40,15 @@ function createServerSupabase(user: { id: string; email?: string } | null) {
 
 function createAdminSupabase(options?: {
   takenSlugs?: string[];
-  businessInsertError?: unknown;
-  businessUserInsertError?: unknown;
+  createBusinessRpcError?: unknown;
 }) {
   const takenSlugs = new Set(options?.takenSlugs ?? []);
+  let createBusinessRpcPayload: Record<string, unknown> | null = null;
 
   return {
+    getCreateBusinessRpcPayload() {
+      return createBusinessRpcPayload;
+    },
     from(table: string) {
       if (table === "business") {
         return {
@@ -64,36 +67,24 @@ function createAdminSupabase(options?: {
 
             throw new Error(`Unexpected business.eq call: ${column}`);
           },
-          insert(payload: { name: string; slug: string }) {
-            return {
-              select() {
-                return this;
-              },
-              async single() {
-                if (options?.businessInsertError) {
-                  return { data: null, error: options.businessInsertError };
-                }
-
-                return {
-                  data: { id: "business-1", slug: payload.slug },
-                  error: null,
-                };
-              },
-            };
-          },
-        };
-      }
-
-      if (table === "business_user") {
-        return {
-          async insert() {
-            return { error: options?.businessUserInsertError ?? null };
-          },
         };
       }
 
       throw new Error(`Unexpected table: ${table}`);
     },
+    async rpc(name: string, payload: Record<string, unknown>) {
+      expect(name).toBe("create_business_with_owner");
+      createBusinessRpcPayload = payload;
+
+      if (options?.createBusinessRpcError) {
+        return { data: null, error: options.createBusinessRpcError };
+      }
+
+      return {
+        data: [{ business_id: "business-1", business_slug: String(payload.p_slug) }],
+        error: null,
+      };
+    }
   };
 }
 
@@ -131,17 +122,22 @@ describe("createBusiness", () => {
 
     expect(result).toEqual({ success: true, slug: "acme-2" });
     expect(mockEnsureProfileAfterAuth).toHaveBeenCalledTimes(1);
+    expect(mockCreateAdminClient.mock.results[0]?.value.getCreateBusinessRpcPayload()).toEqual({
+      p_name: "Acme",
+      p_slug: "acme-2",
+      p_user_id: "user-1",
+    });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/acme-2");
   });
 
-  it("returns an error when business creation succeeds but owner linking fails", async () => {
+  it("returns an error when the atomic create_business_with_owner rpc fails", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     mockCreateServerClient.mockResolvedValue(
       createServerSupabase({ id: "user-1", email: "owner@example.com" })
     );
     mockCreateAdminClient.mockReturnValue(
       createAdminSupabase({
-        businessUserInsertError: new Error("insert failed"),
+        createBusinessRpcError: new Error("rpc failed"),
       })
     );
 
@@ -151,8 +147,7 @@ describe("createBusiness", () => {
     const { createBusiness } = await import("./business");
     const result = await createBusiness(formData);
 
-    expect(result).toHaveProperty("error");
-    expect("error" in result && result.error).toContain("не удалось привязать пользователя");
+    expect(result).toEqual({ error: "Ошибка создания бизнеса" });
     consoleErrorSpy.mockRestore();
   });
 });

@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
-import { buildBusinessRedirectUrl, getBusinessSlugForUser } from '@/lib/auth-redirect'
+import { getBusinessSlugForUser, resolveRedirectAfterLogin } from '@/lib/auth-redirect'
+import { writeServerSessionCookies } from '@/lib/auth-cookies'
 
 const FALLBACK_REDIRECT = '/'
 
@@ -18,6 +19,9 @@ export async function GET(request: Request) {
 
     if (!error) {
       const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const {
         data: { user },
       } = await supabase.auth.getUser()
 
@@ -33,20 +37,27 @@ export async function GET(request: Request) {
           })
 
         const businessSlug = await getBusinessSlugForUser(supabase, user.id)
-        if (businessSlug) {
-          const redirectUrl =
-            buildBusinessRedirectUrl({
-              slug: businessSlug,
-              protocol: requestUrl.protocol.replace(':', ''),
-              port: requestUrl.port || null,
-              host: requestUrl.hostname,
-            }) ?? FALLBACK_REDIRECT
+        const redirectUrl = resolveRedirectAfterLogin({
+          slug: businessSlug,
+          protocol: requestUrl.protocol.replace(':', ''),
+          port: requestUrl.port || null,
+          host: requestUrl.hostname,
+        })
 
-          return NextResponse.redirect(new URL(redirectUrl, request.url))
+        const response = NextResponse.redirect(new URL(redirectUrl, request.url))
+
+        if (session) {
+          writeServerSessionCookies(response.cookies, session, requestUrl.host)
         }
+
+        return response
       }
 
-      return NextResponse.redirect(new URL(FALLBACK_REDIRECT, request.url))
+      const response = NextResponse.redirect(new URL(FALLBACK_REDIRECT, request.url))
+      if (session) {
+        writeServerSessionCookies(response.cookies, session, requestUrl.host)
+      }
+      return response
     }
   }
 

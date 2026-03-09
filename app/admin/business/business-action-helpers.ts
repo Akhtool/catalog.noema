@@ -1,23 +1,73 @@
+import { headers } from "next/headers"
 import { revalidatePath } from "next/cache"
+
 import {
-  getFirstBusinessIdForUser,
   type ServerSupabase,
   userHasAccessToBusinessId,
 } from "../_lib/access-control"
+import { getSlugFromSubdomain, normalizeHost } from "@/lib/host"
 
-export async function resolveBusinessIdForUpdate(
-  supabase: ServerSupabase,
-  userId: string,
-  formBusinessId: string | null
-): Promise<string | null> {
-  if (formBusinessId) {
-    const hasAccess = await userHasAccessToBusinessId(supabase, userId, formBusinessId)
-    if (hasAccess) {
-      return formBusinessId
-    }
+export interface CurrentBusinessContext {
+  businessId: string
+  slug: string
+}
+
+export async function getCurrentBusinessContext(
+  supabase: ServerSupabase
+): Promise<CurrentBusinessContext | null> {
+  const host = normalizeHost((await headers()).get("host"))
+  if (!host) return null
+
+  const slug = getSlugFromSubdomain(host)
+  if (!slug) return null
+
+  const { data: business, error } = await supabase
+    .from("business")
+    .select("id, slug")
+    .eq("slug", slug)
+    .maybeSingle()
+
+  if (error || !business) {
+    return null
   }
 
-  return getFirstBusinessIdForUser(supabase, userId)
+  return {
+    businessId: business.id,
+    slug: business.slug,
+  }
+}
+
+export async function getAccessibleCurrentBusinessContext(
+  supabase: ServerSupabase,
+  userId: string
+): Promise<{ data?: CurrentBusinessContext; error?: string }> {
+  const context = await getCurrentBusinessContext(supabase)
+  if (!context) {
+    return { error: "Бизнес текущего домена не найден" }
+  }
+
+  const hasAccess = await userHasAccessToBusinessId(supabase, userId, context.businessId)
+  if (!hasAccess) {
+    return { error: "Нет доступа к бизнесу текущего домена" }
+  }
+
+  return { data: context }
+}
+
+export async function assertBusinessMatchesCurrentHost(
+  supabase: ServerSupabase,
+  expectedBusinessId: string
+): Promise<{ slug?: string; error?: string }> {
+  const context = await getCurrentBusinessContext(supabase)
+  if (!context) {
+    return { error: "Бизнес текущего домена не найден" }
+  }
+
+  if (context.businessId !== expectedBusinessId) {
+    return { error: "Нельзя изменять бизнес вне текущего домена" }
+  }
+
+  return { slug: context.slug }
 }
 
 export async function getBusinessSlugById(

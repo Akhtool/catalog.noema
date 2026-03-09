@@ -1,34 +1,22 @@
 // app/favicon.ico/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { getSlugFromSubdomain, normalizeHost } from "@/lib/host";
 import { supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Route handler для динамического favicon.ico
- * Определяет slug из referer и возвращает соответствующий логотип
+ * Определяет бизнес по текущему subdomain host и возвращает соответствующий логотип
  */
 export async function GET(request: NextRequest) {
   try {
-    // Получаем referer из заголовков
-    const referer = request.headers.get("referer");
-    
-    if (!referer) {
+    const host = normalizeHost(request.headers.get("host"));
+    const slug = host ? getSlugFromSubdomain(host) : null;
+
+    if (!slug) {
       return new NextResponse(null, { status: 404 });
     }
-
-    // Извлекаем slug из URL referer
-    const url = new URL(referer);
-    const pathname = url.pathname;
-    
-    // Проверяем, что путь соответствует формату /[slug]
-    const slugMatch = pathname.match(/^\/([^\/]+)$/);
-    
-    if (!slugMatch) {
-      return new NextResponse(null, { status: 404 });
-    }
-
-    const slug = slugMatch[1];
 
     // Получаем бизнес по slug
     const { data: business } = await supabase

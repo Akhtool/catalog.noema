@@ -1,0 +1,37 @@
+# Деплой на VPS при push в main.
+# Секреты: VPS_HOST, VPS_USER, VPS_SSH_KEY (см. docs/infra/vps-deploy-ubuntu.md, раздел 16).
+
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - ".github/**"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Deploy on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd /var/www/catalog.noema
+            git pull
+            npm ci
+            npm run build
+            sudo systemctl restart catalog-noema
+            sudo systemctl status catalog-noema --no-pager

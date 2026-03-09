@@ -50,6 +50,7 @@ interface CartStore {
   generateOrderNumber: (businessId: string) => string;
 
   getItems: (businessId: string) => CartItem[];
+  getItemQuantity: (businessId: string, productId: string) => number;
   getSubtotal: (businessId: string) => number;
   getDiscountAmount: (businessId: string) => number;
   getTotalPrice: (businessId: string) => number;
@@ -216,6 +217,10 @@ export const useCartStore = create<CartStore>()(
       orderNumberByBusinessId: {},
 
       getItems: (businessId) => getSlice(get(), businessId).items,
+      getItemQuantity: (businessId, productId) => {
+        const item = getSlice(get(), businessId).items.find((entry) => entry.productId === productId);
+        return item?.quantity ?? 0;
+      },
       getSubtotal: (businessId) => {
         const slice = getSlice(get(), businessId);
         return slice.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
