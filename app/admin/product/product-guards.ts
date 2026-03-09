@@ -1,13 +1,11 @@
-type QueryBuilder = {
-  select: (columns: string) => QueryBuilder;
-  eq: (column: string, value: unknown) => QueryBuilder;
-  in?: (column: string, values: unknown[]) => QueryBuilder;
-  single?: () => Promise<{ data?: unknown; error?: unknown }>;
-  maybeSingle?: () => Promise<{ data?: unknown; error?: unknown }>;
-};
+import {
+  userHasAccessToBusinessId,
+  validateEntityBelongsToBusiness,
+  type ServerSupabase,
+} from "../_lib/access-control";
 
 type SupabaseLike = {
-  from: (table: string) => QueryBuilder;
+  from: (table: string) => unknown;
 };
 
 export interface ProductRelationPayload {
@@ -27,29 +25,22 @@ export interface ProductBasicsValidationResult {
   error?: string;
 }
 
-const ERR_NAME_REQUIRED = "\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u043e";
-const ERR_CATEGORY_REQUIRED = "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044e";
-const ERR_PRICE_INVALID = "\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u0443\u044e \u0446\u0435\u043d\u0443";
-const ERR_CATEGORY_NOT_FOUND = "\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u0430";
+const ERR_NAME_REQUIRED = "Название обязательно";
+const ERR_CATEGORY_REQUIRED = "Выберите категорию";
+const ERR_PRICE_INVALID = "Укажите корректную цену";
+const ERR_CATEGORY_NOT_FOUND = "Категория не найдена";
 const ERR_CATEGORY_WRONG_BUSINESS =
-  "\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f \u043d\u0435 \u043f\u0440\u0438\u043d\u0430\u0434\u043b\u0435\u0436\u0438\u0442 \u044d\u0442\u043e\u043c\u0443 \u0431\u0438\u0437\u043d\u0435\u0441\u0443";
-const ERR_BRAND_NOT_FOUND = "\u0411\u0440\u0435\u043d\u0434 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d";
+  "Категория не принадлежит этому бизнесу";
+const ERR_BRAND_NOT_FOUND = "Бренд не найден";
 const ERR_BRAND_WRONG_BUSINESS =
-  "\u0411\u0440\u0435\u043d\u0434 \u043d\u0435 \u043f\u0440\u0438\u043d\u0430\u0434\u043b\u0435\u0436\u0438\u0442 \u044d\u0442\u043e\u043c\u0443 \u0431\u0438\u0437\u043d\u0435\u0441\u0443";
+  "Бренд не принадлежит этому бизнесу";
 
 export async function ensureBusinessAccess(
   supabase: SupabaseLike,
   userId: string,
   businessId: string
 ): Promise<boolean> {
-  const query = supabase
-    .from("business_user")
-    .select("business_id")
-    .eq("business_id", businessId)
-    .eq("user_id", userId);
-
-  const result = await query.in!("role", ["owner", "admin"]).single!();
-  return !!result.data;
+  return userHasAccessToBusinessId(supabase as ServerSupabase, userId, businessId);
 }
 
 export async function validateProductRelationsBelongToBusiness(
@@ -57,41 +48,30 @@ export async function validateProductRelationsBelongToBusiness(
   businessId: string,
   payload: ProductRelationPayload
 ): Promise<{ error?: string }> {
-  const { data: category, error: categoryError } = await supabase
-    .from("category")
-    .select("business_id")
-    .eq("id", payload.categoryId)
-    .maybeSingle!();
-
-  const categoryBusinessId = (category as { business_id?: string } | undefined)?.business_id;
-  if (categoryError || !categoryBusinessId) {
-    return { error: ERR_CATEGORY_NOT_FOUND };
-  }
-
-  if (categoryBusinessId !== businessId) {
-    return { error: ERR_CATEGORY_WRONG_BUSINESS };
+  const categoryValidation = await validateEntityBelongsToBusiness(
+    supabase as ServerSupabase,
+    "category",
+    payload.categoryId,
+    businessId,
+    ERR_CATEGORY_NOT_FOUND,
+    ERR_CATEGORY_WRONG_BUSINESS
+  );
+  if (categoryValidation.error) {
+    return categoryValidation;
   }
 
   if (!payload.brandId) {
     return {};
   }
 
-  const { data: brand, error: brandError } = await supabase
-    .from("brand")
-    .select("business_id")
-    .eq("id", payload.brandId)
-    .maybeSingle!();
-
-  const brandBusinessId = (brand as { business_id?: string } | undefined)?.business_id;
-  if (brandError || !brandBusinessId) {
-    return { error: ERR_BRAND_NOT_FOUND };
-  }
-
-  if (brandBusinessId !== businessId) {
-    return { error: ERR_BRAND_WRONG_BUSINESS };
-  }
-
-  return {};
+  return validateEntityBelongsToBusiness(
+    supabase as ServerSupabase,
+    "brand",
+    payload.brandId,
+    businessId,
+    ERR_BRAND_NOT_FOUND,
+    ERR_BRAND_WRONG_BUSINESS
+  );
 }
 
 export function validateProductPayloadBasics(
