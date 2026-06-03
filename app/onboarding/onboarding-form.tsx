@@ -3,9 +3,7 @@
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { getAuthErrorMessage } from '@/lib/auth-errors'
-import { supabase } from '@/lib/supabase'
-import { setServerSession } from '@/app/login/actions'
+import { signUpWithEmailPassword } from '@/app/login/actions'
 import { CreateBusinessForm } from '@/app/admin/business/new/create-business-form'
 
 const MIN_PASSWORD_LENGTH = 6
@@ -28,20 +26,6 @@ export function OnboardingForm({ initialMode }: OnboardingFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function ensureProfile(userId: string, userEmail: string, name: string | null) {
-    const { error: profileError } = await supabase
-      .from('profile')
-      .upsert(
-        {
-          id: userId,
-          email: userEmail,
-          full_name: name ?? null,
-        },
-        { onConflict: 'id' }
-      )
-    if (profileError) console.error('Ошибка создания профиля:', profileError)
-  }
-
   async function handleSignup(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setIsLoading(true)
@@ -54,28 +38,19 @@ export function OnboardingForm({ initialMode }: OnboardingFormProps) {
         return
       }
 
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: email.trim(),
+      const result = await signUpWithEmailPassword(
+        email.trim(),
         password,
-        options: {
-          data: { full_name: fullName.trim() || null },
-        },
-      })
+        fullName.trim() || null
+      )
 
-      if (signUpError) {
-        setError(getAuthErrorMessage(signUpError.message))
+      if (result.error) {
+        setError(result.error)
         setIsLoading(false)
         return
       }
 
-      if (!data.user || !data.session) {
-        setError('Не удалось войти после регистрации. Если аккаунт уже создан — войдите на странице входа.')
-        setIsLoading(false)
-        return
-      }
-
-      await ensureProfile(data.user.id, data.user.email ?? email, fullName.trim() || null)
-      await setServerSession(data.session.access_token, data.session.refresh_token)
+      // Сессия и профиль созданы на сервере — переходим к шагу бизнеса.
       setMode('business')
     } catch {
       setError('Произошла ошибка. Попробуйте ещё раз.')

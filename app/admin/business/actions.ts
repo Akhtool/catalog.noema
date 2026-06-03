@@ -143,6 +143,67 @@ export async function saveImageUrl(
   return { success: true }
 }
 
+const BUSINESS_IMAGE_MAX_SIZE_BYTES = 5 * 1024 * 1024
+
+/**
+ * Загружает изображение бизнеса (logo/cover) в Storage на сервере и сохраняет URL.
+ * Выполняется через Server Action — браузер к Supabase не обращается, поэтому
+ * работает без VPN. Заменяет прежнюю клиентскую загрузку.
+ */
+export async function uploadBusinessImage(
+  formData: FormData,
+  type: 'logo' | 'cover',
+  businessId: string,
+  businessSlug?: string
+): Promise<{ publicUrl?: string; error?: string }> {
+  const supabase = await createServerClient()
+  const user = await getAuthenticatedUser(supabase)
+
+  if (!user) {
+    return { error: 'Не авторизован' }
+  }
+
+  const file = formData.get('file') as File | null
+  if (!file || !file.size) {
+    return { error: 'Файл не выбран' }
+  }
+  if (!file.type.startsWith('image/')) {
+    return { error: 'Файл должен быть изображением' }
+  }
+  if (file.size > BUSINESS_IMAGE_MAX_SIZE_BYTES) {
+    return { error: 'Размер файла не должен превышать 5 МБ' }
+  }
+
+  const fileExt = file.name.split('.').pop() ?? 'jpg'
+  const filePath = `${businessId}/${type}-${Date.now()}.${fileExt}`
+
+  const { error: uploadError } = await supabase.storage.from('business').upload(filePath, file, {
+    contentType: file.type,
+    upsert: true,
+    cacheControl: 'public, max-age=31536000, immutable',
+  })
+
+  if (uploadError) {
+    console.error('uploadBusinessImage storage error:', uploadError)
+    return { error: 'Ошибка загрузки изображения' }
+  }
+
+  const { data: urlData } = supabase.storage.from('business').getPublicUrl(filePath)
+  if (!urlData?.publicUrl) {
+    await supabase.storage.from('business').remove([filePath])
+    return { error: 'Не удалось получить URL изображения' }
+  }
+
+  // saveImageUrl проверяет доступ к бизнесу, удаляет старый файл и пишет URL в БД.
+  const saveResult = await saveImageUrl(urlData.publicUrl, type, businessId, businessSlug)
+  if (saveResult.error) {
+    await supabase.storage.from('business').remove([filePath])
+    return { error: saveResult.error }
+  }
+
+  return { publicUrl: urlData.publicUrl }
+}
+
 /** Нормализует строку: trim и null для пустых значений. */
 function normalizeString(value: string | null | undefined): string | null {
   if (!value) return null

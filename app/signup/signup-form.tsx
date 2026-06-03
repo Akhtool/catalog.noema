@@ -2,8 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { getAuthErrorMessage } from '@/lib/auth-errors'
-import { supabase } from '@/lib/supabase'
+import { signUpWithEmailPassword } from '../login/actions'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Eye, EyeOff } from 'lucide-react'
@@ -25,46 +24,17 @@ export function SignupForm() {
     setError(null)
 
     try {
-      // Регистрируем пользователя
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName || null,
-          },
-        },
-      })
+      const result = await signUpWithEmailPassword(email, password, fullName || null)
 
-      if (signUpError) {
-        const msg = getAuthErrorMessage(signUpError.message)
-        setError(msg)
-        toast.error(msg)
+      if (result.error) {
+        setError(result.error)
+        toast.error(result.error)
         setIsLoading(false)
         return
       }
 
-      if (data.user && data.session) {
-        // Создаём профиль
-        const { error: profileError } = await supabase
-          .from('profile')
-          .insert({
-            id: data.user.id,
-            email: email,
-            full_name: fullName || null,
-          })
-
-        if (profileError) {
-          console.error('Ошибка создания профиля:', profileError)
-        }
-
-        // Устанавливаем сессию на сервере через server action
-        const { setServerSession } = await import('../login/actions')
-        await setServerSession(data.session.access_token, data.session.refresh_token)
-        
-        // Используем window.location для гарантированного редиректа
-        window.location.replace('/')
-      }
+      // Сессия и профиль уже созданы на сервере — редиректим.
+      window.location.replace('/')
     } catch {
       const msg = 'Произошла ошибка при регистрации'
       setError(msg)

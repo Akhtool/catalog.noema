@@ -1,10 +1,130 @@
 'use server'
 
+import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@/lib/supabase-server'
 import { cookies, headers } from 'next/headers'
+import { getAuthErrorMessage } from '@/lib/auth-errors'
 import { getBusinessSlugForUser, resolveRedirectAfterLogin } from '@/lib/auth-redirect'
 import { clearServerSessionCookies, writeServerSessionCookies } from '@/lib/auth-cookies'
 import { normalizeHost } from '@/lib/host'
+
+/**
+ * Создаёт анонимный Supabase-клиент для серверных auth-операций (вход/регистрация).
+ * Сессия не хранится клиентом — токены мы сами кладём в cookies.
+ */
+function createAnonClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
+  )
+}
+
+/**
+ * Записывает токены сессии в cookies текущего запроса.
+ */
+async function persistSessionCookies(accessToken: string, refreshToken: string) {
+  const cookieStore = await cookies()
+  const host = (await headers()).get('host')
+
+  writeServerSessionCookies(
+    cookieStore,
+    {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    },
+    host
+  )
+}
+
+/**
+ * Вход по email/паролю. Выполняется на сервере (браузер к Supabase не ходит),
+ * поэтому работает без VPN. При успехе ставит cookies, создаёт профиль и
+ * возвращает URL для редиректа.
+ */
+export async function signInWithEmailPassword(
+  email: string,
+  password: string
+): Promise<{ error?: string; redirectTo?: string }> {
+  const anon = createAnonClient()
+  const { data, error } = await anon.auth.signInWithPassword({ email, password })
+
+  if (error) {
+    return { error: getAuthErrorMessage(error.message) }
+  }
+  if (!data.user || !data.session) {
+    return { error: 'Сессия не создана. Попробуйте ещё раз.' }
+  }
+
+  await persistSessionCookies(data.session.access_token, data.session.refresh_token)
+  await ensureProfileAfterAuth()
+
+  const redirectTo = await getRedirectAfterLogin()
+  return { redirectTo }
+}
+
+/**
+ * Регистрация по email/паролю. Выполняется на сервере. При успехе ставит cookies
+ * и создаёт профиль; навигацию выполняет вызывающая форма.
+ */
+export async function signUpWithEmailPassword(
+  email: string,
+  password: string,
+  fullName: string | null
+): Promise<{ error?: string }> {
+  const anon = createAnonClient()
+  const { data, error } = await anon.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { full_name: fullName || null },
+    },
+  })
+
+  if (error) {
+    return { error: getAuthErrorMessage(error.message) }
+  }
+  if (!data.user || !data.session) {
+    return {
+      error:
+        'Не удалось войти после регистрации. Если аккаунт уже создан — войдите на странице входа.',
+    }
+  }
+
+  await persistSessionCookies(data.session.access_token, data.session.refresh_token)
+  await ensureProfileAfterAuth()
+
+  return {}
+}
+
+/**
+ * Отправка magic-link письма. Выполняется на сервере.
+ */
+export async function sendMagicLink(email: string): Promise<{ error?: string }> {
+  const headerStore = await headers()
+  const host = headerStore.get('host') ?? ''
+  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
+  const origin = host ? `${protocol}://${host}` : ''
+
+  const anon = createAnonClient()
+  const { error } = await anon.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: `${origin}/auth/callback`,
+    },
+  })
+
+  if (error) {
+    return { error: getAuthErrorMessage(error.message) }
+  }
+
+  return {}
+}
 
 /**
  * Устанавливает сессию на сервере через токены

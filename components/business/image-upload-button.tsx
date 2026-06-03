@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { saveImageUrl } from '@/app/admin/business/actions'
-import { supabase } from '@/lib/supabase'
+import { uploadBusinessImage } from '@/app/admin/business/actions'
 import { Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -65,48 +64,18 @@ export function ImageUploadButton({
 
     setIsUploading(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        toast.error('Не авторизован')
+      const formData = new FormData()
+      formData.append('file', croppedFile)
+
+      const result = await uploadBusinessImage(formData, type, businessId, businessSlug)
+      if (result.error) {
+        toast.error(result.error)
         return
       }
 
-      const fileExt = croppedFile.name.split('.').pop() ?? 'jpg'
-      const fileName = `${businessId}/${type}-${Date.now()}.${fileExt}`
-      const filePath = fileName
-
-      const { error: uploadError } = await supabase.storage
-        .from('business')
-        .upload(filePath, croppedFile, {
-          contentType: croppedFile.type,
-          upsert: true,
-          cacheControl: 'public, max-age=31536000, immutable',
-        })
-
-      if (uploadError) {
-        console.error('Ошибка загрузки изображения:', uploadError)
-        toast.error('Ошибка загрузки изображения')
-        return
-      }
-
-      const { data: urlData } = supabase.storage
-        .from('business')
-        .getPublicUrl(filePath)
-
-      if (!urlData?.publicUrl) {
-        toast.error('Не удалось получить URL изображения')
-        return
-      }
-
-      const saveResult = await saveImageUrl(urlData.publicUrl, type, businessId, businessSlug)
-      if (saveResult.error) {
-        toast.error(saveResult.error)
-        return
-      }
-
-      setPreviewUrl(urlData.publicUrl)
+      setPreviewUrl(result.publicUrl!)
       toast.success(type === 'logo' ? 'Логотип загружен' : 'Обложка загружена')
-      onUploadSuccess?.(urlData.publicUrl)
+      onUploadSuccess?.(result.publicUrl!)
     } catch (error) {
       console.error(`Ошибка загрузки ${type}:`, error)
       toast.error(`Ошибка загрузки ${type === 'logo' ? 'логотипа' : 'обложки'}`)

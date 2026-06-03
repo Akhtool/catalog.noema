@@ -1,11 +1,6 @@
-import { saveImageUrl } from "@/app/admin/business/actions";
-import { supabase } from "@/lib/supabase";
+import { uploadBusinessImage } from "@/app/admin/business/actions";
 
-import {
-  buildBusinessImageStoragePath,
-  getBusinessImageMessages,
-  type BusinessImageKind,
-} from "./business-profile-editor-utils";
+import { type BusinessImageKind } from "./business-profile-editor-utils";
 
 type UploadBusinessProfileImageParams = {
   businessId: string;
@@ -14,43 +9,19 @@ type UploadBusinessProfileImageParams = {
   type: BusinessImageKind;
 };
 
+/**
+ * Загружает изображение профиля бизнеса через Server Action.
+ * Файл уходит на наш сервер, который кладёт его в Supabase Storage —
+ * браузер к Supabase не обращается, поэтому работает без VPN.
+ */
 export async function uploadBusinessProfileImage({
   businessId,
   businessSlug,
   croppedFile,
   type,
 }: UploadBusinessProfileImageParams): Promise<{ publicUrl?: string; error?: string }> {
-  const imageMessages = getBusinessImageMessages(type);
+  const formData = new FormData();
+  formData.append("file", croppedFile);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "Не авторизован" };
-  }
-
-  const fileName = buildBusinessImageStoragePath(businessId, type, croppedFile.name);
-  const { error: uploadError } = await supabase.storage.from("business").upload(fileName, croppedFile, {
-    contentType: croppedFile.type,
-    upsert: true,
-    cacheControl: "public, max-age=31536000, immutable",
-  });
-
-  if (uploadError) {
-    console.error("Ошибка загрузки изображения:", uploadError);
-    return { error: imageMessages.uploadFailed };
-  }
-
-  const { data: urlData } = supabase.storage.from("business").getPublicUrl(fileName);
-
-  if (!urlData?.publicUrl) {
-    return { error: "Не удалось получить URL изображения" };
-  }
-
-  const saveResult = await saveImageUrl(urlData.publicUrl, type, businessId, businessSlug ?? undefined);
-  if (saveResult.error) {
-    return { error: saveResult.error };
-  }
-
-  return { publicUrl: urlData.publicUrl };
+  return uploadBusinessImage(formData, type, businessId, businessSlug ?? undefined);
 }

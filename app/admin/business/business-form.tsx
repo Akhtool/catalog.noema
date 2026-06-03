@@ -2,8 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { toast } from 'sonner'
-import { updateBusiness, saveImageUrl } from './actions'
-import { supabase } from '@/lib/supabase'
+import { updateBusiness, uploadBusinessImage } from './actions'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -119,13 +118,10 @@ export function BusinessForm({ business }: BusinessFormProps) {
   }
   
   /**
-   * Обработка загрузки логотипа
-   * Загружает файл напрямую в Supabase Storage с клиента для быстрой загрузки
+   * Общая обработка загрузки изображения (logo/cover) через Server Action.
+   * Файл уходит на наш сервер, а сервер кладёт его в Supabase Storage.
    */
-  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-
+  async function handleImageUpload(file: File, type: 'logo' | 'cover') {
     // Проверка типа файла
     if (!file.type.startsWith('image/')) {
       setMessage({ type: 'error', text: 'Файл должен быть изображением' })
@@ -139,153 +135,45 @@ export function BusinessForm({ business }: BusinessFormProps) {
       return
     }
 
-    setIsUploadingLogo(true)
+    const setUploading = type === 'logo' ? setIsUploadingLogo : setIsUploadingCover
+    setUploading(true)
     setMessage(null)
 
     try {
-      // Получаем текущего пользователя
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        setMessage({ type: 'error', text: 'Не авторизован' })
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const result = await uploadBusinessImage(formData, type, business.id)
+      if (result.error) {
+        setMessage({ type: 'error', text: result.error })
         return
       }
 
-      // Используем businessId из пропсов (уже загружен)
-      const businessId = business.id
-
-      // Генерируем уникальное имя файла
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${businessId}/logo-${Date.now()}.${fileExt}`
-      const filePath = fileName
-
-      // Загружаем файл напрямую в Supabase Storage с клиента
-      const { error: uploadError } = await supabase.storage
-        .from('business')
-        .upload(filePath, file, {
-          contentType: file.type,
-          upsert: true,
-        })
-
-      if (uploadError) {
-        console.error('Ошибка загрузки изображения:', uploadError)
-        setMessage({ type: 'error', text: 'Ошибка загрузки изображения' })
-        return
-      }
-
-      // Получаем публичный URL
-      const { data: urlData } = supabase.storage
-        .from('business')
-        .getPublicUrl(filePath)
-
-      if (!urlData?.publicUrl) {
-        setMessage({ type: 'error', text: 'Не удалось получить URL изображения' })
-        return
-      }
-
-      // Сохраняем URL в базу данных через Server Action (передаём businessId для избежания лишних запросов)
-      const saveResult = await saveImageUrl(urlData.publicUrl, 'logo', businessId)
-      if (saveResult.error) {
-        setMessage({ type: 'error', text: saveResult.error })
-        return
-      }
-
-      // Обновляем состояние и показываем успех
-      setLogoUrl(urlData.publicUrl)
-      setMessage({ type: 'success', text: 'Логотип успешно загружен' })
+      if (type === 'logo') setLogoUrl(result.publicUrl!)
+      else setCoverUrl(result.publicUrl!)
+      setMessage({
+        type: 'success',
+        text: type === 'logo' ? 'Логотип успешно загружен' : 'Обложка успешно загружена',
+      })
       setTimeout(() => setMessage(null), 3000)
     } catch (error) {
-      console.error('Ошибка загрузки логотипа:', error)
-      const text = 'Ошибка загрузки логотипа'
+      console.error(`Ошибка загрузки ${type}:`, error)
+      const text = type === 'logo' ? 'Ошибка загрузки логотипа' : 'Ошибка загрузки обложки'
       setMessage({ type: 'error', text })
       toast.error(text)
     } finally {
-      setIsUploadingLogo(false)
+      setUploading(false)
     }
   }
 
-  /**
-   * Обработка загрузки обложки
-   * Загружает файл напрямую в Supabase Storage с клиента для быстрой загрузки
-   */
-  async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (file) void handleImageUpload(file, 'logo')
+  }
 
-    // Проверка типа файла
-    if (!file.type.startsWith('image/')) {
-      setMessage({ type: 'error', text: 'Файл должен быть изображением' })
-      return
-    }
-
-    // Проверка размера файла (5MB = 5242880 байт)
-    const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
-    if (file.size > MAX_FILE_SIZE) {
-      setMessage({ type: 'error', text: 'Размер файла не должен превышать 5MB' })
-      return
-    }
-
-    setIsUploadingCover(true)
-    setMessage(null)
-
-    try {
-      // Получаем текущего пользователя
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        setMessage({ type: 'error', text: 'Не авторизован' })
-        return
-      }
-
-      // Используем businessId из пропсов (уже загружен)
-      const businessId = business.id
-
-      // Генерируем уникальное имя файла
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${businessId}/cover-${Date.now()}.${fileExt}`
-      const filePath = fileName
-
-      // Загружаем файл напрямую в Supabase Storage с клиента
-      const { error: uploadError } = await supabase.storage
-        .from('business')
-        .upload(filePath, file, {
-          contentType: file.type,
-          upsert: true,
-        })
-
-      if (uploadError) {
-        console.error('Ошибка загрузки изображения:', uploadError)
-        setMessage({ type: 'error', text: 'Ошибка загрузки изображения' })
-        return
-      }
-
-      // Получаем публичный URL
-      const { data: urlData } = supabase.storage
-        .from('business')
-        .getPublicUrl(filePath)
-
-      if (!urlData?.publicUrl) {
-        setMessage({ type: 'error', text: 'Не удалось получить URL изображения' })
-        return
-      }
-
-      // Сохраняем URL в базу данных через Server Action (передаём businessId для избежания лишних запросов)
-      const saveResult = await saveImageUrl(urlData.publicUrl, 'cover', businessId)
-      if (saveResult.error) {
-        setMessage({ type: 'error', text: saveResult.error })
-        return
-      }
-
-      // Обновляем состояние и показываем успех
-      setCoverUrl(urlData.publicUrl)
-      setMessage({ type: 'success', text: 'Обложка успешно загружена' })
-      setTimeout(() => setMessage(null), 3000)
-    } catch (error) {
-      console.error('Ошибка загрузки обложки:', error)
-      const text = 'Ошибка загрузки обложки'
-      setMessage({ type: 'error', text })
-      toast.error(text)
-    } finally {
-      setIsUploadingCover(false)
-    }
+  function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) void handleImageUpload(file, 'cover')
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {

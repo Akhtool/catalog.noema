@@ -2,8 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { getAuthErrorMessage } from '@/lib/auth-errors'
-import { supabase } from '@/lib/supabase'
+import { sendMagicLink, signInWithEmailPassword } from './actions'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Loader2, Mail, Lock, Link2, Eye, EyeOff } from 'lucide-react'
@@ -31,36 +30,17 @@ export function LoginForm() {
     setError(null)
 
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+      const result = await signInWithEmailPassword(email, password)
 
-      if (signInError) {
-        const msg = getAuthErrorMessage(signInError.message)
-        setError(msg)
-        toast.error(msg)
+      if (result.error) {
+        setError(result.error)
+        toast.error(result.error)
         setIsLoading(false)
         return
       }
 
-      if (data.user && data.session) {
-        await ensureProfile(data.user.id, email)
-        const { setServerSession, getRedirectAfterLogin } = await import('./actions')
-        await setServerSession(data.session.access_token, data.session.refresh_token)
-        const redirectTo = await getRedirectAfterLogin()
-        setIsRedirecting(true)
-        setTimeout(() => window.location.replace(redirectTo), 600)
-        return
-      }
-      
-      // Если нет сессии, показываем ошибку
-      if (data.user && !data.session) {
-        const msg = 'Сессия не создана. Попробуйте ещё раз.'
-        setError(msg)
-        toast.error(msg)
-        setIsLoading(false)
-      }
+      setIsRedirecting(true)
+      setTimeout(() => window.location.replace(result.redirectTo ?? '/'), 600)
     } catch {
       const msg = 'Произошла ошибка при входе'
       setError(msg)
@@ -75,17 +55,11 @@ export function LoginForm() {
     setError(null)
 
         try {
-      const { error: signInError } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
+      const result = await sendMagicLink(email)
 
-      if (signInError) {
-        const msg = getAuthErrorMessage(signInError.message)
-        setError(msg)
-        toast.error(msg)
+      if (result.error) {
+        setError(result.error)
+        toast.error(result.error)
         setIsLoading(false)
         return
       }
@@ -97,24 +71,6 @@ export function LoginForm() {
       setError(msg)
       toast.error(msg)
       setIsLoading(false)
-    }
-  }
-
-  /**
-   * Создаёт профиль пользователя, если его нет
-   */
-  async function ensureProfile(userId: string, userEmail: string) {
-    const { error } = await supabase
-      .from('profile')
-      .upsert({
-        id: userId,
-        email: userEmail,
-      }, {
-        onConflict: 'id',
-      })
-
-    if (error) {
-      console.error('Ошибка создания профиля:', error)
     }
   }
 

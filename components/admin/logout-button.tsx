@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { supabase } from '@/lib/supabase'
 import { logout } from '@/app/login/actions'
 import { Button } from '@/components/ui/button'
 
@@ -20,10 +19,7 @@ export function LogoutButton({ className }: LogoutButtonProps) {
     setIsLoading(true)
     
     try {
-      // Очищаем сессию на клиенте
-      await supabase.auth.signOut()
-      
-      // Очищаем localStorage (если есть)
+      // Очищаем localStorage (на случай старых ключей от прошлых сессий)
       if (typeof window !== 'undefined') {
         const keys = Object.keys(localStorage)
         keys.forEach(key => {
@@ -32,10 +28,10 @@ export function LogoutButton({ className }: LogoutButtonProps) {
           }
         })
       }
-      
-      // Вызываем server action для очистки cookies
+
+      // Server action очищает cookies и завершает сессию на сервере.
       await logout()
-      
+
       // Делаем редирект на страницу входа
       window.location.href = '/login'
     } catch (error) {
